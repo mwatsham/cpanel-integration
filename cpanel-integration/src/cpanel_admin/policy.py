@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from importlib import resources
 from pathlib import Path
+from types import MappingProxyType
 from typing import TypeVar, cast
 
 from .catalog import Catalog, CatalogOperation
@@ -64,6 +66,9 @@ SELECTED_MODULES = (
     "cPGreyList",
 )
 EXPECTED_CANDIDATE_OPERATIONS = 393
+EXPECTED_CANDIDATE_IDENTITY_SHA256 = (
+    "834c8bd9c048d93e9089fd22a7c569d4923cc8a5c9ecbc4172123ec2276a6ecb"
+)
 
 _PROTECTED_SECRET_SOURCES = frozenset(
     {
@@ -76,6 +81,7 @@ _PROTECTED_SECRET_SOURCES = frozenset(
 _UPLOAD_IDENTITY = "Fileman/upload_files"
 _UPLOAD_POLICY_PARAMETERS = frozenset({"directory", "source"})
 _UPLOAD_UAPI_PARAMETERS = frozenset({"dir", "source"})
+_RESERVED_DISPATCH_PARAMETERS = frozenset({"module", "function"})
 _EnumT = TypeVar("_EnumT", bound=StrEnum)
 
 
@@ -101,6 +107,60 @@ class InputSource(StrEnum):
     LOCAL_FILE = "local_file"
     ENVIRONMENT = "environment"
     ENCRYPTED_PROFILE = "encrypted_profile"
+
+
+@dataclass(frozen=True)
+class StableMVPOperationContract:
+    name: str
+    command: tuple[str, ...]
+    status: SupportStatus = SupportStatus.INCLUDED
+
+
+STABLE_MVP_OPERATION_CONTRACTS = MappingProxyType(
+    {
+        "DomainInfo/list_domains": StableMVPOperationContract("domains.list", ("domains", "list")),
+        "DomainInfo/single_domain_data": StableMVPOperationContract(
+            "domains.inspect", ("domains", "inspect")
+        ),
+        "WebVhosts/list_ssl_capable_domains": StableMVPOperationContract(
+            "domains.ssl-capable", ("domains", "ssl-capable")
+        ),
+        "SubDomain/addsubdomain": StableMVPOperationContract(
+            "domains.add-subdomain", ("domains", "add-subdomain")
+        ),
+        "Fileman/list_files": StableMVPOperationContract("files.list", ("files", "list")),
+        "Fileman/get_file_information": StableMVPOperationContract(
+            "files.inspect", ("files", "inspect")
+        ),
+        "Fileman/get_file_content": StableMVPOperationContract("files.read", ("files", "read")),
+        "Fileman/save_file_content": StableMVPOperationContract("files.write", ("files", "write")),
+        "Fileman/upload_files": StableMVPOperationContract("files.upload", ("files", "upload")),
+        "Fileman/empty_trash": StableMVPOperationContract(
+            "files.empty-trash", ("files", "empty-trash")
+        ),
+        "SSL/list_certs": StableMVPOperationContract("ssl.list", ("ssl", "list")),
+        "SSL/installed_hosts": StableMVPOperationContract("ssl.hosts", ("ssl", "hosts")),
+        "SSL/install_ssl": StableMVPOperationContract("ssl.install", ("ssl", "install")),
+        "SSL/delete_ssl": StableMVPOperationContract("ssl.remove", ("ssl", "remove")),
+        "Mysql/list_databases": StableMVPOperationContract("databases.list", ("databases", "list")),
+        "Mysql/list_users": StableMVPOperationContract("databases.users", ("databases", "users")),
+        "Mysql/create_database": StableMVPOperationContract(
+            "databases.create", ("databases", "create")
+        ),
+        "Mysql/create_user": StableMVPOperationContract(
+            "databases.create-user", ("databases", "create-user")
+        ),
+        "Mysql/set_privileges_on_database": StableMVPOperationContract(
+            "databases.grant", ("databases", "grant")
+        ),
+        "Mysql/delete_database": StableMVPOperationContract(
+            "databases.remove", ("databases", "remove")
+        ),
+        "Mysql/delete_user": StableMVPOperationContract(
+            "databases.remove-user", ("databases", "remove-user")
+        ),
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -231,6 +291,11 @@ class PolicyRegistry:
                 "selected catalog surface must contain exactly "
                 f"{EXPECTED_CANDIDATE_OPERATIONS} candidate operations"
             )
+        candidate_digest = hashlib.sha256("\n".join(candidates).encode()).hexdigest()
+        if candidate_digest != EXPECTED_CANDIDATE_IDENTITY_SHA256:
+            raise PolicyError(
+                "selected catalog surface does not match reviewed candidate identity digest"
+            )
         raw_operations = _operation_records(value.get("operations"))
         parsed: list[PolicyOperation] = []
         for identity, raw_operation in raw_operations:
@@ -247,6 +312,7 @@ class PolicyRegistry:
         missing = tuple(sorted(candidate_set - identities))
         if missing:
             raise PolicyError(f"missing policy records: {', '.join(missing)}")
+        _validate_stable_mvp_operation_contracts(operations)
         _validate_protected_operation_presence(operations)
         return cls(operations, selected_modules, candidates)
 
@@ -508,6 +574,8 @@ def _parameters(
     for name in sorted(raw_parameters):
         if not isinstance(name, str) or not name:
             raise PolicyError(f"policy operation {identity} parameter names must be strings")
+        if name.casefold() in _RESERVED_DISPATCH_PARAMETERS:
+            raise PolicyError(f"reserved dispatch parameter for {identity}: {name}")
         raw = _mapping(raw_parameters[name], f"policy parameter {identity}:{name}")
         _reject_unknown_fields(
             raw,
@@ -540,6 +608,8 @@ def _parameters(
         uapi_name = _required_string(
             raw.get("uapi_name"), f"policy parameter {identity}:{name} uapi_name"
         )
+        if uapi_name.casefold() in _RESERVED_DISPATCH_PARAMETERS:
+            raise PolicyError(f"reserved dispatch parameter for {identity}: {uapi_name}")
         required = _boolean(raw.get("required"), f"policy parameter {identity}:{name} required")
         catalog_parameter = catalog_operation.parameters.get(uapi_name)
         permitted_omission = identity == _UPLOAD_IDENTITY and uapi_name in (_UPLOAD_UAPI_PARAMETERS)
@@ -602,6 +672,35 @@ def _validate_protected_operation_presence(
         raise PolicyError(
             "protected input operations must remain included: " + ", ".join(sorted(missing))
         )
+
+
+def _validate_stable_mvp_operation_contracts(
+    operations: tuple[PolicyOperation, ...],
+) -> None:
+    by_identity = {operation.identity: operation for operation in operations}
+    name_owners = {
+        contract.name: identity for identity, contract in STABLE_MVP_OPERATION_CONTRACTS.items()
+    }
+    command_owners = {
+        contract.command: identity for identity, contract in STABLE_MVP_OPERATION_CONTRACTS.items()
+    }
+    for identity, contract in STABLE_MVP_OPERATION_CONTRACTS.items():
+        operation = by_identity.get(identity)
+        if (
+            operation is None
+            or operation.name != contract.name
+            or operation.command != contract.command
+            or operation.status is not contract.status
+        ):
+            raise PolicyError(f"stable MVP operation contract mismatch for {identity}")
+    for operation in operations:
+        if (
+            operation.name in name_owners and name_owners[operation.name] != operation.identity
+        ) or (
+            operation.command in command_owners
+            and command_owners[operation.command] != operation.identity
+        ):
+            raise PolicyError(f"extra stable MVP operation contract claim: {operation.identity}")
 
 
 def _validate_upload_contract(parameters: Mapping[str, PolicyParameter]) -> None:

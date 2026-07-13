@@ -1,12 +1,20 @@
+import hashlib
 import json
 from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
-from cpanel_admin.catalog import Catalog, CatalogOperation, normalize_document
+import cpanel_admin.policy as policy_module
+from cpanel_admin.catalog import (
+    Catalog,
+    CatalogOperation,
+    CatalogParameter,
+    normalize_document,
+)
 from cpanel_admin.policy import (
     SELECTED_MODULES,
+    STABLE_MVP_OPERATION_CONTRACTS,
     InputSource,
     PolicyError,
     PolicyRegistry,
@@ -18,7 +26,9 @@ from scripts.generate_catalog import EXPECTED_SHA256, policy_candidate_identitie
 ROOT = Path(__file__).parents[1]
 PINNED_SPEC = ROOT / "specifications" / "cpanel.openapi.json"
 POLICY_PATH = ROOT / "policy" / "operations.json"
-MINIMAL_PADDING_COUNT = 389
+EXPECTED_CANDIDATE_IDENTITY_SHA256 = (
+    "834c8bd9c048d93e9089fd22a7c569d4923cc8a5c9ecbc4172123ec2276a6ecb"
+)
 PROTECTED_MVP_INPUTS = {
     ("Fileman/save_file_content", "content"): (
         "content",
@@ -36,7 +46,6 @@ PROTECTED_MVP_INPUTS = {
         "private_key",
     ),
 }
-MINIMAL_PROTECTED_IDENTITIES = tuple(identity for identity, _name in PROTECTED_MVP_INPUTS)
 PROTECTED_ALTERNATE_UAPI_NAMES = {
     "Fileman/save_file_content": "file",
     "Mysql/create_user": "name",
@@ -55,84 +64,25 @@ def pinned_catalog() -> Catalog:
 def minimal_catalog(
     *, deprecated: bool = False, request_media_types: list[str] | None = None
 ) -> Catalog:
-    operation = {
-        "identity": "Email/add_pop",
-        "module": "Email",
-        "function": "add_pop",
-        "method": "GET",
-        "summary": "Add an email account",
-        "deprecated": deprecated,
-        "parameters": {
-            "email": {
-                "name": "email",
-                "location": "query",
-                "required": True,
-                "schema_type": "string",
-                "enum": [],
-                "default": None,
-            }
+    catalog = pinned_catalog()
+    catalog.operations["Email/add_pop"] = CatalogOperation(
+        identity="Email/add_pop",
+        module="Email",
+        function="add_pop",
+        method="GET",
+        summary="Add an email account",
+        deprecated=deprecated,
+        parameters={
+            "email": CatalogParameter(
+                name="email",
+                location="query",
+                required=True,
+                schema_type="string",
+            )
         },
-        "request_media_types": request_media_types or [],
-    }
-    operations = {"Email/add_pop": operation}
-    protected_operations = {
-        "Fileman/save_file_content": (
-            "Fileman",
-            "save_file_content",
-            {"content": False, "dir": False, "file": True},
-        ),
-        "Mysql/create_user": (
-            "Mysql",
-            "create_user",
-            {"name": True, "password": True},
-        ),
-        "SSL/install_ssl": (
-            "SSL",
-            "install_ssl",
-            {"cabundle": False, "cert": True, "domain": True, "key": False},
-        ),
-    }
-    for identity, (module, function, raw_parameters) in protected_operations.items():
-        operations[identity] = {
-            "identity": identity,
-            "module": module,
-            "function": function,
-            "method": "GET",
-            "summary": "Test-only protected operation",
-            "deprecated": False,
-            "parameters": {
-                name: {
-                    "name": name,
-                    "location": "query",
-                    "required": required,
-                    "schema_type": "string",
-                    "enum": [],
-                    "default": None,
-                }
-                for name, required in raw_parameters.items()
-            },
-            "request_media_types": [],
-        }
-    for index in range(MINIMAL_PADDING_COUNT):
-        identity = f"Features/test_operation_{index:03d}"
-        operations[identity] = {
-            "identity": identity,
-            "module": "Features",
-            "function": f"test_operation_{index:03d}",
-            "method": "GET",
-            "summary": "Test-only catalog padding",
-            "deprecated": False,
-            "parameters": {},
-            "request_media_types": [],
-        }
-    value = {
-        "schema_version": 1,
-        "source_version": "test",
-        "source_sha256": "test",
-        "excluded_paths": [],
-        "operations": operations,
-    }
-    return Catalog.from_dict(value)
+        request_media_types=tuple(request_media_types or []),
+    )
+    return catalog
 
 
 def excluded_record(identity: str) -> dict[str, object]:
@@ -185,18 +135,15 @@ def minimal_policy(**operation_overrides: object) -> dict[str, object]:
     }
     operation.update(operation_overrides)
     source_policy = json.loads(POLICY_PATH.read_text())
-    protected = [
-        {**source_policy["operations"][identity], "identity": identity}
-        for identity in MINIMAL_PROTECTED_IDENTITIES
-    ]
-    padding = [
-        excluded_record(f"Features/test_operation_{index:03d}")
-        for index in range(MINIMAL_PADDING_COUNT)
+    remaining = [
+        {**record, "identity": identity}
+        for identity, record in source_policy["operations"].items()
+        if identity != "Email/add_pop"
     ]
     return {
         "schema_version": 1,
         "selected_modules": list(SELECTED_MODULES),
-        "operations": [operation, *protected, *padding],
+        "operations": [operation, *remaining],
     }
 
 
@@ -232,6 +179,16 @@ def test_selected_modules_have_explicit_policy() -> None:
     )
 
 
+def test_reviewed_candidate_identity_digest_matches_pinned_catalog() -> None:
+    identities = policy_candidate_identities(pinned_catalog())
+    actual = hashlib.sha256("\n".join(identities).encode()).hexdigest()
+    assert actual == EXPECTED_CANDIDATE_IDENTITY_SHA256
+    assert (
+        getattr(policy_module, "EXPECTED_CANDIDATE_IDENTITY_SHA256", None)
+        == EXPECTED_CANDIDATE_IDENTITY_SHA256
+    )
+
+
 @pytest.mark.parametrize("candidate_count", [392, 394])
 def test_candidate_cardinality_rejects_coordinated_catalog_and_policy_drift(
     candidate_count: int,
@@ -239,7 +196,7 @@ def test_candidate_cardinality_rejects_coordinated_catalog_and_policy_drift(
     catalog = minimal_catalog()
     policy = minimal_policy()
     if candidate_count == 392:
-        identity = "Features/test_operation_388"
+        identity = "AccountEnhancements/has_enhancement"
         del catalog.operations[identity]
         policy["operations"] = [
             operation for operation in policy["operations"] if operation["identity"] != identity
@@ -262,46 +219,42 @@ def test_candidate_cardinality_rejects_coordinated_catalog_and_policy_drift(
         PolicyRegistry.from_dict(catalog, policy)
 
 
+def test_candidate_identity_digest_rejects_coordinated_replacement() -> None:
+    catalog = minimal_catalog()
+    policy = minimal_policy()
+    removed = "AccountEnhancements/has_enhancement"
+    replacement = "Features/coordinated_identity_substitution"
+    del catalog.operations[removed]
+    catalog.operations[replacement] = CatalogOperation(
+        identity=replacement,
+        module="Features",
+        function="coordinated_identity_substitution",
+        method="GET",
+        summary="Coordinated identity substitution",
+        deprecated=False,
+        parameters={},
+    )
+    policy["operations"] = [
+        operation for operation in policy["operations"] if operation["identity"] != removed
+    ]
+    policy["operations"].append(excluded_record(replacement))
+    assert len(policy_candidate_identities(catalog)) == 393
+    assert len(policy["operations"]) == 393
+    with pytest.raises(PolicyError, match="reviewed candidate identity digest"):
+        PolicyRegistry.from_dict(catalog, policy)
+
+
 def test_foundation_operations_keep_stable_names_commands_and_lookup() -> None:
     registry = PolicyRegistry.load(pinned_catalog(), POLICY_PATH)
     expected = {
-        "DomainInfo/list_domains": ("domains.list", ("domains", "list")),
-        "DomainInfo/single_domain_data": ("domains.inspect", ("domains", "inspect")),
-        "WebVhosts/list_ssl_capable_domains": (
-            "domains.ssl-capable",
-            ("domains", "ssl-capable"),
-        ),
-        "SubDomain/addsubdomain": (
-            "domains.add-subdomain",
-            ("domains", "add-subdomain"),
-        ),
-        "Fileman/list_files": ("files.list", ("files", "list")),
-        "Fileman/get_file_information": ("files.inspect", ("files", "inspect")),
-        "Fileman/get_file_content": ("files.read", ("files", "read")),
-        "Fileman/save_file_content": ("files.write", ("files", "write")),
-        "Fileman/upload_files": ("files.upload", ("files", "upload")),
-        "Fileman/empty_trash": ("files.empty-trash", ("files", "empty-trash")),
-        "SSL/list_certs": ("ssl.list", ("ssl", "list")),
-        "SSL/installed_hosts": ("ssl.hosts", ("ssl", "hosts")),
-        "SSL/install_ssl": ("ssl.install", ("ssl", "install")),
-        "SSL/delete_ssl": ("ssl.remove", ("ssl", "remove")),
-        "Mysql/list_databases": ("databases.list", ("databases", "list")),
-        "Mysql/list_users": ("databases.users", ("databases", "users")),
-        "Mysql/create_database": ("databases.create", ("databases", "create")),
-        "Mysql/create_user": (
-            "databases.create-user",
-            ("databases", "create-user"),
-        ),
-        "Mysql/set_privileges_on_database": (
-            "databases.grant",
-            ("databases", "grant"),
-        ),
-        "Mysql/delete_database": ("databases.remove", ("databases", "remove")),
-        "Mysql/delete_user": (
-            "databases.remove-user",
-            ("databases", "remove-user"),
-        ),
+        identity: (contract.name, contract.command)
+        for identity, contract in STABLE_MVP_OPERATION_CONTRACTS.items()
     }
+    assert len(STABLE_MVP_OPERATION_CONTRACTS) == 21
+    assert all(
+        contract.status is SupportStatus.INCLUDED
+        for contract in STABLE_MVP_OPERATION_CONTRACTS.values()
+    )
     assert {
         operation.identity: (operation.name, operation.command) for operation in registry.included()
     } == expected
@@ -312,6 +265,45 @@ def test_foundation_operations_keep_stable_names_commands_and_lookup() -> None:
     assert tuple(operation.identity for operation in registry.included()) == tuple(
         sorted(operation.identity for operation in registry.included())
     )
+
+
+@pytest.mark.parametrize(
+    ("mutation", "value"),
+    [
+        ("name", "domains.renamed-list"),
+        ("command", ["domains", "renamed-list"]),
+        ("status", "excluded"),
+    ],
+)
+def test_stable_mvp_contract_rejects_name_command_or_status_mutation(
+    mutation: str, value: object
+) -> None:
+    policy = json.loads(POLICY_PATH.read_text())
+    identity = "DomainInfo/list_domains"
+    if mutation == "status":
+        policy["operations"][identity] = {
+            **excluded_record(identity),
+            "capability": "domains",
+            "status": value,
+        }
+    else:
+        policy["operations"][identity][mutation] = value
+    with pytest.raises(PolicyError, match="stable MVP operation contract"):
+        PolicyRegistry.from_dict(pinned_catalog(), policy)
+
+
+def test_stable_mvp_contract_rejects_missing_mapping() -> None:
+    policy = json.loads(POLICY_PATH.read_text())
+    del policy["operations"]["DomainInfo/list_domains"]
+    with pytest.raises(PolicyError, match="missing policy records"):
+        PolicyRegistry.from_dict(pinned_catalog(), policy)
+
+
+def test_stable_mvp_contract_rejects_extra_claim() -> None:
+    policy = json.loads(POLICY_PATH.read_text())
+    policy["operations"]["DomainInfo/single_domain_data"]["name"] = "domains.list"
+    with pytest.raises(PolicyError, match="duplicate policy operation name"):
+        PolicyRegistry.from_dict(pinned_catalog(), policy)
 
 
 def test_unknown_or_unclassified_operation_fails_closed() -> None:
@@ -403,6 +395,39 @@ def test_duplicate_local_parameters_cannot_share_uapi_name() -> None:
     }
     with pytest.raises(PolicyError, match="duplicate UAPI parameter mapping"):
         PolicyRegistry.from_dict(minimal_catalog(), policy)
+
+
+@pytest.mark.parametrize(
+    ("local_name", "uapi_name"),
+    [
+        ("module", "safe_name"),
+        ("Module", "safe_name"),
+        ("safe_name", "function"),
+        ("safe_name", "FUNCTION"),
+    ],
+)
+def test_reserved_dispatch_parameters_fail_even_when_catalog_declares_them(
+    local_name: str, uapi_name: str
+) -> None:
+    catalog = minimal_catalog()
+    catalog.operations["Email/add_pop"].parameters[uapi_name] = CatalogParameter(
+        name=uapi_name,
+        location="query",
+        required=False,
+        schema_type="string",
+    )
+    policy = minimal_policy()
+    policy["operations"][0]["parameters"][local_name] = {
+        "name": local_name,
+        "uapi_name": uapi_name,
+        "sources": ["argument"],
+        "validator": "string",
+        "required": False,
+        "secret": False,
+        "sensitive_output": False,
+    }
+    with pytest.raises(PolicyError, match="reserved dispatch parameter"):
+        PolicyRegistry.from_dict(catalog, policy)
 
 
 @pytest.mark.parametrize(
