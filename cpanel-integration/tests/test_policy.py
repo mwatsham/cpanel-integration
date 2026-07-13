@@ -3,6 +3,7 @@ import json
 import operator
 from collections.abc import Callable
 from pathlib import Path
+from typing import get_type_hints
 
 import pytest
 
@@ -18,6 +19,8 @@ from cpanel_admin.policy import (
     STABLE_MVP_OPERATION_CONTRACTS,
     InputSource,
     PolicyError,
+    PolicyOperation,
+    PolicyParameter,
     PolicyRegistry,
     Risk,
     SupportStatus,
@@ -460,7 +463,7 @@ def test_authoritative_contract_covers_every_current_secret_bearing_mvp_input() 
     assert actual == set(PROTECTED_MVP_INPUTS)
 
 
-def test_unreviewed_fourth_secret_input_fails_closed() -> None:
+def policy_with_unreviewed_fourth_secret() -> dict[str, object]:
     policy = json.loads(POLICY_PATH.read_text())
     operation = policy["operations"]["Fileman/save_file_content"]
     filename = operation["parameters"]["filename"]
@@ -468,8 +471,45 @@ def test_unreviewed_fourth_secret_input_fails_closed() -> None:
     filename["secret"] = True
     filename["sensitive_output"] = True
     operation["audit_fields"].remove("filename")
+    return policy
+
+
+def test_unreviewed_fourth_secret_input_fails_closed() -> None:
     with pytest.raises(PolicyError, match="authoritative secret input inventory"):
-        PolicyRegistry.from_dict(pinned_catalog(), policy)
+        PolicyRegistry.from_dict(pinned_catalog(), policy_with_unreviewed_fourth_secret())
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        lambda authority, first, second: operator.setitem(
+            authority, ("Fileman/save_file_content", "fourth"), authority[first]
+        ),
+        lambda authority, first, second: operator.setitem(authority, first, authority[second]),
+        lambda authority, first, second: operator.delitem(authority, first),
+        lambda authority, first, second: authority.clear(),
+        lambda authority, first, second: authority.update(
+            {("Fileman/save_file_content", "fourth"): authority[first]}
+        ),
+    ],
+    ids=["insert", "replace", "delete", "clear", "update"],
+)
+def test_protected_input_authority_is_immutable(
+    mutation: Callable[[object, object, object], object],
+) -> None:
+    authority = policy_module._PROTECTED_INPUT_CONTRACTS
+    original = dict(authority)
+    first, second = tuple(original)[:2]
+    try:
+        with pytest.raises((TypeError, AttributeError)):
+            mutation(authority, first, second)
+    finally:
+        if isinstance(authority, dict):
+            authority.clear()
+            authority.update(original)
+    assert dict(authority) == original
+    with pytest.raises(PolicyError, match="authoritative secret input inventory"):
+        PolicyRegistry.from_dict(pinned_catalog(), policy_with_unreviewed_fourth_secret())
 
 
 @pytest.mark.parametrize(("identity", "name"), PROTECTED_MVP_INPUTS)
@@ -511,6 +551,43 @@ def _files_write_from_surface(registry: PolicyRegistry, surface: str):
     return next(operation for operation in operations if operation.name == "files.write")
 
 
+@pytest.mark.parametrize(
+    ("index_name", "key"),
+    [
+        ("_by_name", "files.write"),
+        ("_by_identity", "Email/add_pop"),
+        ("_by_command", ("files", "write")),
+    ],
+)
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        lambda index, key, replacement: operator.setitem(index, key, replacement),
+        lambda index, key, replacement: operator.delitem(index, key),
+        lambda index, key, replacement: index.update({key: replacement}),
+        lambda index, key, replacement: index.clear(),
+    ],
+    ids=["replace", "delete", "update", "clear"],
+)
+def test_registry_indexes_are_immutable_copies(
+    index_name: str,
+    key: object,
+    mutation: Callable[[object, object, PolicyOperation], object],
+) -> None:
+    registry = PolicyRegistry.load(pinned_catalog(), POLICY_PATH)
+    index = getattr(registry, index_name)
+    files_write = registry.get("files.write")
+    excluded = registry.exclusion("Email/add_pop")
+    replacement = registry.get("domains.list")
+
+    with pytest.raises((TypeError, AttributeError)):
+        mutation(index, key, replacement)
+
+    assert registry.get("files.write") is files_write
+    assert registry.by_command(("files", "write")) is files_write
+    assert registry.exclusion("Email/add_pop") is excluded
+
+
 @pytest.mark.parametrize("surface", ["get", "by_command", "all", "included"])
 @pytest.mark.parametrize(
     "mutation",
@@ -548,13 +625,43 @@ def test_parameters_are_immutable_through_every_registry_surface(
     operation = _files_write_from_surface(registry, surface)
     original_content = operation.parameters["content"]
 
-    with pytest.raises((TypeError, AttributeError)):
+    assert get_type_hints(PolicyOperation)["parameters"] == dict[str, PolicyParameter]
+    assert isinstance(operation.parameters, dict)
+    with pytest.raises(TypeError):
         mutation(operation.parameters)
 
     looked_up = registry.get("files.write")
     assert tuple(looked_up.parameters) == ("content", "directory", "filename")
     assert looked_up.parameters["content"] is original_content
     assert all(name not in looked_up.parameters for name in ("module", "function", "content_alias"))
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        lambda parameters, value: operator.setitem(parameters, "module", value),
+        lambda parameters, value: operator.delitem(parameters, "module"),
+        lambda parameters, value: parameters.clear(),
+        lambda parameters, value: parameters.pop("module", None),
+        lambda parameters, value: parameters.popitem(),
+        lambda parameters, value: parameters.update(module=value),
+        lambda parameters, value: parameters.setdefault("module", value),
+        lambda parameters, value: operator.ior(parameters, {"module": value}),
+    ],
+    ids=["insert", "delete", "clear", "pop", "popitem", "update", "setdefault", "ior"],
+)
+def test_excluded_operation_parameters_keep_dict_shape_and_are_immutable(
+    mutation: Callable[[dict[str, PolicyParameter], PolicyParameter], object],
+) -> None:
+    registry = PolicyRegistry.load(pinned_catalog(), POLICY_PATH)
+    parameters = registry.exclusion("Email/add_pop").parameters
+    value = registry.get("files.write").parameters["filename"]
+
+    assert isinstance(parameters, dict)
+    with pytest.raises(TypeError):
+        mutation(parameters, value)
+    assert parameters == {}
+    assert registry.exclusion("Email/add_pop").parameters is parameters
 
 
 @pytest.mark.parametrize(

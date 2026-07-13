@@ -10,7 +10,7 @@ from enum import StrEnum
 from importlib import resources
 from pathlib import Path
 from types import MappingProxyType
-from typing import TypeVar, cast
+from typing import NoReturn, TypeVar, cast
 
 from .catalog import Catalog, CatalogOperation
 from .errors import CPanelAdminError
@@ -83,6 +83,8 @@ _UPLOAD_POLICY_PARAMETERS = frozenset({"directory", "source"})
 _UPLOAD_UAPI_PARAMETERS = frozenset({"dir", "source"})
 _RESERVED_DISPATCH_PARAMETERS = frozenset({"module", "function"})
 _EnumT = TypeVar("_EnumT", bound=StrEnum)
+_KeyT = TypeVar("_KeyT")
+_ValueT = TypeVar("_ValueT")
 
 
 class PolicyError(CPanelAdminError):
@@ -174,35 +176,58 @@ class PolicyParameter:
     sensitive_output: bool = False
 
 
-_PROTECTED_INPUT_CONTRACTS = {
-    ("Fileman/save_file_content", "content"): PolicyParameter(
-        name="content",
-        uapi_name="content",
-        sources=(InputSource.STDIN,),
-        validator="content",
-        required=True,
-        secret=True,
-        sensitive_output=True,
-    ),
-    ("Mysql/create_user", "password"): PolicyParameter(
-        name="password",
-        uapi_name="password",
-        sources=(InputSource.STDIN,),
-        validator="secret",
-        required=True,
-        secret=True,
-        sensitive_output=True,
-    ),
-    ("SSL/install_ssl", "private_key"): PolicyParameter(
-        name="private_key",
-        uapi_name="key",
-        sources=(InputSource.PROTECTED_FILE,),
-        validator="private_key",
-        required=True,
-        secret=True,
-        sensitive_output=True,
-    ),
-}
+class _FrozenDict(dict[_KeyT, _ValueT]):
+    """Concrete dict with all supported mutation entry points disabled."""
+
+    def __init__(self, values: Mapping[_KeyT, _ValueT]) -> None:
+        dict.__init__(self, values)
+
+    def _reject_mutation(self, *args: object, **kwargs: object) -> NoReturn:
+        raise TypeError("validated policy mappings are immutable")
+
+    __setitem__ = _reject_mutation
+    __delitem__ = _reject_mutation
+    clear = _reject_mutation
+    pop = _reject_mutation
+    popitem = _reject_mutation
+    setdefault = _reject_mutation
+    update = _reject_mutation
+    __ior__ = _reject_mutation
+
+
+_PROTECTED_INPUT_CONTRACTS = MappingProxyType(
+    dict(
+        {
+            ("Fileman/save_file_content", "content"): PolicyParameter(
+                name="content",
+                uapi_name="content",
+                sources=(InputSource.STDIN,),
+                validator="content",
+                required=True,
+                secret=True,
+                sensitive_output=True,
+            ),
+            ("Mysql/create_user", "password"): PolicyParameter(
+                name="password",
+                uapi_name="password",
+                sources=(InputSource.STDIN,),
+                validator="secret",
+                required=True,
+                secret=True,
+                sensitive_output=True,
+            ),
+            ("SSL/install_ssl", "private_key"): PolicyParameter(
+                name="private_key",
+                uapi_name="key",
+                sources=(InputSource.PROTECTED_FILE,),
+                validator="private_key",
+                required=True,
+                secret=True,
+                sensitive_output=True,
+            ),
+        }
+    )
+)
 
 
 @dataclass(frozen=True)
@@ -215,7 +240,7 @@ class PolicyOperation:
     reason: str
     risk: Risk | None
     elevated_impact: bool
-    parameters: Mapping[str, PolicyParameter]
+    parameters: dict[str, PolicyParameter]
     impact: str
     recovery: str
     preflight: str | None
@@ -245,14 +270,18 @@ class PolicyRegistry:
         selected_modules: tuple[str, ...],
         candidate_identities: tuple[str, ...],
     ) -> None:
-        self._operations = operations
-        self._selected_modules = selected_modules
-        self._candidate_identities = candidate_identities
-        self._by_name = {operation.name: operation for operation in operations}
-        self._by_identity = {operation.identity: operation for operation in operations}
-        self._by_command = {
-            operation.command: operation for operation in operations if operation.command
-        }
+        self._operations = tuple(operations)
+        self._selected_modules = tuple(selected_modules)
+        self._candidate_identities = tuple(candidate_identities)
+        self._by_name = MappingProxyType(
+            dict({operation.name: operation for operation in operations})
+        )
+        self._by_identity = MappingProxyType(
+            dict({operation.identity: operation for operation in operations})
+        )
+        self._by_command = MappingProxyType(
+            dict({operation.command: operation for operation in operations if operation.command})
+        )
 
     @classmethod
     def load(cls, catalog: Catalog, path: Path | None = None) -> PolicyRegistry:
@@ -496,7 +525,7 @@ def _excluded_operation(identity: str, value: Mapping[str, object], reason: str)
         reason=reason,
         risk=None,
         elevated_impact=False,
-        parameters=MappingProxyType({}),
+        parameters=_FrozenDict({}),
         impact="",
         recovery="",
         preflight=None,
@@ -550,7 +579,7 @@ def _included_operation(
         reason=reason,
         risk=risk,
         elevated_impact=elevated_impact,
-        parameters=MappingProxyType(dict(parameters)),
+        parameters=_FrozenDict(dict(parameters)),
         impact=impact,
         recovery=recovery,
         preflight=_optional_string(
