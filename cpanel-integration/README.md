@@ -4,7 +4,7 @@
 
 This project will provide an Agent Skills-compatible skill for administering individual cPanel accounts with AI assistance. It is intended for expert web administrators who want repeatable, auditable workflows without giving an agent server-wide WHM access.
 
-The project is currently in the design phase. No executable skill or cPanel client has been implemented yet.
+The MVP design is approved. Implementation has not started yet.
 
 ## Recommended Approach
 
@@ -26,20 +26,17 @@ This approach is preferred over direct `curl` instructions because it centralize
 
 ## Scope
 
-Version 1 will support one authenticated cPanel account at a time.
+Version 1 will support multiple named cPanel profiles and one selected profile per command.
 
 Planned capability groups:
 
 - Account information, usage, and quota inspection
-- Domain discovery and account-level domain configuration
+- Domain discovery and documented UAPI account-level domain operations
 - File listing, transfer, and controlled editing
-- Database and database-user administration
-- Email-account, alias, and forwarding administration
-- DNS record inspection and editing
-- SSL and AutoSSL status inspection
-- Backup discovery and supported account-level backup actions
+- MySQL/MariaDB database, user, and privilege administration
+- SSL status, certificate installation, and supported certificate removal
 
-The exact UAPI module/function allowlist will be reviewed and documented before implementation.
+The exact UAPI module/function allowlist is defined in the approved MVP specification. The client will not fall back to deprecated cPanel API 2 functions when UAPI does not expose an equivalent domain mutation.
 
 The following are out of scope:
 
@@ -76,33 +73,41 @@ The skill will follow the [Agent Skills specification](https://agentskills.io/sp
 ├── AGENTS.md
 ├── README.md
 ├── SKILL.md
+├── pyproject.toml
 ├── agents/
 │   └── openai.yaml
-├── scripts/
-│   └── cpanel_uapi.py
 ├── references/
 │   ├── operations.md
 │   └── safety.md
+├── src/cpanel_admin/
+│   ├── cli.py
+│   ├── confirmation.py
+│   ├── operations.py
+│   ├── profiles.py
+│   ├── secrets.py
+│   └── transport.py
 └── tests/
-    └── test_cpanel_uapi.py
+    └── test_*.py
 ```
 
 - `SKILL.md` will contain the trigger description, core workflow, and safety gates.
-- `scripts/cpanel_uapi.py` will provide deterministic UAPI operations.
+- `src/cpanel_admin/` will provide deterministic profile, policy, and UAPI operations behind the `cpanel-admin` command.
 - `references/operations.md` will document the reviewed operation allowlist and parameters.
 - `references/safety.md` will document risk classes, confirmations, recovery, and redaction rules.
 - `agents/openai.yaml` will provide user-facing skill metadata.
 - `README.md` is repository documentation and is not required for the packaged skill runtime.
 
-## Authentication
+## Profiles and Authentication
 
-The client will read connection details from environment variables:
+The client will store multiple named profiles in a JSON configuration. Each profile contains its host, port, username, and Fernet-encrypted API token.
+
+The Fernet master key must be supplied through the environment for unattended operation:
 
 ```bash
-export CPANEL_HOST="cpanel.example.com"
-export CPANEL_USERNAME="example"
-export CPANEL_API_TOKEN="replace-with-token"
+export CPANEL_ADMIN_FERNET_KEY="base64-url-safe-fernet-key"
 ```
+
+New tokens will be accepted through standard input and encrypted before the profile configuration is written. Plaintext tokens and the Fernet key will never be stored.
 
 The token will be sent in cPanel's documented request header:
 
@@ -112,7 +117,7 @@ Authorization: cpanel <username>:<token>
 
 Only HTTPS on port `2083` will be accepted by default. Certificate and hostname verification will remain enabled.
 
-Do not place real values in shell history, `.env` files committed to Git, command arguments, test fixtures, prompts, logs, screenshots, or issue reports. The eventual implementation must redact tokens and authorization headers from every user-visible error and diagnostic result.
+Do not place real values in shell history, committed `.env` files, command arguments, test fixtures, prompts, logs, screenshots, or issue reports. The implementation must redact tokens, Fernet keys, ciphertext where practical, and authorization headers from every user-visible error and diagnostic result.
 
 ## Safety Model
 
@@ -137,24 +142,24 @@ cPanel account API tokens can authorize access to account data. The skill's allo
 
 ## Planned Python Interface
 
-The first implementation should use Python's standard library unless another dependency is approved. A command will follow this general form:
+The implementation will use Python's standard library and the approved `cryptography` package. Commands will be task-oriented rather than exposing arbitrary UAPI calls:
 
 ```bash
-python scripts/cpanel_uapi.py \
-  --module DomainInfo \
-  --function list_domains \
-  --params '{}'
+cpanel-admin --profile production domains list
+cpanel-admin --profile production files list --path public_html
+cpanel-admin --profile production ssl list
+cpanel-admin --profile production databases list
 ```
 
-Mutating operations will also accept `--dry-run`. Destructive operations will not execute without the confirmation mechanism defined during implementation.
-
-An unrestricted module/function command is shown only to describe the transport boundary. The production CLI must expose reviewed operations or enforce an explicit allowlist before making a request.
+Mutating operations will accept `--dry-run`. Destructive operations will first emit a short-lived confirmation digest for the exact profile, operation, and parameters. Execution requires that digest and will fail if the operation changes.
 
 ## Testing Strategy
 
 The default suite will use mocked network responses and must cover:
 
 - Authentication-header construction with dummy credentials
+- Fernet encryption, decryption, invalid-key handling, and key rotation
+- Named profile creation, selection, replacement, and deletion
 - Parameter and URL encoding
 - TLS verification and port restrictions
 - Request timeouts and transport errors
@@ -170,13 +175,13 @@ Live integration tests will be opt-in and will require a dedicated disposable cP
 ## Delivery Plan
 
 1. Scaffold the Agent Skill and Python package metadata.
-2. Implement and test the read-only UAPI transport.
-3. Define the initial operation allowlist and risk classification.
-4. Add mutation planning, dry-run, confirmation, and recovery controls.
+2. Implement encrypted named profiles and the UAPI transport.
+3. Implement the approved operation allowlist and risk classification.
+4. Add mutation planning, dry-run, confirmation digests, and recovery controls.
 5. Write `SKILL.md` and focused reference files.
 6. Generate `agents/openai.yaml` and validate the skill.
 7. Forward-test realistic read-only and mutating requests against mocks.
-8. Add optional integration testing with an approved test account.
+8. Run opt-in integration tests against the disposable cPanel account.
 
 Each step should be delivered as a small, independently verified commit.
 
@@ -184,11 +189,11 @@ Each step should be delivered as a small, independently verified commit.
 
 - UAPI availability depends on the cPanel version, enabled server profile, and account features.
 - Some responses may omit fields even when the HTTP request succeeds.
-- Account API tokens are sensitive and require careful local storage and rotation.
+- Account API tokens and the Fernet master key are sensitive and require independent storage and rotation.
 - DNS, database, email, and file changes can interrupt live websites.
 - AI-generated intent must be converted into explicit, validated parameters before execution.
 - The operation catalog must be reviewed as cPanel's API evolves.
 
 ## Current Status
 
-The architecture and account-only scope are approved. The next development task is to write and approve a detailed implementation plan before scaffolding the skill.
+The account-only architecture, MVP scope, destructive-action policy, named-profile model, and Fernet key source are approved. The authoritative design is in `docs/superpowers/specs/2026-07-13-cpanel-account-admin-mvp-design.md`.
