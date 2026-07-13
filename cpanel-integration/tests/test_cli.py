@@ -356,3 +356,219 @@ def test_help_exposes_tasks_but_no_raw_uapi_passthrough(cli_env) -> None:
     assert "databases" in help_text
     assert "module" not in help_text
     assert "function" not in help_text
+
+
+def test_profile_show_test_and_atomic_key_rotation(cli_env) -> None:
+    env, key = cli_env
+    add_profile(env, key)
+    transport = FakeTransport([UAPIResponse(["example.com"], [], [])])
+
+    code, shown, _ = invoke(["profiles", "show", "test"], env=env)
+    assert code == 0
+    assert shown["data"]["username"] == "account"
+    assert "encrypted_token" not in shown["data"]
+
+    code, tested, _ = invoke(["profiles", "test", "test"], env=env, transport=transport)
+    assert code == 0
+    assert tested["data"] == ["example.com"]
+
+    new_key = Fernet.generate_key().decode("ascii")
+    env["CPANEL_ADMIN_FERNET_KEY_NEW"] = new_key
+    code, rotated, _ = invoke(["profiles", "rotate-key"], env=env)
+    assert code == 0
+    assert rotated["data"] == {"rotated": 1}
+    profile = ProfileStore(Path(env["CPANEL_ADMIN_CONFIG"])).get("test")
+    assert SecretCodec(new_key.encode()).decrypt(profile.encrypted_token) == "api-secret"
+
+
+def test_mutation_dry_run_and_execution(cli_env) -> None:
+    env, key = cli_env
+    add_profile(env, key)
+    transport = FakeTransport()
+
+    code, plan, _ = invoke(
+        [
+            "--profile",
+            "test",
+            "domains",
+            "add-subdomain",
+            "--domain",
+            "docs",
+            "--rootdomain",
+            "example.com",
+            "--dir",
+            "public_html/docs",
+            "--dry-run",
+        ],
+        env=env,
+        transport=transport,
+    )
+    assert code == 0
+    assert plan["risk"] == "mutate"
+    assert transport.calls == []
+
+    code, result, _ = invoke(
+        [
+            "--profile",
+            "test",
+            "domains",
+            "add-subdomain",
+            "--domain",
+            "docs",
+            "--rootdomain",
+            "example.com",
+            "--dir",
+            "public_html/docs",
+        ],
+        env=env,
+        transport=transport,
+    )
+    assert code == 0
+    assert result["operation"] == "domains.add-subdomain"
+    assert transport.calls[0]["parameters"] == {
+        "dir": "public_html/docs",
+        "domain": "docs",
+        "rootdomain": "example.com",
+    }
+
+
+def test_file_write_preflight_binds_content_and_target(cli_env) -> None:
+    env, key = cli_env
+    add_profile(env, key)
+    metadata = {"size": 12, "mtime": 10.5, "tags": ["file"]}
+    transport = FakeTransport([UAPIResponse(metadata, [], [])])
+    args = [
+        "--profile",
+        "test",
+        "files",
+        "write",
+        "--directory",
+        "public_html",
+        "--filename",
+        "index.html",
+    ]
+    code, plan, _ = invoke(
+        [*args, "--content-stdin", "--dry-run"],
+        env=env,
+        stdin="new",
+        transport=transport,
+    )
+    assert code == 0
+    assert plan["parameters"]["preflight"]["mtime"] == "10.5"
+    assert plan["parameters"]["content"]["bytes"] == 3
+
+    transport.responses.append(UAPIResponse(metadata, [], []))
+    code, _, _ = invoke(
+        [
+            *args,
+            "--content-stdin",
+            "--confirm",
+            plan["confirmation"],
+            "--expires-at",
+            plan["expires_at"],
+        ],
+        env=env,
+        stdin="new",
+        transport=transport,
+    )
+    assert code == 0
+    assert transport.calls[-1]["method"] == "POST"
+    assert transport.calls[-1]["parameters"]["content"] == "new"
+
+
+@pytest.mark.parametrize(
+    ("args", "stdin", "message"),
+    [
+        (["--timeout", "0", "profiles", "list"], "", "between 1 and 120"),
+        (["domains", "list"], "", "--profile is required"),
+        (
+            [
+                "profiles",
+                "add",
+                "test",
+                "--host",
+                "cpanel.example.com",
+                "--username",
+                "account",
+                "--api-token-stdin",
+            ],
+            "",
+            "must not be empty",
+        ),
+    ],
+)
+def test_cli_validation_failures_are_stable(cli_env, args, stdin, message) -> None:
+    env, _ = cli_env
+    code, payload, stderr = invoke(args, env=env, stdin=stdin)
+    assert code == 2
+    assert payload is None
+    assert message in stderr
+
+
+def test_missing_local_files_fail_safely(cli_env) -> None:
+    env, key = cli_env
+    add_profile(env, key)
+    code, payload, stderr = invoke(
+        [
+            "--profile",
+            "test",
+            "files",
+            "upload",
+            "--directory",
+            "public_html",
+            "--source",
+            "/does/not/exist",
+            "--dry-run",
+        ],
+        env=env,
+        transport=FakeTransport(),
+    )
+    assert code == 2
+    assert payload is None
+    assert "Unable to read upload source" in stderr
+
+    code, _, stderr = invoke(
+        [
+            "--profile",
+            "test",
+            "ssl",
+            "install",
+            "--domain",
+            "example.com",
+            "--certificate",
+            "/does/not/exist",
+            "--private-key",
+            "/also/missing",
+            "--dry-run",
+        ],
+        env=env,
+        transport=FakeTransport(),
+    )
+    assert code == 2
+    assert "Unable to read certificate file" in stderr
+
+
+def test_unexpected_exception_is_generic_and_pretty_output_is_valid(cli_env) -> None:
+    env, key = cli_env
+    add_profile(env, key)
+
+    class BrokenTransport(FakeTransport):
+        def call(self, *args, **kwargs):
+            raise ValueError("api-secret should never escape")
+
+    code, payload, stderr = invoke(
+        ["--profile", "test", "domains", "list"], env=env, transport=BrokenTransport()
+    )
+    assert code == 1
+    assert payload is None
+    assert stderr == "Error: unexpected internal failure\n"
+
+    stdout = io.StringIO()
+    code = main(
+        ["--pretty", "profiles", "list"],
+        env=env,
+        stdout=stdout,
+        stderr=io.StringIO(),
+    )
+    assert code == 0
+    assert '\n  "data"' in stdout.getvalue()
