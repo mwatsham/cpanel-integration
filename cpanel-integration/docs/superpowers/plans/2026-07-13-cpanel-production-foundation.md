@@ -154,8 +154,7 @@ def test_catalog_json_is_deterministic() -> None:
 
 def test_duplicate_canonical_identity_is_rejected() -> None:
     document = json.loads(FIXTURE.read_text())
-    document["paths"]["/Email/add_pop_alias"] = document["paths"]["/Email/add_pop"]
-    document["paths"]["/Email/add_pop_alias"]["get"]["x-cpanel-function"] = "add_pop"
+    document["paths"]["/Email/add_pop/"] = copy.deepcopy(document["paths"]["/Email/add_pop"])
     with pytest.raises(CatalogError, match="duplicate canonical operation"):
         normalize_document(document, source_sha256="abc")
 ```
