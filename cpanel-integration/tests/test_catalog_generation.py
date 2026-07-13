@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from cpanel_admin.catalog import Catalog, CatalogError, CatalogExcludedPath, normalize_document
+from scripts.generate_catalog import generate
 
 ROOT = Path(__file__).parents[1]
 FIXTURE = ROOT / "tests" / "fixtures" / "openapi-minimal.json"
@@ -60,6 +61,66 @@ def test_duplicate_canonical_identity_is_rejected() -> None:
     document["paths"]["/Email/add_pop/"] = copy.deepcopy(document["paths"]["/Email/add_pop"])
     with pytest.raises(CatalogError, match="duplicate canonical operation"):
         normalize_document(document, source_sha256="abc")
+
+
+@pytest.mark.parametrize("openapi", [None, "3.1.0"])
+def test_normalize_document_requires_pinned_openapi_version(openapi: str | None) -> None:
+    document = json.loads(FIXTURE.read_text())
+    if openapi is None:
+        del document["openapi"]
+    else:
+        document["openapi"] = openapi
+    with pytest.raises(CatalogError, match=r"OpenAPI version must be 3\.0\.2"):
+        normalize_document(document, source_sha256="abc")
+
+
+@pytest.mark.parametrize(
+    "invalid_path",
+    [
+        "Email/add_pop",
+        "//Email/add_pop",
+        "/Email/add_pop//",
+        "/Email//add_pop",
+        "/Email/add_pop/extra",
+    ],
+)
+def test_invalid_path_syntax_fails_closed(invalid_path: str) -> None:
+    document = json.loads(FIXTURE.read_text())
+    document["paths"][invalid_path] = document["paths"].pop("/Email/add_pop")
+    with pytest.raises(CatalogError, match="missing Module/function path segments"):
+        normalize_document(document, source_sha256="abc")
+
+
+def test_generator_rejects_source_and_lock_digest_drift(tmp_path: Path) -> None:
+    source = tmp_path / "cpanel.openapi.json"
+    lock_path = tmp_path / "cpanel.openapi.lock.json"
+    document = json.loads((ROOT / "specifications/cpanel.openapi.json").read_text())
+    document["info"]["title"] = "Modified title"
+    source.write_text(json.dumps(document))
+    lock = json.loads((ROOT / "specifications/cpanel.openapi.lock.json").read_text())
+    lock["sha256"] = hashlib.sha256(source.read_bytes()).hexdigest()
+    lock_path.write_text(json.dumps(lock))
+    with pytest.raises(CatalogError, match="approved SHA-256"):
+        generate(source, lock_path)
+
+
+@pytest.mark.parametrize(
+    ("field", "version", "message"),
+    [("openapi", "3.1.0", "OpenAPI version"), ("uapi", "11.999.0", "UAPI version")],
+)
+def test_generator_rejects_version_drift(
+    tmp_path: Path, field: str, version: str, message: str
+) -> None:
+    source = tmp_path / "cpanel.openapi.json"
+    lock_path = ROOT / "specifications" / "cpanel.openapi.lock.json"
+    document = json.loads((ROOT / "specifications/cpanel.openapi.json").read_text())
+    if field == "openapi":
+        document["openapi"] = version
+    else:
+        document["info"]["version"] = version
+    source.write_text(json.dumps(document))
+    with pytest.raises(CatalogError, match=message):
+        generate(source, lock_path)
 
 
 @pytest.mark.parametrize(

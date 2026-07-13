@@ -123,6 +123,8 @@ def normalize_document(
 
     if not isinstance(source_sha256, str) or not source_sha256:
         raise CatalogError("source SHA-256 must be a non-empty string")
+    if document.get("openapi") != "3.0.2":
+        raise CatalogError("OpenAPI version must be 3.0.2")
     info = _mapping(document.get("info"), "OpenAPI info")
     source_version = info.get("version")
     if not isinstance(source_version, str) or not source_version:
@@ -136,7 +138,7 @@ def normalize_document(
         try:
             module, function = _path_identity(raw_path)
         except CatalogError:
-            if raw_path not in excluded_noncanonical_paths:
+            if raw_path not in excluded_noncanonical_paths or not _is_single_segment_path(raw_path):
                 raise
             excluded_paths.append(CatalogExcludedPath(raw_path, _NONCANONICAL_REASON))
             continue
@@ -184,10 +186,17 @@ def _mapping(value: object, label: str) -> Mapping[str, object]:
 
 
 def _path_identity(path: str) -> tuple[str, str]:
-    segments = path.strip("/").split("/")
+    if not path.startswith("/") or path.startswith("//") or path.endswith("//"):
+        raise CatalogError(f"OpenAPI path is missing Module/function path segments: {path!r}")
+    normalized = path[1:-1] if path.endswith("/") else path[1:]
+    segments = normalized.split("/")
     if len(segments) != 2 or not all(segments):
         raise CatalogError(f"OpenAPI path is missing Module/function path segments: {path!r}")
     return segments[0], segments[1]
+
+
+def _is_single_segment_path(path: str) -> bool:
+    return path.startswith("/") and not path.startswith("//") and "/" not in path[1:]
 
 
 def _excluded_paths_from_value(value: object) -> tuple[CatalogExcludedPath, ...]:
