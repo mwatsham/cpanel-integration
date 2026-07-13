@@ -126,6 +126,7 @@ git commit -m "build: pin cPanel UAPI OpenAPI source"
 - Create: `src/cpanel_admin/catalog.py`
 - Create: `scripts/generate_catalog.py`
 - Create: `tests/fixtures/openapi-minimal.json`
+- Modify: `specifications/cpanel.openapi.lock.json`
 - Modify: `tests/test_catalog_generation.py`
 
 **Interfaces:**
@@ -156,6 +157,29 @@ def test_duplicate_canonical_identity_is_rejected() -> None:
     document = json.loads(FIXTURE.read_text())
     document["paths"]["/Email/add_pop/"] = copy.deepcopy(document["paths"]["/Email/add_pop"])
     with pytest.raises(CatalogError, match="duplicate canonical operation"):
+        normalize_document(document, source_sha256="abc")
+
+
+def test_only_lock_approved_noncanonical_paths_are_excluded() -> None:
+    document = json.loads(FIXTURE.read_text())
+    document["paths"]["/get_recommendations"] = {"get": {"operationId": "get_recommendations"}}
+    catalog = normalize_document(
+        document,
+        source_sha256="abc",
+        excluded_noncanonical_paths=frozenset({"/get_recommendations"}),
+    )
+    assert catalog.excluded_paths == (
+        CatalogExcludedPath(
+            path="/get_recommendations",
+            reason="path has no canonical Module/function identity",
+        ),
+    )
+
+
+def test_unapproved_noncanonical_path_fails_closed() -> None:
+    document = json.loads(FIXTURE.read_text())
+    document["paths"]["/new_unknown_path"] = {"get": {"operationId": "new_unknown_path"}}
+    with pytest.raises(CatalogError, match="missing Module/function path segments"):
         normalize_document(document, source_sha256="abc")
 ```
 
@@ -197,22 +221,33 @@ class CatalogOperation:
 
 
 @dataclass(frozen=True)
+class CatalogExcludedPath:
+    path: str
+    reason: str
+
+
+@dataclass(frozen=True)
 class Catalog:
     schema_version: int
     source_version: str
     source_sha256: str
     operations: dict[str, CatalogOperation]
+    excluded_paths: tuple[CatalogExcludedPath, ...]
 ```
 
 Implement `Catalog.get(identity: str) -> CatalogOperation`, `Catalog.to_json() -> str`,
 `Catalog.from_dict(value: Mapping[str, object]) -> Catalog`, `Catalog.load(path: Path | None = None)
--> Catalog`, and `normalize_document(document: Mapping[str, object], source_sha256: str) -> Catalog`.
+-> Catalog`, and `normalize_document(document: Mapping[str, object], source_sha256: str, *,
+excluded_noncanonical_paths: frozenset[str] = frozenset()) -> Catalog`.
 `get` raises `CatalogError(f"unknown catalog operation: {identity}")`; `to_json` uses sorted keys and
 compact separators plus one final newline; `load` reads the packaged resource when `path` is absent.
 
-Raise `CatalogError` for malformed documents, missing module/function path segments, unsupported
-parameter locations, unsupported schemas, or duplicate `Module/function` identities. Sort all
-operation keys, parameter keys, enums, and media types before serialization.
+Read `excluded_noncanonical_paths` from the lock file. It must contain exactly
+`/get_php_recommendations` and `/get_recommendations` for the pinned source. Record each as
+`CatalogExcludedPath` with reason `path has no canonical Module/function identity`. Raise
+`CatalogError` for any unapproved missing module/function path, malformed document, unsupported
+parameter location, unsupported schema, or duplicate `Module/function` identity. Sort all operation
+keys, exclusions, parameter keys, enums, and media types before serialization.
 
 - [ ] **Step 4: Run generator tests**
 
@@ -223,7 +258,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add scripts/generate_catalog.py src/cpanel_admin/catalog.py tests/fixtures/openapi-minimal.json tests/test_catalog_generation.py
+git add specifications/cpanel.openapi.lock.json scripts/generate_catalog.py src/cpanel_admin/catalog.py tests/fixtures/openapi-minimal.json tests/test_catalog_generation.py
 git commit -m "feat: normalize pinned cPanel OpenAPI catalog"
 ```
 
