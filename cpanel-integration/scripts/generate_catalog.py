@@ -9,13 +9,24 @@ import json
 import sys
 from pathlib import Path
 
-from cpanel_admin.catalog import CatalogError, normalize_document
+from cpanel_admin.catalog import Catalog, CatalogError, normalize_document
+from cpanel_admin.policy import SELECTED_MODULES
 
 ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_SHA256 = "3d9ec80cd8d774312c4bb6b0dfdbc17e6e6ffc92a8f0c2cd88f01e32864fa2c6"
 EXPECTED_OPENAPI_VERSION = "3.0.2"
 EXPECTED_UAPI_VERSION = "11.136.0.25"
 EXPECTED_NONCANONICAL_PATHS = frozenset({"/get_php_recommendations", "/get_recommendations"})
+
+
+def policy_candidate_identities(catalog: Catalog) -> tuple[str, ...]:
+    """Return the deterministic explicit-policy surface for the approved module set."""
+
+    return tuple(
+        identity
+        for identity, operation in sorted(catalog.operations.items())
+        if operation.module in SELECTED_MODULES
+    )
 
 
 def generate(source: Path, lock_path: Path) -> str:
