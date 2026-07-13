@@ -115,7 +115,7 @@ The default suite uses mocked transports and never accesses cPanel:
 .venv/bin/python -m pytest --cov=cpanel_admin --cov-report=term-missing --cov-fail-under=90
 .venv/bin/ruff check .
 .venv/bin/ruff format --check .
-python /path/to/skill-creator/scripts/quick_validate.py .
+.venv/bin/agentskills validate "$PWD"
 ```
 
 Live tests are opt-in and must use a disposable cPanel account. See the test instructions once a

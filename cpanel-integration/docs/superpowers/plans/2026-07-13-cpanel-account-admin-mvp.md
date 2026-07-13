@@ -694,9 +694,10 @@ Expected: help succeeds and all safety concepts appear in the appropriate docume
 
 - [ ] **Step 6: Validate Agent Skill format**
 
-Run: `skills-ref validate .`
+Run: `.venv/bin/agentskills validate "$PWD"`
 
-If `skills-ref` is unavailable, install the official validator in the existing virtual environment only after obtaining approval, then rerun.
+If `agentskills` is unavailable, install the official `skills-ref` package in the existing virtual
+environment only after obtaining approval, then rerun.
 
 Expected: validation passes.
 
@@ -736,7 +737,7 @@ Run: `.venv/bin/ruff check .`
 
 Run: `.venv/bin/ruff format --check .`
 
-Run: `skills-ref validate .`
+Run: `.venv/bin/agentskills validate "$PWD"`
 
 Expected: every command exits `0`.
 

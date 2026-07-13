@@ -119,7 +119,8 @@ Profile commands:
 cpanel-admin profiles list
 cpanel-admin profiles show NAME
 cpanel-admin profiles add NAME --host HOST --username USER --api-token-stdin
-cpanel-admin profiles remove NAME [--confirm DIGEST]
+cpanel-admin profiles remove NAME --dry-run
+cpanel-admin profiles remove NAME --confirm DIGEST --expires-at TIMESTAMP
 cpanel-admin profiles test NAME
 cpanel-admin profiles rotate-key
 ```
@@ -170,7 +171,7 @@ Read operations:
 
 Mutating operations:
 
-- `domains add-subdomain --domain DOMAIN --root PATH` → `SubDomain/addsubdomain`
+- `domains add-subdomain --domain LABEL --rootdomain DOMAIN --dir PATH` → `SubDomain/addsubdomain`
 
 The current UAPI OpenAPI surface does not provide a general replacement for deprecated cPanel API 2 addon-domain create/delete functions. The MVP does not call deprecated API 2. Unsupported create/delete requests return a capability error that explains this limitation.
 
@@ -180,11 +181,11 @@ Read operations:
 
 - `files list --path PATH` → `Fileman/list_files`
 - `files inspect --path PATH` → `Fileman/get_file_information`
-- `files read --path PATH` → `Fileman/get_file_content`
+- `files read --directory PATH --filename NAME` → `Fileman/get_file_content`
 
 Mutating operations:
 
-- `files write --path PATH --content-stdin` → `Fileman/save_file_content`
+- `files write --directory PATH --filename NAME --content-stdin` → `Fileman/save_file_content`
 - `files upload --directory PATH --source LOCAL_PATH` → `Fileman/upload_files`
 
 The official UAPI Fileman OpenAPI surface does not expose direct delete or move functions. They are excluded from the MVP. The client must not substitute shell, FTP, browser, or deprecated API calls. `files empty-trash --older-than DAYS` maps to `Fileman/empty_trash` and is destructive because it permanently purges recoverable content.
@@ -223,7 +224,9 @@ Destructive operations:
 - `databases remove --name NAME` → `Mysql/delete_database`
 - `databases remove-user --name NAME` → `Mysql/delete_user`
 
-Database passwords enter only through standard input and are redacted like API tokens. Prefixing rules are validated and documented, but the client does not silently rewrite explicit full names returned by cPanel.
+Database passwords enter only through standard input and are redacted like API tokens. The client
+validates the local name format and documents server-specific prefixing, but it does not silently
+rewrite explicit full names returned by cPanel.
 
 ## Risk and Confirmation Model
 
@@ -327,7 +330,7 @@ Integration tests:
 - All unit tests pass with no live network access.
 - Test coverage is at least 90% for `src/cpanel_admin`.
 - `ruff check .` and `ruff format --check .` pass.
-- `skills-ref validate .` passes for the completed skill.
+- `.venv/bin/agentskills validate "$PWD"` passes for the completed skill.
 - The CLI never exposes an arbitrary UAPI passthrough.
 - Profile tokens are encrypted at rest and decrypt only with `CPANEL_ADMIN_FERNET_KEY`.
 - Secret-leak regression tests cover stdout, stderr, exceptions, and serialized profiles.

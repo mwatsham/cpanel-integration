@@ -48,7 +48,7 @@ Use these commands and keep them current:
 
 - **Install:** `python3 -m venv .venv` followed by `.venv/bin/python -m pip install -e '.[dev]'`
 - **Dev:** `.venv/bin/cpanel-admin --help`
-- **Build/validate:** `python /path/to/skill-creator/scripts/quick_validate.py .` and, when installed, `skills-ref validate .`
+- **Build/validate:** `.venv/bin/agentskills validate "$PWD"`
 - **Test:** `.venv/bin/python -m pytest`
 - **Lint:** `.venv/bin/ruff check .`
 - **Format check:** `.venv/bin/ruff format --check .`
@@ -62,9 +62,9 @@ Do not claim a command works until its configuration exists and the command has 
 - Include `name` and `description` in the `SKILL.md` YAML frontmatter.
 - Make the description state what the skill does and when it should trigger.
 - Keep `SKILL.md` concise and below 500 lines.
-- Use progressive disclosure: workflow in `SKILL.md`, detailed API material in `references/`, and deterministic operations in `scripts/`.
+- Use progressive disclosure: workflow in `SKILL.md`, detailed API material in `references/`, and deterministic operations in `src/cpanel_admin/`.
 - Use relative paths from the skill root when linking bundled resources.
-- Validate the completed skill with `skills-ref validate .`.
+- Validate the completed skill with `.venv/bin/agentskills validate "$PWD"`.
 
 ## API Design
 
