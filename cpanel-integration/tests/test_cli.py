@@ -294,6 +294,33 @@ def test_database_password_and_private_key_never_appear_in_output(cli_env, tmp_p
     assert "CERTBODY" not in serialized
 
 
+def test_uapi_response_cannot_echo_submitted_database_password(cli_env) -> None:
+    env, key = cli_env
+    add_profile(env, key)
+    secret = "db-super-secret"
+    transport = FakeTransport(
+        [UAPIResponse({"password": secret, "message": f"received {secret}"}, [secret], [secret])]
+    )
+
+    code, payload, stderr = invoke(
+        [
+            "--profile",
+            "test",
+            "databases",
+            "create-user",
+            "--name",
+            "account_user",
+            "--password-stdin",
+        ],
+        env=env,
+        stdin=secret,
+        transport=transport,
+    )
+    assert code == 0
+    assert secret not in json.dumps(payload)
+    assert secret not in stderr
+
+
 def test_profile_removal_uses_confirmation(cli_env) -> None:
     env, key = cli_env
     add_profile(env, key)

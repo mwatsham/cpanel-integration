@@ -264,6 +264,15 @@ def _safe_parameters(
     return safe
 
 
+def _submitted_secrets(operation: Operation, values: Mapping[str, object]) -> tuple[str, ...]:
+    secret_kinds = {Kind.SECRET, Kind.CONTENT, Kind.CERTIFICATE, Kind.PRIVATE_KEY}
+    return tuple(
+        str(value)
+        for name, value in values.items()
+        if operation.parameters[name].kind in secret_kinds and value
+    )
+
+
 def _operation_values(args: argparse.Namespace, stdin: TextIO) -> dict[str, object]:
     operation = get_operation(args.operation)
     values: dict[str, object] = {}
@@ -394,7 +403,7 @@ def _run_operation(
         **({"files": files} if files else {}),
     )
     result = _success(profile.name, operation.name, response)
-    return redact(result, secrets=(token,))
+    return redact(result, secrets=(token, *_submitted_secrets(operation, values)))
 
 
 def _profile_result(operation: str, data: object) -> dict[str, object]:

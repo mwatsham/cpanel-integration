@@ -126,6 +126,23 @@ def test_http_and_uapi_failures_are_typed(profile: Profile) -> None:
         UAPITransport(opener=opener).call(profile, "token", "DomainInfo", "list_domains", {})
 
 
+def test_uapi_error_redacts_submitted_secret_parameters(profile: Profile) -> None:
+    password = "db-super-secret"
+    opener = FakeOpener(
+        FakeResponse({"result": {"status": 0, "errors": [f"rejected password {password}"]}})
+    )
+    with pytest.raises(UAPIError) as error:
+        UAPITransport(opener=opener).call(
+            profile,
+            "token",
+            "Mysql",
+            "create_user",
+            {"name": "account_user", "password": password},
+            method="POST",
+        )
+    assert password not in str(error.value)
+
+
 @pytest.mark.parametrize("body", [b"not-json", b"[]"])
 def test_invalid_response_shapes_are_rejected(profile: Profile, body: bytes) -> None:
     with pytest.raises(TransportError, match="valid JSON object"):

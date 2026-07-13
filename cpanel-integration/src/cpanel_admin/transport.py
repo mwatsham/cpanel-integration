@@ -24,6 +24,17 @@ from .profiles import Profile
 from .redaction import redact
 
 MAX_RESPONSE_BYTES = 10 * 1024 * 1024
+SENSITIVE_PARAMETER_NAMES = {
+    "api_token",
+    "cabundle",
+    "cert",
+    "certificate",
+    "content",
+    "key",
+    "password",
+    "private_key",
+    "token",
+}
 
 
 class ResponseLike(Protocol):
@@ -102,6 +113,16 @@ def _string_list(value: object) -> list[str]:
     if isinstance(value, list):
         return [str(item) for item in value]
     return [str(value)]
+
+
+def _request_secrets(parameters: Mapping[str, object]) -> tuple[str, ...]:
+    values: list[str] = []
+    for name, value in parameters.items():
+        if name.lower() not in SENSITIVE_PARAMETER_NAMES:
+            continue
+        items = value if isinstance(value, list | tuple) else [value]
+        values.extend(str(item) for item in items if item)
+    return tuple(values)
 
 
 def _multipart_body(
@@ -229,7 +250,7 @@ class UAPITransport:
         if result.get("status") != 1:
             errors = _string_list(result.get("errors"))
             reason = "; ".join(errors) or "cPanel UAPI operation failed"
-            safe_reason = redact(reason, secrets=(token,))
+            safe_reason = redact(reason, secrets=(token, *_request_secrets(parameters)))
             raise UAPIError(str(safe_reason))
         return UAPIResponse(
             data=result.get("data"),
