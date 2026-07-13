@@ -195,7 +195,7 @@ def test_upload_uses_multipart_and_binds_file_hash_not_contents(cli_env, tmp_pat
     add_profile(env, key)
     source = tmp_path / "index.html"
     source.write_text("private-upload-content")
-    transport = FakeTransport([UAPIResponse({"exists": False}, [], [])])
+    transport = FakeTransport([UAPIResponse([{"file": "home.html"}], [], [])])
 
     code, plan, stderr = invoke(
         [
@@ -216,9 +216,11 @@ def test_upload_uses_multipart_and_binds_file_hash_not_contents(cli_env, tmp_pat
     assert stderr == ""
     assert "private-upload-content" not in json.dumps(plan)
     assert plan["parameters"]["source"]["name"] == "index.html"
-    assert transport.calls[0]["function"] == "get_file_information"
+    assert plan["parameters"]["preflight"] == {"exists": False}
+    assert transport.calls[0]["function"] == "list_files"
+    assert transport.calls[0]["parameters"] == {"dir": "public_html"}
 
-    transport.responses.append(UAPIResponse({"exists": False}, [], []))
+    transport.responses.append(UAPIResponse([{"file": "home.html"}], [], []))
     code, _, _ = invoke(
         [
             "--profile",
@@ -489,8 +491,8 @@ def test_mutation_dry_run_and_execution(cli_env) -> None:
 def test_file_write_preflight_binds_content_and_target(cli_env) -> None:
     env, key = cli_env
     add_profile(env, key)
-    metadata = {"size": 12, "mtime": 10.5, "tags": ["file"]}
-    transport = FakeTransport([UAPIResponse(metadata, [], [])])
+    metadata = {"file": "index.html", "size": 12, "mtime": 10.5, "tags": ["file"]}
+    transport = FakeTransport([UAPIResponse([metadata], [], [])])
     args = [
         "--profile",
         "test",
@@ -508,10 +510,10 @@ def test_file_write_preflight_binds_content_and_target(cli_env) -> None:
         transport=transport,
     )
     assert code == 0
-    assert plan["parameters"]["preflight"]["mtime"] == "10.5"
+    assert plan["parameters"]["preflight"]["metadata"]["mtime"] == "10.5"
     assert plan["parameters"]["content"]["bytes"] == 3
 
-    transport.responses.append(UAPIResponse(metadata, [], []))
+    transport.responses.append(UAPIResponse([metadata], [], []))
     code, _, _ = invoke(
         [
             *args,

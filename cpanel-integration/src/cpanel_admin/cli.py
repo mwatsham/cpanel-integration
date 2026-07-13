@@ -10,11 +10,11 @@ import os
 import sys
 from collections.abc import Mapping, Sequence
 from contextlib import redirect_stderr, redirect_stdout
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import Any, TextIO
 
 from .confirmation import ConfirmationService
-from .errors import ConfigError, CPanelAdminError, UsageError
+from .errors import ConfigError, CPanelAdminError, TransportError, UsageError
 from .operations import Kind, Operation, Risk, get_operation, validate_parameters
 from .profiles import Profile, ProfileStore, default_profile_path
 from .redaction import redact
@@ -302,18 +302,26 @@ def _preflight(
     if operation.name not in {"files.write", "files.upload"}:
         return None
     if operation.name == "files.write":
-        path = PurePosixPath(str(values["directory"])) / str(values["filename"])
+        directory = str(values["directory"])
+        filename = str(values["filename"])
     else:
-        path = PurePosixPath(str(values["directory"])) / Path(str(values["source"])).name
+        directory = str(values["directory"])
+        filename = Path(str(values["source"])).name
     response = transport.call(
         profile,
         token,
         "Fileman",
-        "get_file_information",
-        {"path": str(path)},
+        "list_files",
+        {"dir": directory},
         timeout,
     )
-    return _json_safe(redact(response.data, secrets=(token,)))
+    if not isinstance(response.data, list):
+        raise TransportError("cPanel returned an invalid file preflight listing")
+    for item in response.data:
+        if isinstance(item, Mapping) and item.get("file") == filename:
+            metadata = _json_safe(redact(item, secrets=(token,)))
+            return {"exists": True, "metadata": metadata}
+    return {"exists": False}
 
 
 def _success(profile: str, operation: str, response: UAPIResponse) -> dict[str, object]:
