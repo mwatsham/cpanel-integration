@@ -13,7 +13,7 @@ requests or substitute deprecated API 2, WHM, shell, FTP, or browser automation.
 1. Confirm the request concerns one individual cPanel account, not WHM or server administration.
 2. Read [references/operations.md](references/operations.md) to select an exact supported command.
 3. Ask for the named profile only when it cannot be inferred safely.
-4. Check that `CPANEL_ADMIN_FERNET_KEY` is injected by the operator's secret manager.
+4. Check that the Fernet key is available from `CPANEL_ADMIN_FERNET_KEY` or the protected key file.
 5. Never ask the user to paste an API token, Fernet key, database password, or private key into
    chat. Direct secret input to standard input or a protected local file as documented.
 
@@ -43,7 +43,8 @@ requests or substitute deprecated API 2, WHM, shell, FTP, or browser automation.
 
 ## Configure a profile
 
-Generate a Fernet key locally and inject it through the operator's secret manager:
+Generate a Fernet key locally and inject it through the operator's secret manager or install it in
+the protected default file described in `README.md`:
 
 ```bash
 python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'
@@ -56,4 +57,8 @@ printf '%s' "$CPANEL_API_TOKEN" | cpanel-admin profiles add staging \
   --host cpanel.example.com --username account --api-token-stdin
 ```
 
-Do not print either environment variable or commit it to a file.
+Do not print either environment variable. Never commit the environment values or protected key file
+to source control.
+
+For unattended local Codex sessions, prefer the separate `~/.config/cpanel-admin/fernet.key` file
+with mode `0600`. Never store the Fernet key inside `profiles.json`.

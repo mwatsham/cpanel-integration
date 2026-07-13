@@ -71,7 +71,8 @@ Do not claim a command works until its configuration exists and the command has 
 - Send requests to `https://<host>:2083/execute/<Module>/<function>`.
 - Authenticate using the documented `Authorization: cpanel <username>:<token>` request header.
 - Read named profile metadata and encrypted API tokens from the profile configuration.
-- Read the Fernet master key only from `CPANEL_ADMIN_FERNET_KEY`.
+- Read the Fernet master key from `CPANEL_ADMIN_FERNET_KEY`, or from the permission-checked key file
+  when the environment value is absent.
 - Keep TLS certificate and hostname verification enabled.
 - URI-encode all request parameters.
 - Treat both non-successful HTTP responses and UAPI responses with `status != 1` as failures.
@@ -83,7 +84,8 @@ Do not claim a command works until its configuration exists and the command has 
 - Never place credentials in command arguments, source files, fixtures, logs, prompts, error messages, or Git history.
 - Never print the `Authorization` header or raw token.
 - Encrypt stored API tokens with Fernet from the `cryptography` package.
-- Never write `CPANEL_ADMIN_FERNET_KEY` or decrypted token values to disk.
+- Never write decrypted tokens to disk. Store a Fernet master key only in the documented separate
+  key file with user ownership and mode `0600`; never place it in the profile store.
 - Accept new API tokens through standard input, not command arguments.
 - Redact secrets and sensitive response fields before displaying or logging data.
 - Allow read-only operations without confirmation.

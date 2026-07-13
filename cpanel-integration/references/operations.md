@@ -15,9 +15,10 @@ cpanel-admin profiles remove NAME --dry-run
 cpanel-admin profiles remove NAME --confirm DIGEST --expires-at TIMESTAMP
 ```
 
-`profiles rotate-key` reads the current key from `CPANEL_ADMIN_FERNET_KEY` and the replacement from
-`CPANEL_ADMIN_FERNET_KEY_NEW`. Rotation is atomic. Listing and showing profiles never reveal token
-ciphertext. Adding a token reads all input from standard input and strips only final line endings.
+`profiles rotate-key` reads the current key from the normal environment-or-file lookup and the
+replacement from `CPANEL_ADMIN_FERNET_KEY_NEW`. Rotation is atomic. Replace the protected key file
+only after rotation succeeds. Listing and showing profiles never reveal token ciphertext. Adding a
+token reads all input from standard input and strips only final line endings.
 
 ## Domains
 

@@ -129,8 +129,12 @@ cpanel-admin profiles rotate-key
 
 ## Secret Management
 
-- `CPANEL_ADMIN_FERNET_KEY` is required for commands that encrypt, decrypt, test, or use a profile.
+- Commands that encrypt, decrypt, test, or use a profile read `CPANEL_ADMIN_FERNET_KEY` first. When
+  absent, they read `${XDG_CONFIG_HOME:-~/.config}/cpanel-admin/fernet.key`, or the path in
+  `CPANEL_ADMIN_FERNET_KEY_FILE`.
 - The value must be a valid url-safe base64-encoded 32-byte Fernet key.
+- A key file must be a regular non-symlink file, owned by the current user, with mode `0600`; it
+  contains one Fernet key and an optional final newline.
 - API tokens enter only through standard input for `profiles add`; they are never command arguments.
 - The profile store contains only Fernet ciphertext.
 - Decrypted values exist only in local variables for the shortest practical time.
@@ -139,7 +143,9 @@ cpanel-admin profiles rotate-key
 - `profiles rotate-key` reads the new key from `CPANEL_ADMIN_FERNET_KEY_NEW`, decrypts all tokens with the current key, re-encrypts all tokens with the new key, and atomically replaces the store.
 - Rotation must be all-or-nothing; any failed decryption leaves the original file unchanged.
 
-Environment variables make unattended execution possible but can be inherited by child processes. Documentation must instruct operators to inject the key through their secret manager and avoid logging process environments.
+Environment variables make unattended CI execution possible but can be inherited by child
+processes. A permission-checked local key file makes unattended Codex sessions possible without
+environment inheritance. Documentation must cover both methods and their risks.
 
 ## UAPI Transport
 

@@ -26,8 +26,13 @@ path, domain, database name, secret content, file content, preflight state, or e
 
 ## Secrets
 
-- Inject `CPANEL_ADMIN_FERNET_KEY` through an operating-system or CI secret manager for unattended
-  use. Environment variables can be inherited by child processes, so run only trusted children.
+- Inject `CPANEL_ADMIN_FERNET_KEY` through an operating-system or CI secret manager, or use the
+  separate protected key file for unattended local Codex sessions. Environment variables can be
+  inherited by child processes, so run only trusted children.
+- Keep the default key file at `~/.config/cpanel-admin/fernet.key`, or override it with
+  `CPANEL_ADMIN_FERNET_KEY_FILE`. It must be owned by the current user, be a regular non-symlink
+  file, and have mode `0600`.
+- Never store the Fernet master key in `profiles.json`; separation is what protects encrypted tokens.
 - Supply cPanel API tokens and database passwords through standard input.
 - Supply SSL certificates and private keys through protected local files.
 - Never place secrets in arguments, chat, source, committed `.env` files, fixtures, logs,

@@ -25,15 +25,32 @@ development dependencies.
 
 ## Configure encrypted profiles
 
-Generate a Fernet master key once and store it in an OS, CI, or deployment secret manager:
+Generate a Fernet master key once. For interactive or CI use, inject it from a secret manager:
 
 ```bash
 python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'
 export CPANEL_ADMIN_FERNET_KEY='value-injected-by-your-secret-manager'
 ```
 
-The key must be present for unattended profile use. Environment variables can be inherited by child
-processes; do not log the environment or execute untrusted child processes.
+The key must be available from the environment or protected key file for unattended profile use.
+Environment variables can be inherited by child processes; do not log the environment or execute
+untrusted child processes.
+
+For local Codex sessions, store the existing key in a separate protected file. Do not put the
+master key in `profiles.json` because that would defeat token encryption:
+
+```bash
+mkdir -p ~/.config/cpanel-admin
+chmod 700 ~/.config/cpanel-admin
+umask 077
+printf '%s\n' "$CPANEL_ADMIN_FERNET_KEY" > ~/.config/cpanel-admin/fernet.key
+chmod 600 ~/.config/cpanel-admin/fernet.key
+unset CPANEL_ADMIN_FERNET_KEY
+```
+
+The CLI automatically reads `${XDG_CONFIG_HOME:-~/.config}/cpanel-admin/fernet.key` when the direct
+environment value is absent. Set `CPANEL_ADMIN_FERNET_KEY_FILE` to use another location. The file
+must be a regular, non-symlink file owned by the current user with permissions exactly `0600`.
 
 Create a cPanel account API token in cPanel, then pipe it from a protected source:
 
@@ -46,7 +63,8 @@ Profiles default to `${XDG_CONFIG_HOME:-~/.config}/cpanel-admin/profiles.json`. 
 `CPANEL_ADMIN_CONFIG` or global `--config`. Tokens are encrypted at rest; list/show output excludes
 both ciphertext and plaintext. Do not commit the Fernet key, tokens, passwords, or profile store.
 
-Key rotation is atomic:
+Profile rotation is atomic. Supply the replacement through the environment, then replace the key
+file only after the command succeeds:
 
 ```bash
 export CPANEL_ADMIN_FERNET_KEY_NEW='new-secret-manager-value'

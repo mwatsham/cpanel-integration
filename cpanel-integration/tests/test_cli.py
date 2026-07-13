@@ -408,6 +408,33 @@ def test_profile_show_test_and_atomic_key_rotation(cli_env) -> None:
     assert SecretCodec(new_key.encode()).decrypt(profile.encrypted_token) == "api-secret"
 
 
+def test_cli_uses_default_secure_key_file_without_exported_key(tmp_path: Path) -> None:
+    key = Fernet.generate_key()
+    config_root = tmp_path / "config"
+    key_path = config_root / "cpanel-admin" / "fernet.key"
+    key_path.parent.mkdir(parents=True)
+    key_path.write_bytes(key + b"\n")
+    key_path.chmod(0o600)
+    env = {"XDG_CONFIG_HOME": str(config_root)}
+    ProfileStore(config_root / "cpanel-admin" / "profiles.json").add(
+        "test",
+        "cpanel.example.com",
+        "account",
+        "api-secret",
+        SecretCodec(key),
+    )
+
+    code, payload, stderr = invoke(
+        ["profiles", "test", "test"],
+        env=env,
+        transport=FakeTransport([UAPIResponse([], [], [])]),
+    )
+
+    assert code == 0
+    assert payload["ok"] is True
+    assert stderr == ""
+
+
 def test_mutation_dry_run_and_execution(cli_env) -> None:
     env, key = cli_env
     add_profile(env, key)
