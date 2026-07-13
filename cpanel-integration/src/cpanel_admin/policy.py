@@ -63,6 +63,7 @@ SELECTED_MODULES = (
     "WebVhosts",
     "cPGreyList",
 )
+EXPECTED_CANDIDATE_OPERATIONS = 393
 
 _PROTECTED_SECRET_SOURCES = frozenset(
     {
@@ -111,6 +112,37 @@ class PolicyParameter:
     required: bool
     secret: bool = False
     sensitive_output: bool = False
+
+
+_PROTECTED_INPUT_CONTRACTS = {
+    ("Fileman/save_file_content", "content"): PolicyParameter(
+        name="content",
+        uapi_name="content",
+        sources=(InputSource.STDIN,),
+        validator="content",
+        required=True,
+        secret=True,
+        sensitive_output=True,
+    ),
+    ("Mysql/create_user", "password"): PolicyParameter(
+        name="password",
+        uapi_name="password",
+        sources=(InputSource.STDIN,),
+        validator="secret",
+        required=True,
+        secret=True,
+        sensitive_output=True,
+    ),
+    ("SSL/install_ssl", "private_key"): PolicyParameter(
+        name="private_key",
+        uapi_name="key",
+        sources=(InputSource.PROTECTED_FILE,),
+        validator="private_key",
+        required=True,
+        secret=True,
+        sensitive_output=True,
+    ),
+}
 
 
 @dataclass(frozen=True)
@@ -194,6 +226,11 @@ class PolicyRegistry:
             for identity, operation in sorted(catalog.operations.items())
             if operation.module in selected_modules
         )
+        if len(candidates) != EXPECTED_CANDIDATE_OPERATIONS:
+            raise PolicyError(
+                "selected catalog surface must contain exactly "
+                f"{EXPECTED_CANDIDATE_OPERATIONS} candidate operations"
+            )
         raw_operations = _operation_records(value.get("operations"))
         parsed: list[PolicyOperation] = []
         for identity, raw_operation in raw_operations:
@@ -210,6 +247,7 @@ class PolicyRegistry:
         missing = tuple(sorted(candidate_set - identities))
         if missing:
             raise PolicyError(f"missing policy records: {', '.join(missing)}")
+        _validate_protected_operation_presence(operations)
         return cls(operations, selected_modules, candidates)
 
     def all(self) -> tuple[PolicyOperation, ...]:
@@ -507,10 +545,6 @@ def _parameters(
         permitted_omission = identity == _UPLOAD_IDENTITY and uapi_name in (_UPLOAD_UAPI_PARAMETERS)
         if catalog_parameter is None and not permitted_omission:
             raise PolicyError(f"policy parameters do not match catalog for {identity}: {uapi_name}")
-        if catalog_parameter is not None and catalog_parameter.required and not required:
-            raise PolicyError(
-                f"policy parameters do not match required catalog input for {identity}"
-            )
         parameters[name] = PolicyParameter(
             name=name,
             uapi_name=uapi_name,
@@ -527,11 +561,18 @@ def _parameters(
         )
     if identity == _UPLOAD_IDENTITY:
         _validate_upload_contract(parameters)
-    exposed_names = {parameter.uapi_name for parameter in parameters.values()}
+    _validate_protected_input_contracts(identity, parameters)
+    uapi_names = [parameter.uapi_name for parameter in parameters.values()]
+    if len(uapi_names) != len(set(uapi_names)):
+        raise PolicyError(f"duplicate UAPI parameter mapping for {identity}")
     missing_required = {
         name
         for name, parameter in catalog_operation.parameters.items()
-        if parameter.required and name not in exposed_names
+        if parameter.required
+        and not any(
+            policy_parameter.uapi_name == name and policy_parameter.required
+            for policy_parameter in parameters.values()
+        )
     }
     if missing_required:
         raise PolicyError(
@@ -539,6 +580,28 @@ def _parameters(
             f"{', '.join(sorted(missing_required))}"
         )
     return parameters
+
+
+def _validate_protected_input_contracts(
+    identity: str, parameters: Mapping[str, PolicyParameter]
+) -> None:
+    for (contract_identity, name), expected in _PROTECTED_INPUT_CONTRACTS.items():
+        if contract_identity == identity and parameters.get(name) != expected:
+            raise PolicyError(f"protected input contract mismatch for {identity}:{name}")
+
+
+def _validate_protected_operation_presence(
+    operations: tuple[PolicyOperation, ...],
+) -> None:
+    included_identities = {
+        operation.identity for operation in operations if operation.status is SupportStatus.INCLUDED
+    }
+    required_identities = {identity for identity, _name in _PROTECTED_INPUT_CONTRACTS}
+    missing = required_identities - included_identities
+    if missing:
+        raise PolicyError(
+            "protected input operations must remain included: " + ", ".join(sorted(missing))
+        )
 
 
 def _validate_upload_contract(parameters: Mapping[str, PolicyParameter]) -> None:
