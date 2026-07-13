@@ -72,11 +72,9 @@ _PROTECTED_SECRET_SOURCES = frozenset(
         "encrypted_profile",
     }
 )
-_CATALOG_PARAMETER_OMISSIONS = {
-    # The pinned operation delegates multipart details to an external tutorial and declares no
-    # parameters or request body, while the stable MVP transport requires these two fields.
-    "Fileman/upload_files": frozenset({"dir", "source"}),
-}
+_UPLOAD_IDENTITY = "Fileman/upload_files"
+_UPLOAD_POLICY_PARAMETERS = frozenset({"directory", "source"})
+_UPLOAD_UAPI_PARAMETERS = frozenset({"dir", "source"})
 _EnumT = TypeVar("_EnumT", bound=StrEnum)
 
 
@@ -275,12 +273,15 @@ class PolicyRegistry:
 
 def _selected_modules(value: object) -> tuple[str, ...]:
     raw = _sequence(value, "policy selected_modules")
-    if not raw or not all(isinstance(item, str) and item for item in raw):
-        raise PolicyError("policy selected_modules must contain non-empty strings")
-    selected = cast(tuple[str, ...], raw)
-    if len(set(selected)) != len(selected):
-        raise PolicyError("policy selected_modules must be unique")
-    return tuple(sorted(selected))
+    if (
+        not all(isinstance(item, str) and item for item in raw)
+        or len(raw) != len(SELECTED_MODULES)
+        or frozenset(raw) != frozenset(SELECTED_MODULES)
+    ):
+        raise PolicyError(
+            "policy selected_modules must equal the exact approved 48-module boundary"
+        )
+    return SELECTED_MODULES
 
 
 def _operation_records(
@@ -342,19 +343,48 @@ def _operation_from_dict(
 
 
 def _excluded_operation(identity: str, value: Mapping[str, object], reason: str) -> PolicyOperation:
-    contradictory = (
-        value.get("risk") is not None
-        or bool(value.get("command", ()))
-        or bool(value.get("parameters", {}))
-        or bool(value.get("elevated_impact", False))
+    required_shape = frozenset(
+        {
+            "name",
+            "command",
+            "capability",
+            "status",
+            "reason",
+            "risk",
+            "elevated_impact",
+            "parameters",
+            "impact",
+            "recovery",
+            "preflight",
+            "verification",
+            "feature",
+            "audit_fields",
+        }
     )
-    if contradictory:
-        raise PolicyError(f"excluded policy operation has contradictory metadata: {identity}")
+    if (
+        not required_shape <= set(value)
+        or value.get("risk") is not None
+        or not isinstance(value.get("command"), list)
+        or value.get("command") != []
+        or not isinstance(value.get("parameters"), dict)
+        or value.get("parameters") != {}
+        or value.get("elevated_impact") is not False
+        or not isinstance(value.get("impact"), str)
+        or value.get("impact") != ""
+        or not isinstance(value.get("recovery"), str)
+        or value.get("recovery") != ""
+        or value.get("preflight") is not None
+        or value.get("verification") is not None
+        or value.get("feature") is not None
+        or not isinstance(value.get("audit_fields"), list)
+        or value.get("audit_fields") != []
+    ):
+        raise PolicyError(f"excluded policy operation has invalid non-executable shape: {identity}")
     capability = _required_string(
         value.get("capability"), f"policy operation {identity} capability"
     )
     return PolicyOperation(
-        name=_string(value.get("name", identity), f"policy operation {identity} name"),
+        name=_required_string(value.get("name"), f"policy operation {identity} name"),
         identity=identity,
         command=(),
         capability=capability,
@@ -367,7 +397,7 @@ def _excluded_operation(identity: str, value: Mapping[str, object], reason: str)
         recovery="",
         preflight=None,
         verification=None,
-        feature=_optional_string(value.get("feature"), f"policy operation {identity} feature"),
+        feature=None,
         audit_fields=(),
     )
 
@@ -434,6 +464,8 @@ def _parameters(
     value: object, identity: str, catalog_operation: CatalogOperation
 ) -> dict[str, PolicyParameter]:
     raw_parameters = _mapping(value, f"policy operation {identity} parameters")
+    if identity == _UPLOAD_IDENTITY and frozenset(raw_parameters) != _UPLOAD_POLICY_PARAMETERS:
+        raise PolicyError("Fileman/upload_files requires the exact directory and source parameters")
     parameters: dict[str, PolicyParameter] = {}
     for name in sorted(raw_parameters):
         if not isinstance(name, str) or not name:
@@ -472,12 +504,8 @@ def _parameters(
         )
         required = _boolean(raw.get("required"), f"policy parameter {identity}:{name} required")
         catalog_parameter = catalog_operation.parameters.get(uapi_name)
-        permitted_omissions = _CATALOG_PARAMETER_OMISSIONS.get(identity, frozenset())
-        if (
-            catalog_parameter is None
-            and uapi_name not in permitted_omissions
-            and "multipart/form-data" not in catalog_operation.request_media_types
-        ):
+        permitted_omission = identity == _UPLOAD_IDENTITY and uapi_name in (_UPLOAD_UAPI_PARAMETERS)
+        if catalog_parameter is None and not permitted_omission:
             raise PolicyError(f"policy parameters do not match catalog for {identity}: {uapi_name}")
         if catalog_parameter is not None and catalog_parameter.required and not required:
             raise PolicyError(
@@ -497,6 +525,8 @@ def _parameters(
                 f"policy parameter {identity}:{name} sensitive_output",
             ),
         )
+    if identity == _UPLOAD_IDENTITY:
+        _validate_upload_contract(parameters)
     exposed_names = {parameter.uapi_name for parameter in parameters.values()}
     missing_required = {
         name
@@ -509,6 +539,29 @@ def _parameters(
             f"{', '.join(sorted(missing_required))}"
         )
     return parameters
+
+
+def _validate_upload_contract(parameters: Mapping[str, PolicyParameter]) -> None:
+    directory = parameters["directory"]
+    source = parameters["source"]
+    if (
+        directory.uapi_name != "dir"
+        or directory.sources != (InputSource.ARGUMENT,)
+        or directory.validator != "path"
+        or directory.required is not True
+        or directory.secret is not False
+        or directory.sensitive_output is not False
+    ):
+        raise PolicyError("Fileman/upload_files directory parameter violates the dir contract")
+    if (
+        source.uapi_name != "source"
+        or source.sources != (InputSource.LOCAL_FILE,)
+        or source.validator != "local_file"
+        or source.required is not True
+        or source.secret is not False
+        or source.sensitive_output is not False
+    ):
+        raise PolicyError("Fileman/upload_files source parameter violates the source contract")
 
 
 def _validate_uniqueness(operations: tuple[PolicyOperation, ...]) -> None:
