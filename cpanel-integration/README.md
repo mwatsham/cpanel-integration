@@ -1,199 +1,137 @@
 # cPanel Account Administration Skill
 
-## Overview
-
-This project will provide an Agent Skills-compatible skill for administering individual cPanel accounts with AI assistance. It is intended for expert web administrators who want repeatable, auditable workflows without giving an agent server-wide WHM access.
-
-The MVP design is approved. Implementation has not started yet.
-
-## Recommended Approach
-
-Build a concise `SKILL.md` backed by a deterministic Python command-line client for cPanel UAPI.
-
-```text
-User request
-    ↓
-SKILL.md workflow and safety policy
-    ↓
-Python UAPI client
-    ↓ verified HTTPS on port 2083
-cPanel UAPI
-    ↓
-Structured, redacted result
-```
-
-This approach is preferred over direct `curl` instructions because it centralizes validation, error handling, redaction, dry-run behavior, and policy enforcement. It is preferred over an MCP server for the first version because an Agent Skill plus a local Python script is simpler to install and more portable across skills-compatible agents.
+A production-oriented Agent Skill and Python CLI for administering individual cPanel accounts with
+AI assistance. It uses a fixed cPanel UAPI allowlist, verified HTTPS on port 2083, Fernet-encrypted
+named profiles, structured JSON, and operation-bound confirmation for destructive actions.
 
 ## Scope
 
-Version 1 will support multiple named cPanel profiles and one selected profile per command.
+The MVP supports domains, account files, SSL certificates, and MySQL/MariaDB databases. It does not
+support WHM, root or reseller administration, account provisioning, server settings, browser
+automation, deprecated API 2, or arbitrary UAPI calls.
 
-Planned capability groups:
+## Install
 
-- Account information, usage, and quota inspection
-- Domain discovery and documented UAPI account-level domain operations
-- File listing, transfer, and controlled editing
-- MySQL/MariaDB database, user, and privilege administration
-- SSL status, certificate installation, and supported certificate removal
-
-The exact UAPI module/function allowlist is defined in the approved MVP specification. The client will not fall back to deprecated cPanel API 2 functions when UAPI does not expose an equivalent domain mutation.
-
-The following are out of scope:
-
-- WHM API 1
-- Root and reseller administration
-- cPanel account creation, suspension, or deletion
-- Server configuration and service management
-- Browser automation against cPanel interface pages
-- Unrestricted arbitrary API passthrough
-
-## Why UAPI
-
-cPanel documents UAPI as the API for accessing and modifying cPanel account data and settings. Its supported HTTPS endpoint is:
-
-```text
-https://<host>:2083/execute/<Module>/<function>
-```
-
-The skill will use documented UAPI operations instead of interacting with cPanel HTML pages. This reduces brittleness and provides structured response data.
-
-Official references:
-
-- [Introduction to UAPI](https://api.docs.cpanel.net/cpanel/introduction)
-- [cPanel UAPI OpenAPI documentation](https://api.docs.cpanel.net/specifications/cpanel.openapi/)
-- [API tokens in cPanel](https://api.docs.cpanel.net/cpanel/tokens)
-- [Guide to cPanel API authentication](https://api.docs.cpanel.net/guides/guide-to-api-authentication)
-
-## Skill Format
-
-The skill will follow the [Agent Skills specification](https://agentskills.io/specification):
-
-```text
-.
-├── AGENTS.md
-├── README.md
-├── SKILL.md
-├── pyproject.toml
-├── agents/
-│   └── openai.yaml
-├── references/
-│   ├── operations.md
-│   └── safety.md
-├── src/cpanel_admin/
-│   ├── cli.py
-│   ├── confirmation.py
-│   ├── operations.py
-│   ├── profiles.py
-│   ├── secrets.py
-│   └── transport.py
-└── tests/
-    └── test_*.py
-```
-
-- `SKILL.md` will contain the trigger description, core workflow, and safety gates.
-- `src/cpanel_admin/` will provide deterministic profile, policy, and UAPI operations behind the `cpanel-admin` command.
-- `references/operations.md` will document the reviewed operation allowlist and parameters.
-- `references/safety.md` will document risk classes, confirmations, recovery, and redaction rules.
-- `agents/openai.yaml` will provide user-facing skill metadata.
-- `README.md` is repository documentation and is not required for the packaged skill runtime.
-
-## Profiles and Authentication
-
-The client will store multiple named profiles in a JSON configuration. Each profile contains its host, port, username, and Fernet-encrypted API token.
-
-The Fernet master key must be supplied through the environment for unattended operation:
+Python 3.11 or newer is required.
 
 ```bash
-export CPANEL_ADMIN_FERNET_KEY="base64-url-safe-fernet-key"
+python3 -m venv .venv
+.venv/bin/python -m pip install -e '.[dev]'
+.venv/bin/cpanel-admin --help
 ```
 
-New tokens will be accepted through standard input and encrypted before the profile configuration is written. Plaintext tokens and the Fernet key will never be stored.
+Runtime uses Python's standard library plus `cryptography`. Pytest, coverage, and Ruff are optional
+development dependencies.
 
-The token will be sent in cPanel's documented request header:
+## Configure encrypted profiles
 
-```text
-Authorization: cpanel <username>:<token>
-```
-
-Only HTTPS on port `2083` will be accepted by default. Certificate and hostname verification will remain enabled.
-
-Do not place real values in shell history, committed `.env` files, command arguments, test fixtures, prompts, logs, screenshots, or issue reports. The implementation must redact tokens, Fernet keys, ciphertext where practical, and authorization headers from every user-visible error and diagnostic result.
-
-## Safety Model
-
-| Risk class | Examples | Default behavior |
-|---|---|---|
-| Read-only | List domains, inspect quota, check SSL status | May run immediately |
-| Mutating | Create a mailbox, add a DNS record, upload a new file | Show target and effect; support dry-run |
-| Destructive | Delete a database, remove DNS records, overwrite or delete files | Require immediate explicit confirmation and a recovery plan |
-
-Additional safeguards:
-
-- Permit only reviewed UAPI modules and functions.
-- Reject WHM URLs, ports, and operations.
-- Validate hostnames, modules, functions, paths, and parameters before sending a request.
-- Check both HTTP status and UAPI's application-level status.
-- Use bounded timeouts and actionable errors.
-- Back up or snapshot remote files before overwriting or deletion.
-- Return structured JSON plus a concise audit-safe summary.
-- Never silently fall back to an insecure or broader operation.
-
-cPanel account API tokens can authorize access to account data. The skill's allowlist and confirmation gates are application-level safeguards; they do not reduce the permissions of the underlying cPanel account token.
-
-## Planned Python Interface
-
-The implementation will use Python's standard library and the approved `cryptography` package. Commands will be task-oriented rather than exposing arbitrary UAPI calls:
+Generate a Fernet master key once and store it in an OS, CI, or deployment secret manager:
 
 ```bash
-cpanel-admin --profile production domains list
-cpanel-admin --profile production files list --path public_html
-cpanel-admin --profile production ssl list
-cpanel-admin --profile production databases list
+python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'
+export CPANEL_ADMIN_FERNET_KEY='value-injected-by-your-secret-manager'
 ```
 
-Mutating operations will accept `--dry-run`. Destructive operations will first emit a short-lived confirmation digest for the exact profile, operation, and parameters. Execution requires that digest and will fail if the operation changes.
+The key must be present for unattended profile use. Environment variables can be inherited by child
+processes; do not log the environment or execute untrusted child processes.
 
-## Testing Strategy
+Create a cPanel account API token in cPanel, then pipe it from a protected source:
 
-The default suite will use mocked network responses and must cover:
+```bash
+printf '%s' "$CPANEL_API_TOKEN" | .venv/bin/cpanel-admin profiles add production \
+  --host cpanel.example.com --username account --api-token-stdin
+```
 
-- Authentication-header construction with dummy credentials
-- Fernet encryption, decryption, invalid-key handling, and key rotation
-- Named profile creation, selection, replacement, and deletion
-- Parameter and URL encoding
-- TLS verification and port restrictions
-- Request timeouts and transport errors
-- HTTP failures and malformed JSON
-- UAPI responses where `status != 1`
-- Operation allowlist enforcement
-- WHM endpoint rejection
-- Dry-run and confirmation behavior
-- Token and sensitive-field redaction
+Profiles default to `${XDG_CONFIG_HOME:-~/.config}/cpanel-admin/profiles.json`. Override this with
+`CPANEL_ADMIN_CONFIG` or global `--config`. Tokens are encrypted at rest; list/show output excludes
+both ciphertext and plaintext. Do not commit the Fernet key, tokens, passwords, or profile store.
 
-Live integration tests will be opt-in and will require a dedicated disposable cPanel test account. They must never target production by default.
+Key rotation is atomic:
 
-## Delivery Plan
+```bash
+export CPANEL_ADMIN_FERNET_KEY_NEW='new-secret-manager-value'
+.venv/bin/cpanel-admin profiles rotate-key
+```
 
-1. Scaffold the Agent Skill and Python package metadata.
-2. Implement encrypted named profiles and the UAPI transport.
-3. Implement the approved operation allowlist and risk classification.
-4. Add mutation planning, dry-run, confirmation digests, and recovery controls.
-5. Write `SKILL.md` and focused reference files.
-6. Generate `agents/openai.yaml` and validate the skill.
-7. Forward-test realistic read-only and mutating requests against mocks.
-8. Run opt-in integration tests against the disposable cPanel account.
+Keep the old key active until the command succeeds, then promote the new key.
 
-Each step should be delivered as a small, independently verified commit.
+## Use
 
-## Constraints and Risks
+Global options precede the capability group:
 
-- UAPI availability depends on the cPanel version, enabled server profile, and account features.
-- Some responses may omit fields even when the HTTP request succeeds.
-- Account API tokens and the Fernet master key are sensitive and require independent storage and rotation.
-- DNS, database, email, and file changes can interrupt live websites.
-- AI-generated intent must be converted into explicit, validated parameters before execution.
-- The operation catalog must be reviewed as cPanel's API evolves.
+```bash
+.venv/bin/cpanel-admin --profile production domains list
+.venv/bin/cpanel-admin --profile production files list --path public_html
+.venv/bin/cpanel-admin --profile production ssl hosts
+.venv/bin/cpanel-admin --profile production databases list
+```
 
-## Current Status
+Non-destructive mutations support a review step:
 
-The account-only architecture, MVP scope, destructive-action policy, named-profile model, and Fernet key source are approved. The authoritative design is in `docs/superpowers/specs/2026-07-13-cpanel-account-admin-mvp-design.md`.
+```bash
+.venv/bin/cpanel-admin --profile staging databases create \
+  --name account_demo --dry-run
+```
+
+Destructive actions require two commands. First request a five-minute plan:
+
+```bash
+.venv/bin/cpanel-admin --profile staging databases remove \
+  --name account_demo --dry-run
+```
+
+After reviewing the exact plan and approving its impact and recovery requirements, rerun the same
+command using the returned fields:
+
+```bash
+.venv/bin/cpanel-admin --profile staging databases remove \
+  --name account_demo --confirm 8f13c2d1b7e4 \
+  --expires-at '2026-07-13T12:05:00+00:00'
+```
+
+Changing the profile, operation, parameters, secret/file content, or file preflight state invalidates
+the digest. See [supported operations](references/operations.md) and the [safety policy](references/safety.md).
+
+## Output and failures
+
+Success writes one JSON document to stdout. Expected failures write a safe message to stderr and use
+stable exit codes:
+
+| Code | Meaning |
+|---:|---|
+| 2 | command usage or parameter validation |
+| 3 | local profile, Fernet, or configuration failure |
+| 4 | confirmation missing, expired, or mismatched |
+| 5 | network, TLS, HTTP, timeout, or response-format failure |
+| 6 | cPanel UAPI application failure |
+| 7 | unsupported capability |
+
+## Test and validate
+
+The default suite uses mocked transports and never accesses cPanel:
+
+```bash
+.venv/bin/python -m pytest
+.venv/bin/python -m pytest --cov=cpanel_admin --cov-report=term-missing --cov-fail-under=90
+.venv/bin/ruff check .
+.venv/bin/ruff format --check .
+python /path/to/skill-creator/scripts/quick_validate.py .
+```
+
+Live tests are opt-in and must use a disposable cPanel account. See the test instructions once a
+dedicated profile has been provisioned.
+
+## Architecture
+
+`SKILL.md` supplies the AI workflow. `cpanel-admin` is the deterministic security boundary. It
+validates inputs, selects a fixed UAPI module/function, classifies risk, verifies confirmations,
+performs TLS-verified requests, checks the UAPI application status, and redacts sensitive data.
+
+Authoritative API references:
+
+- [Agent Skills specification](https://agentskills.io/specification)
+- [cPanel UAPI introduction](https://api.docs.cpanel.net/cpanel/introduction)
+- [cPanel API tokens](https://api.docs.cpanel.net/cpanel/tokens)
+- [File upload tutorial](https://api.docs.cpanel.net/guides/quickstart-development-guide/tutorial-use-uapis-fileman-upload-files-function-in-custom-code)
+- [SSL installation](https://api.docs.cpanel.net/specifications/cpanel.openapi/ssl-certificate-management/install_ssl)
+- [MySQL database creation](https://api.docs.cpanel.net/specifications/cpanel.openapi/database-management/create_database)

@@ -1,0 +1,4 @@
+interface:
+  display_name: "cPanel Account Administration"
+  short_description: "Safely administer individual cPanel accounts"
+  default_prompt: "Use $cpanel-integration to inspect and safely administer my individual cPanel account."

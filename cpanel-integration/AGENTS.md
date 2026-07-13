@@ -6,7 +6,7 @@
 - **Purpose:** Build an Agent Skills-compatible skill that lets AI agents administer individual cPanel accounts through cPanel UAPI.
 - **Target users:** Expert web administrators.
 - **Stack:** Python 3.11+.
-- **Status:** Approved MVP design; implementation pending.
+- **Status:** MVP implementation complete; verification and live disposable-account testing remain.
 
 ## Scope
 
@@ -16,7 +16,7 @@
 - Support an explicit MVP allowlist for domains, files, SSL, and MySQL/MariaDB databases.
 - Reject WHM API calls, root or reseller operations, account provisioning, and server-service administration.
 
-## Planned Structure
+## Structure
 
 ```text
 .
@@ -44,11 +44,11 @@ Keep `README.md` as repository-facing documentation. Keep agent instructions in 
 
 ## Commands
 
-The repository does not contain executable code yet. Introduce these commands with the initial implementation and keep them current:
+Use these commands and keep them current:
 
 - **Install:** `python3 -m venv .venv` followed by `.venv/bin/python -m pip install -e '.[dev]'`
 - **Dev:** `.venv/bin/cpanel-admin --help`
-- **Build/validate:** `skills-ref validate .`
+- **Build/validate:** `python /path/to/skill-creator/scripts/quick_validate.py .` and, when installed, `skills-ref validate .`
 - **Test:** `.venv/bin/python -m pytest`
 - **Lint:** `.venv/bin/ruff check .`
 - **Format check:** `.venv/bin/ruff format --check .`
@@ -90,7 +90,7 @@ Do not claim a command works until its configuration exists and the command has 
 - Show the exact target and intended effect before any mutation.
 - Require explicit user confirmation immediately before destructive or difficult-to-reverse operations.
 - Support `--dry-run` for every mutating operation.
-- Create a backup or recoverable pre-change snapshot before overwriting or deleting remote files.
+- Run file preflight before overwriting remote files and clearly state that the CLI does not create an automatic backup.
 - Default to the least destructive operation and the narrowest possible target.
 - Do not silently disable TLS verification, widen the allowlist, or fall back to browser automation.
 - Make clear that the local allowlist is an application safeguard, not a substitute for cPanel account permissions.
@@ -129,7 +129,7 @@ Do not claim a command works until its configuration exists and the command has 
 - Test authentication-header construction without exposing a real token.
 - Test URL encoding, timeouts, TLS defaults, allowlist enforcement, dry-run behavior, confirmations, secret redaction, and error normalization.
 - Test rejection of WHM ports and endpoints.
-- Add opt-in integration tests only after a separate test-account strategy is approved.
+- Keep live integration tests opt-in and restricted to a disposable test account with uniquely prefixed resources.
 - Never skip, weaken, or delete tests to make the suite pass.
 
 ## Git
