@@ -1,5 +1,6 @@
 import hashlib
 import json
+import operator
 from collections.abc import Callable
 from pathlib import Path
 
@@ -459,6 +460,18 @@ def test_authoritative_contract_covers_every_current_secret_bearing_mvp_input() 
     assert actual == set(PROTECTED_MVP_INPUTS)
 
 
+def test_unreviewed_fourth_secret_input_fails_closed() -> None:
+    policy = json.loads(POLICY_PATH.read_text())
+    operation = policy["operations"]["Fileman/save_file_content"]
+    filename = operation["parameters"]["filename"]
+    filename["sources"] = ["protected_file"]
+    filename["secret"] = True
+    filename["sensitive_output"] = True
+    operation["audit_fields"].remove("filename")
+    with pytest.raises(PolicyError, match="authoritative secret input inventory"):
+        PolicyRegistry.from_dict(pinned_catalog(), policy)
+
+
 @pytest.mark.parametrize(("identity", "name"), PROTECTED_MVP_INPUTS)
 @pytest.mark.parametrize(
     "mutation",
@@ -487,6 +500,61 @@ def test_mysql_password_secret_flag_cannot_be_declassified() -> None:
     password["secret"] = False
     with pytest.raises(PolicyError, match="protected input"):
         PolicyRegistry.from_dict(pinned_catalog(), policy)
+
+
+def _files_write_from_surface(registry: PolicyRegistry, surface: str):
+    if surface == "get":
+        return registry.get("files.write")
+    if surface == "by_command":
+        return registry.by_command(("files", "write"))
+    operations = registry.all() if surface == "all" else registry.included()
+    return next(operation for operation in operations if operation.name == "files.write")
+
+
+@pytest.mark.parametrize("surface", ["get", "by_command", "all", "included"])
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        lambda parameters: operator.delitem(parameters, "content"),
+        lambda parameters: operator.setitem(parameters, "module", parameters["filename"]),
+        lambda parameters: operator.setitem(parameters, "function", parameters["filename"]),
+        lambda parameters: operator.setitem(parameters, "content", parameters["filename"]),
+        lambda parameters: operator.setitem(parameters, "content_alias", parameters["content"]),
+        lambda parameters: parameters.clear(),
+        lambda parameters: parameters.pop("content"),
+        lambda parameters: parameters.popitem(),
+        lambda parameters: parameters.update(module=parameters["filename"]),
+        lambda parameters: parameters.setdefault("module", parameters["filename"]),
+        lambda parameters: operator.ior(parameters, {"module": parameters["filename"]}),
+    ],
+    ids=[
+        "delete-protected",
+        "insert-module",
+        "insert-function",
+        "replace-protected",
+        "insert-duplicate-alias",
+        "clear",
+        "pop",
+        "popitem",
+        "update",
+        "setdefault",
+        "in-place-union",
+    ],
+)
+def test_parameters_are_immutable_through_every_registry_surface(
+    surface: str, mutation: Callable[[object], object]
+) -> None:
+    registry = PolicyRegistry.load(pinned_catalog(), POLICY_PATH)
+    operation = _files_write_from_surface(registry, surface)
+    original_content = operation.parameters["content"]
+
+    with pytest.raises((TypeError, AttributeError)):
+        mutation(operation.parameters)
+
+    looked_up = registry.get("files.write")
+    assert tuple(looked_up.parameters) == ("content", "directory", "filename")
+    assert looked_up.parameters["content"] is original_content
+    assert all(name not in looked_up.parameters for name in ("module", "function", "content_alias"))
 
 
 @pytest.mark.parametrize(

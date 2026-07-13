@@ -215,7 +215,7 @@ class PolicyOperation:
     reason: str
     risk: Risk | None
     elevated_impact: bool
-    parameters: dict[str, PolicyParameter]
+    parameters: Mapping[str, PolicyParameter]
     impact: str
     recovery: str
     preflight: str | None
@@ -496,7 +496,7 @@ def _excluded_operation(identity: str, value: Mapping[str, object], reason: str)
         reason=reason,
         risk=None,
         elevated_impact=False,
-        parameters={},
+        parameters=MappingProxyType({}),
         impact="",
         recovery="",
         preflight=None,
@@ -550,7 +550,7 @@ def _included_operation(
         reason=reason,
         risk=risk,
         elevated_impact=elevated_impact,
-        parameters=parameters,
+        parameters=MappingProxyType(dict(parameters)),
         impact=impact,
         recovery=recovery,
         preflight=_optional_string(
@@ -672,6 +672,15 @@ def _validate_protected_operation_presence(
         raise PolicyError(
             "protected input operations must remain included: " + ", ".join(sorted(missing))
         )
+    actual_secret_inputs = {
+        (operation.identity, name)
+        for operation in operations
+        for name, parameter in operation.parameters.items()
+        if parameter.secret
+    }
+    expected_secret_inputs = set(_PROTECTED_INPUT_CONTRACTS)
+    if actual_secret_inputs != expected_secret_inputs:
+        raise PolicyError("policy does not match authoritative secret input inventory")
 
 
 def _validate_stable_mvp_operation_contracts(
