@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from cryptography.fernet import Fernet
 
-from cpanel_admin.cli import main
+from cpanel_admin.cli import build_parser, main
 from cpanel_admin.profiles import ProfileStore
 from cpanel_admin.secrets import SecretCodec
 from cpanel_admin.transport import UAPIResponse, Upload
@@ -117,6 +117,140 @@ def test_read_operation_calls_fixed_uapi_and_returns_json(cli_env) -> None:
         "DomainInfo",
         "list_domains",
     )
+
+
+def test_no_raw_module_function_parser_exists() -> None:
+    parser = build_parser()
+
+    with pytest.raises(SystemExit):
+        parser.parse_args(["call", "Email", "list_pops"])
+
+
+def test_secret_parameters_have_source_selectors_not_value_options() -> None:
+    parser = build_parser()
+
+    with pytest.raises(SystemExit):
+        parser.parse_args(
+            [
+                "--profile",
+                "test",
+                "databases",
+                "create-user",
+                "--name",
+                "account_user",
+                "--password",
+                "secret-value",
+            ]
+        )
+
+    args = parser.parse_args(
+        [
+            "--profile",
+            "test",
+            "databases",
+            "create-user",
+            "--name",
+            "account_user",
+            "--password-stdin",
+        ]
+    )
+    assert args.operation == "databases.create-user"
+
+    with pytest.raises(SystemExit):
+        parser.parse_args(
+            [
+                "--profile",
+                "test",
+                "ssl",
+                "install",
+                "--domain",
+                "example.com",
+                "--certificate-file",
+                "cert.pem",
+                "--private-key",
+                "secret-value",
+            ]
+        )
+
+    args = parser.parse_args(
+        [
+            "--profile",
+            "test",
+            "ssl",
+            "install",
+            "--domain",
+            "example.com",
+            "--certificate-file",
+            "cert.pem",
+            "--private-key-file",
+            "key.pem",
+        ]
+    )
+    assert args.operation == "ssl.install"
+
+
+def test_operations_list_discovers_included_policy_commands(cli_env) -> None:
+    env, _ = cli_env
+
+    code, payload, stderr = invoke(
+        ["operations", "list", "--capability", "domains", "--status", "included"],
+        env=env,
+    )
+
+    assert code == 0
+    assert stderr == ""
+    names = {item["name"] for item in payload["data"]}
+    assert "domains.list" in names
+    assert all(item["capability"] == "domains" for item in payload["data"])
+    assert all(item["status"] == "included" for item in payload["data"])
+
+
+def test_capabilities_inspect_uses_profile_and_transport(cli_env) -> None:
+    env, key = cli_env
+    add_profile(env, key)
+    transport = FakeTransport([UAPIResponse({"features": [{"name": "domains"}]}, [], [])])
+
+    code, payload, stderr = invoke(
+        ["--profile", "test", "capabilities", "inspect"],
+        env=env,
+        transport=transport,
+    )
+
+    assert code == 0
+    assert stderr == ""
+    assert payload["operation"] == "capabilities.inspect"
+    assert payload["data"]["profile"] == "test"
+    assert transport.calls[0]["function"] == "list_features"
+
+
+def test_mutation_operations_use_executor_audit_pipeline(cli_env, tmp_path: Path) -> None:
+    env, key = cli_env
+    add_profile(env, key)
+    audit_file = tmp_path / "audit.jsonl"
+    transport = FakeTransport()
+
+    code, payload, stderr = invoke(
+        [
+            "--profile",
+            "test",
+            "--audit-file",
+            str(audit_file),
+            "databases",
+            "create",
+            "--name",
+            "account_demo",
+        ],
+        env=env,
+        transport=transport,
+    )
+
+    assert code == 0
+    assert stderr == ""
+    assert payload["operation"] == "databases.create"
+    assert transport.calls[0]["function"] == "create_database"
+    records = [json.loads(line) for line in audit_file.read_text().splitlines()]
+    assert [record["outcome"] for record in records] == ["intent", "success"]
+    assert all(record["operation"] == "databases.create" for record in records)
 
 
 def test_destructive_operation_requires_bound_confirmation(cli_env) -> None:
@@ -252,6 +386,25 @@ def test_database_password_and_private_key_never_appear_in_output(cli_env, tmp_p
     add_profile(env, key)
     transport = FakeTransport()
 
+    code, plan, stderr = invoke(
+        [
+            "--profile",
+            "test",
+            "databases",
+            "create-user",
+            "--name",
+            "account_user",
+            "--password-stdin",
+            "--dry-run",
+        ],
+        env=env,
+        stdin="db-super-secret\n",
+        transport=transport,
+    )
+    assert code == 0
+    assert "db-super-secret" not in json.dumps(plan)
+    assert "db-super-secret" not in stderr
+
     code, payload, stderr = invoke(
         [
             "--profile",
@@ -261,6 +414,10 @@ def test_database_password_and_private_key_never_appear_in_output(cli_env, tmp_p
             "--name",
             "account_user",
             "--password-stdin",
+            "--confirm",
+            plan["confirmation"],
+            "--expires-at",
+            plan["expires_at"],
         ],
         env=env,
         stdin="db-super-secret\n",
@@ -281,6 +438,8 @@ def test_database_password_and_private_key_never_appear_in_output(cli_env, tmp_p
         f"-----BEGIN CERTIFICATE-----\n{certificate_body}\n-----END CERTIFICATE-----\n"
     )
     key_file.write_text(f"-----BEGIN {key_label}-----\n{key_body}\n-----END {key_label}-----\n")
+    certificate.chmod(0o600)
+    key_file.chmod(0o600)
     code, plan, _ = invoke(
         [
             "--profile",
@@ -289,9 +448,9 @@ def test_database_password_and_private_key_never_appear_in_output(cli_env, tmp_p
             "install",
             "--domain",
             "example.com",
-            "--certificate",
+            "--certificate-file",
             str(certificate),
-            "--private-key",
+            "--private-key-file",
             str(key_file),
             "--dry-run",
         ],
@@ -308,10 +467,30 @@ def test_uapi_response_cannot_echo_submitted_database_password(cli_env) -> None:
     env, key = cli_env
     add_profile(env, key)
     secret = "db-super-secret"
-    transport = FakeTransport(
-        [UAPIResponse({"password": secret, "message": f"received {secret}"}, [secret], [secret])]
-    )
+    transport = FakeTransport()
 
+    code, plan, stderr = invoke(
+        [
+            "--profile",
+            "test",
+            "databases",
+            "create-user",
+            "--name",
+            "account_user",
+            "--password-stdin",
+            "--dry-run",
+        ],
+        env=env,
+        stdin=secret,
+        transport=transport,
+    )
+    assert code == 0
+    assert secret not in json.dumps(plan)
+    assert secret not in stderr
+
+    transport.responses.append(
+        UAPIResponse({"password": secret, "message": f"received {secret}"}, [secret], [secret])
+    )
     code, payload, stderr = invoke(
         [
             "--profile",
@@ -321,6 +500,10 @@ def test_uapi_response_cannot_echo_submitted_database_password(cli_env) -> None:
             "--name",
             "account_user",
             "--password-stdin",
+            "--confirm",
+            plan["confirmation"],
+            "--expires-at",
+            plan["expires_at"],
         ],
         env=env,
         stdin=secret,
@@ -599,9 +782,9 @@ def test_missing_local_files_fail_safely(cli_env) -> None:
             "install",
             "--domain",
             "example.com",
-            "--certificate",
+            "--certificate-file",
             "/does/not/exist",
-            "--private-key",
+            "--private-key-file",
             "/also/missing",
             "--dry-run",
         ],
@@ -609,7 +792,7 @@ def test_missing_local_files_fail_safely(cli_env) -> None:
         transport=FakeTransport(),
     )
     assert code == 2
-    assert "Unable to read certificate file" in stderr
+    assert "protected input file" in stderr
 
 
 def test_unexpected_exception_is_generic_and_pretty_output_is_valid(cli_env) -> None:

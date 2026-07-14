@@ -14,9 +14,26 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any, TextIO
 
+from .audit import AuditWriter
+from .capabilities import CapabilityService
+from .catalog import Catalog
 from .confirmation import ConfirmationService
-from .errors import ConfigError, CPanelAdminError, TransportError, UsageError
+from .errors import ConfigError, ConfirmationError, CPanelAdminError, TransportError, UsageError
+from .executor import ExecutionContext, ExecutionResult, OperationExecutor
+from .inputs import InputResolver
 from .operations import Kind, Operation, Risk, get_operation, validate_parameters
+from .planner import ExecutionPlan, OperationPlanner
+from .policy import (
+    InputSource,
+    PolicyOperation,
+    PolicyRegistry,
+    SupportStatus,
+    canonical_policy_sha256,
+    policy_operation_to_dict,
+)
+from .policy import (
+    Risk as PolicyRisk,
+)
 from .profiles import Profile, ProfileStore, default_profile_path
 from .redaction import redact
 from .secrets import SecretCodec
@@ -45,15 +62,95 @@ def _operation_parser(
     return parser
 
 
-def build_parser() -> argparse.ArgumentParser:
+def _default_policy_registry() -> PolicyRegistry:
+    catalog = Catalog.load()
+    operations = tuple(
+        operation.policy
+        for operation in catalog.operations.values()
+        if operation.policy is not None
+    )
+    return PolicyRegistry(operations, (), ())
+
+
+def _audit_path(args: argparse.Namespace, env: Mapping[str, str]) -> Path:
+    if args.audit_file is not None:
+        return args.audit_file
+    return default_profile_path(env).with_name("audit.jsonl")
+
+
+def _flag_name(name: str) -> str:
+    return "--" + name.replace("_", "-")
+
+
+def _add_policy_parameter(parser: argparse.ArgumentParser, parameter: object) -> None:
+    source = parameter.sources[0]
+    flag = _flag_name(parameter.name)
+    kwargs: dict[str, object] = {"dest": parameter.name, "required": parameter.required}
+    if parameter.validator in {"integer", "trash_age"}:
+        kwargs["type"] = int
+    if source is InputSource.ARGUMENT:
+        parser.add_argument(flag, **kwargs)
+        return
+    if source is InputSource.STDIN:
+        parser.add_argument(f"{flag}-stdin", action="store_true", **kwargs)
+        return
+    if source is InputSource.PROTECTED_FILE:
+        parser.add_argument(f"{flag}-file", **kwargs)
+        return
+    if source is InputSource.LOCAL_FILE:
+        parser.add_argument(flag, **kwargs)
+        return
+    if source is InputSource.ENVIRONMENT:
+        parser.add_argument(f"{flag}-env", **kwargs)
+        return
+    if source is InputSource.ENCRYPTED_PROFILE:
+        parser.add_argument(f"{flag}-profile", action="store_true", **kwargs)
+        return
+    raise UsageError(f"Unsupported input source for {parameter.name}")
+
+
+def _add_policy_operation(
+    root_subparsers: Any,
+    groups_by_name: dict[str, argparse.ArgumentParser],
+    operation: PolicyOperation,
+) -> None:
+    if len(operation.command) != 2:
+        return
+    group_name, action = operation.command
+    group = groups_by_name.get(group_name)
+    if group is None:
+        group = root_subparsers.add_parser(group_name)
+        group.set_defaults(group=group_name)
+        group.add_subparsers(dest="action", required=True)
+        groups_by_name[group_name] = group
+    action_subparsers = next(
+        action for action in group._actions if isinstance(action, argparse._SubParsersAction)
+    )
+    parser = action_subparsers.add_parser(action, allow_abbrev=False)
+    parser.set_defaults(
+        operation=operation.name,
+        dry_run=False,
+        confirm=None,
+        expires_at=None,
+    )
+    for parameter in operation.parameters.values():
+        _add_policy_parameter(parser, parameter)
+    if operation.risk is not None and operation.risk is not PolicyRisk.READ:
+        _confirmation_options(parser)
+
+
+def build_parser(registry: PolicyRegistry | None = None) -> argparse.ArgumentParser:
+    policy = registry or _default_policy_registry()
     parser = argparse.ArgumentParser(
         prog="cpanel-admin",
         description="Safe task-oriented administration for individual cPanel accounts",
+        allow_abbrev=False,
     )
     parser.add_argument("--profile", help="named cPanel profile")
     parser.add_argument("--config", type=Path, help="override the profile store path")
     parser.add_argument("--timeout", type=int, default=30, help="request timeout (1-120 seconds)")
     parser.add_argument("--pretty", action="store_true", help="indent JSON output")
+    parser.add_argument("--audit-file", type=Path, help="override the audit JSONL path")
     groups = parser.add_subparsers(dest="group", required=True)
 
     profiles = groups.add_parser("profiles", help="manage encrypted named profiles")
@@ -74,124 +171,19 @@ def build_parser() -> argparse.ArgumentParser:
     test.add_argument("name")
     profile_commands.add_parser("rotate-key")
 
-    domains = groups.add_parser("domains", help="inspect and manage domains")
-    domain_commands = domains.add_subparsers(dest="action", required=True)
-    _operation_parser(domain_commands, "list", "domains.list")
-    _operation_parser(
-        domain_commands,
-        "inspect",
-        "domains.inspect",
-        ((("--domain",), {"required": True}),),
-    )
-    _operation_parser(domain_commands, "ssl-capable", "domains.ssl-capable")
-    _operation_parser(
-        domain_commands,
-        "add-subdomain",
-        "domains.add-subdomain",
-        (
-            (("--domain",), {"required": True, "help": "subdomain label"}),
-            (("--rootdomain",), {"required": True}),
-            (("--dir",), {"required": True, "help": "relative document root"}),
-        ),
-    )
+    operation_groups: dict[str, argparse.ArgumentParser] = {}
+    for operation in sorted(policy.included(), key=lambda item: item.command):
+        _add_policy_operation(groups, operation_groups, operation)
 
-    files = groups.add_parser("files", help="inspect and manage account files")
-    file_commands = files.add_subparsers(dest="action", required=True)
-    _operation_parser(file_commands, "list", "files.list", ((("--path",), {"required": True}),))
-    _operation_parser(
-        file_commands, "inspect", "files.inspect", ((("--path",), {"required": True}),)
-    )
-    _operation_parser(
-        file_commands,
-        "read",
-        "files.read",
-        (
-            (("--directory",), {"required": True}),
-            (("--filename",), {"required": True}),
-        ),
-    )
-    _operation_parser(
-        file_commands,
-        "write",
-        "files.write",
-        (
-            (("--directory",), {"required": True}),
-            (("--filename",), {"required": True}),
-            (("--content-stdin",), {"action": "store_true", "required": True}),
-        ),
-    )
-    _operation_parser(
-        file_commands,
-        "upload",
-        "files.upload",
-        (
-            (("--directory",), {"required": True}),
-            (("--source",), {"required": True}),
-        ),
-    )
-    _operation_parser(
-        file_commands,
-        "empty-trash",
-        "files.empty-trash",
-        ((("--older-than",), {"required": True, "type": int}),),
-    )
+    operations = groups.add_parser("operations", help="discover reviewed operation policy")
+    operation_commands = operations.add_subparsers(dest="operations_command", required=True)
+    operation_list = operation_commands.add_parser("list")
+    operation_list.add_argument("--capability")
+    operation_list.add_argument("--status", choices=[status.value for status in SupportStatus])
 
-    ssl_group = groups.add_parser("ssl", help="inspect and manage SSL certificates")
-    ssl_commands = ssl_group.add_subparsers(dest="action", required=True)
-    _operation_parser(ssl_commands, "list", "ssl.list")
-    _operation_parser(ssl_commands, "hosts", "ssl.hosts")
-    _operation_parser(
-        ssl_commands,
-        "install",
-        "ssl.install",
-        (
-            (("--domain",), {"required": True}),
-            (("--certificate",), {"required": True}),
-            (("--private-key",), {"required": True}),
-            (("--cabundle",), {}),
-        ),
-    )
-    _operation_parser(
-        ssl_commands,
-        "remove",
-        "ssl.remove",
-        ((("--domain",), {"required": True}),),
-    )
-
-    databases = groups.add_parser("databases", help="manage MySQL/MariaDB resources")
-    database_commands = databases.add_subparsers(dest="action", required=True)
-    _operation_parser(database_commands, "list", "databases.list")
-    _operation_parser(database_commands, "users", "databases.users")
-    for command, operation in (
-        ("create", "databases.create"),
-        ("remove", "databases.remove"),
-        ("remove-user", "databases.remove-user"),
-    ):
-        _operation_parser(
-            database_commands,
-            command,
-            operation,
-            ((("--name",), {"required": True}),),
-        )
-    _operation_parser(
-        database_commands,
-        "create-user",
-        "databases.create-user",
-        (
-            (("--name",), {"required": True}),
-            (("--password-stdin",), {"action": "store_true", "required": True}),
-        ),
-    )
-    _operation_parser(
-        database_commands,
-        "grant",
-        "databases.grant",
-        (
-            (("--database",), {"required": True}),
-            (("--user",), {"required": True}),
-            (("--privileges",), {"required": True}),
-        ),
-    )
+    capabilities = groups.add_parser("capabilities", help="inspect server capability availability")
+    capability_commands = capabilities.add_subparsers(dest="capability_command", required=True)
+    capability_commands.add_parser("inspect")
     return parser
 
 
@@ -346,6 +338,8 @@ def _run_operation(
 ) -> dict[str, object]:
     if not args.profile:
         raise UsageError("--profile is required for cPanel operations")
+    if args.operation not in {"files.write", "files.upload"}:
+        return _run_policy_operation(args, env, stdin, store, transport)
     operation = get_operation(args.operation)
     values = _operation_values(args, stdin)
     profile = store.get(args.profile)
@@ -423,8 +417,148 @@ def _run_operation(
     return redact(result, secrets=(token, *_submitted_secrets(operation, values)))
 
 
+def _plan_result(plan: ExecutionPlan) -> dict[str, object]:
+    return {
+        "ok": True,
+        "dry_run": True,
+        "profile": plan.profile,
+        "operation": plan.operation,
+        "identity": plan.identity,
+        "risk": plan.risk.value,
+        "elevated_impact": plan.elevated_impact,
+        "parameters": _json_safe(plan.parameters),
+        "preflight": _json_safe(plan.preflight),
+        "impact": plan.impact,
+        "recovery": plan.recovery,
+        "verification_available": plan.verification_available,
+        "requires_confirmation": plan.requires_confirmation,
+        "expires_at": plan.expires_at,
+        "confirmation": plan.confirmation,
+    }
+
+
+def _execution_result(result: ExecutionResult) -> dict[str, object]:
+    return {
+        "ok": result.ok,
+        "profile": result.profile,
+        "operation": result.operation,
+        "identity": result.identity,
+        "data": _json_safe(result.data),
+        "warnings": list(result.warnings),
+        "messages": list(result.messages),
+        "verification": None
+        if result.verification is None
+        else {
+            "ok": result.verification.ok,
+            "category": result.verification.category,
+            "evidence": _json_safe(result.verification.evidence),
+        },
+        "summary": f"Completed {result.operation} for {result.profile}",
+    }
+
+
+def _run_policy_operation(
+    args: argparse.Namespace,
+    env: Mapping[str, str],
+    stdin: TextIO,
+    store: ProfileStore,
+    transport: UAPITransport,
+) -> dict[str, object]:
+    registry = _default_policy_registry()
+    operation = registry.get(args.operation)
+    profile = store.get(args.profile)
+    codec = SecretCodec.from_environment(env)
+    token = codec.decrypt(profile.encrypted_token)
+    inputs = InputResolver().resolve(operation, args, stdin, env)
+    context = ExecutionContext(
+        profile=profile,
+        token=token,
+        timeout=args.timeout,
+        transport=transport,
+        audit=AuditWriter(_audit_path(args, env)),
+        policy=registry,
+    )
+    executor = OperationExecutor(
+        registry=registry,
+        planner=OperationPlanner(
+            ConfirmationService(codec.key),
+            registry=registry,
+            policy_digest=canonical_policy_sha256(registry),
+        ),
+    )
+    if args.dry_run:
+        return _plan_result(executor.dry_run(context, operation, inputs))
+    if operation.requires_confirmation and args.confirm is None:
+        raise ConfirmationError("Confirmation is required for this operation")
+    return _execution_result(
+        executor.execute(context, operation, inputs, args.confirm, expires_at=args.expires_at)
+    )
+
+
 def _profile_result(operation: str, data: object) -> dict[str, object]:
     return {"ok": True, "operation": operation, "data": data}
+
+
+def _run_operations_discovery(
+    args: argparse.Namespace, registry: PolicyRegistry
+) -> dict[str, object]:
+    status = args.status
+    if status == SupportStatus.INCLUDED.value:
+        operations = registry.included()
+    elif status == SupportStatus.EXCLUDED.value:
+        operations = registry.excluded()
+    else:
+        operations = registry.all()
+    if args.capability:
+        operations = tuple(
+            operation for operation in operations if operation.capability == args.capability
+        )
+    return _profile_result(
+        "operations.list",
+        [policy_operation_to_dict(operation) for operation in operations],
+    )
+
+
+def _run_capabilities(
+    args: argparse.Namespace,
+    env: Mapping[str, str],
+    store: ProfileStore,
+    transport: UAPITransport,
+    registry: PolicyRegistry,
+) -> dict[str, object]:
+    if args.capability_command != "inspect":
+        raise UsageError("Unknown capability command")
+    if not args.profile:
+        raise UsageError("--profile is required for capability inspection")
+    profile = store.get(args.profile)
+    token = SecretCodec.from_environment(env).decrypt(profile.encrypted_token)
+    context = type(
+        "CapabilityContext",
+        (),
+        {
+            "profile": profile,
+            "token": token,
+            "transport": transport,
+            "policy": registry,
+        },
+    )()
+    report = CapabilityService().inspect(context)
+    return _profile_result(
+        "capabilities.inspect",
+        {
+            "profile": report.profile,
+            "observed_at": report.observed_at,
+            "operations": {
+                name: {
+                    "operation": item.operation,
+                    "status": item.status.value,
+                    "feature": item.feature,
+                    "reason": item.reason,
+                }
+                for name, item in sorted(report.operations.items())
+            },
+        },
+    )
 
 
 def _run_profiles(
@@ -505,8 +639,13 @@ def main(
         store_path = args.config or default_profile_path(values)
         store = ProfileStore(store_path)
         client = transport or UAPITransport()
+        registry = _default_policy_registry()
         if args.group == "profiles":
             result = _run_profiles(args, values, input_stream, store, client)
+        elif args.group == "operations":
+            result = _run_operations_discovery(args, registry)
+        elif args.group == "capabilities":
+            result = _run_capabilities(args, values, store, client, registry)
         else:
             result = _run_operation(args, values, input_stream, store, client)
         _write_json(output_stream, result, args.pretty)
