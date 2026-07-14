@@ -256,10 +256,10 @@ def _identity_parts(operation: PolicyOperation) -> tuple[str, str]:
 
 
 def _error_category(exc: BaseException) -> str:
-    if isinstance(exc, (TransportError, UAPIError, PartialFailure)):
+    if isinstance(exc, TransportError | UAPIError | PartialFailure):
         return "transport"
     if isinstance(exc, VerificationError):
         return "verification"
-    if isinstance(exc, (PolicyError, CapabilityError)):
+    if isinstance(exc, PolicyError | CapabilityError):
         return "policy"
     return "internal"

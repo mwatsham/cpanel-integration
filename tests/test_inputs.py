@@ -338,6 +338,30 @@ def test_local_file_upload_has_only_safe_basename_and_fingerprint(tmp_path: Path
     assert str(path) not in repr(resolved.safe_values)
 
 
+def test_json_file_input_parses_object_and_fingerprints_file(tmp_path: Path) -> None:
+    path = tmp_path / "source-repository.json"
+    path.write_text('{"url": "https://github.com/example/site.git", "branch": "main"}')
+
+    resolved = InputResolver().resolve(
+        operation(parameter("source_repository", InputSource.JSON_FILE, "json_file")),
+        argparse.Namespace(source_repository=str(path)),
+        io.StringIO(),
+        {},
+    )
+
+    assert resolved.values["source_repository"] == {
+        "branch": "main",
+        "url": "https://github.com/example/site.git",
+    }
+    assert resolved.safe_values["source_repository"] == {
+        "name": "source-repository.json",
+        "bytes": 64,
+        "sha256": "422e5871a5bbafbc43cfd0916569dcc58277654c248a8055d2ef380ecd2103d1",
+    }
+    assert resolved.uploads == {}
+    assert str(path) not in repr(resolved.safe_values)
+
+
 def test_resolved_input_representation_exposes_only_safe_values(tmp_path: Path) -> None:
     runtime_value = "".join(("runtime", "-material"))
     path = tmp_path / "site.zip"

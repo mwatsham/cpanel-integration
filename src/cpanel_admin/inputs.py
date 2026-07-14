@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import mimetypes
 import os
 import re
@@ -235,6 +236,22 @@ def _read_local_file(path: Path) -> bytes:
         os.close(descriptor)
 
 
+def _decode_json_file(content: bytes) -> object:
+    try:
+        decoded = content.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise UsageError("JSON file input must contain UTF-8 text") from exc
+    try:
+        value = json.loads(decoded)
+    except json.JSONDecodeError as exc:
+        raise UsageError("JSON file input must contain valid JSON") from exc
+    if not isinstance(value, dict) or not value:
+        raise UsageError("JSON file input must contain a non-empty object")
+    if not all(isinstance(key, str) for key in value):
+        raise UsageError("JSON file input object keys must be strings")
+    return value
+
+
 def _missing(operation: PolicyOperation, parameter: PolicyParameter) -> UsageError:
     return UsageError(f"Missing required parameter for {operation.name}: {parameter.name}")
 
@@ -354,7 +371,7 @@ class InputResolver:
                         Path(supplied), maximum=_maximum_for(parameter)
                     )
                     raw = _decode(protected_content, "Protected input file")
-            elif source is InputSource.LOCAL_FILE:
+            elif source in {InputSource.LOCAL_FILE, InputSource.JSON_FILE}:
                 raw = _argument_value(namespace, parameter.name)
             elif source is InputSource.ENVIRONMENT:
                 variable_name = _argument_value(namespace, parameter.name)
@@ -395,6 +412,16 @@ class InputResolver:
                 )
                 safe_values[parameter.name] = {
                     "name": upload_name,
+                    **fingerprint(content),
+                }
+                continue
+
+            if source is InputSource.JSON_FILE:
+                local_path = Path(cast(str, normalized))
+                content = _read_local_file(local_path)
+                values[parameter.name] = _decode_json_file(content)
+                safe_values[parameter.name] = {
+                    "name": local_path.name,
                     **fingerprint(content),
                 }
                 continue

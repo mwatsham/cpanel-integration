@@ -12,7 +12,7 @@ is defined in `references/release-scope.md`.
 | --- | --- | --- |
 | The official OpenAPI source is pinned and checksum verified. | Proven | `specifications/cpanel.openapi.json`, `specifications/cpanel.openapi.lock.json`, and `scripts/generate_catalog.py` enforce OpenAPI `3.0.2`, UAPI `11.136.0.25`, and SHA-256 `3d9ec80cd8d774312c4bb6b0dfdbc17e6e6ffc92a8f0c2cd88f01e32864fa2c6`. |
 | Catalog generation is deterministic and committed output is current. | Proven | `scripts/generate_catalog.py` emits deterministic JSON/Markdown. `scripts/check_generated.py` verifies `src/cpanel_admin/data/operation_catalog.json` and `references/operation-support.md`. |
-| Every candidate operation in scope has an explicit include or exclude policy record. | Proven | Current policy surface has 393 selected candidate operations, 393 policy records, 195 included, 198 excluded, 0 missing records, and 0 extra records. |
+| Every candidate operation in scope has an explicit include or exclude policy record. | Proven | Current policy surface has 393 selected candidate operations, 393 policy records, 200 included, 193 excluded, 0 missing records, and 0 extra records. |
 | Every included operation passes its operation-level contract tests. | Proven by default suite | `tests/test_policy.py` parameterizes included operations for metadata completeness, protected inputs, immutable lookup, command boundaries, and no raw `module`/`function` parameters. Capability-pack tests cover reviewed expansion contracts. |
 | Unit, mocked integration, CLI, redaction, and documentation tests pass. | Proven by default suite | `tests/` includes audit, capabilities, catalog generation, CLI, confirmation, executor, inputs, operations, planner, policy, profiles, redaction, secrets, transport, live-harness, OpenAPI-reference, capability-reference, and release-audit tests. |
 | Coverage remains at or above 90%. | Proven when coverage gate is run | Required command: `pytest --cov=cpanel_admin --cov-report=term-missing --cov-fail-under=90`. Recent evidence: total coverage `90.10%`. |
@@ -57,7 +57,7 @@ Current evidence:
 
 - Representative read-only matrix exists in `tests/test_live_cpanel.py`.
 - Lifecycle dry-run plan specs exist for backups, databases, domains, email, files, FTP, runtime,
-  security, and SSL.
+  including guarded cPanel Git repository management, security, and SSL.
 - Redacted JSON-lines reporting exists through `CPANEL_ADMIN_LIVE_REPORT`.
 - `references/live-testing.md` documents gates, feature-unavailable skips, report handling, and the
   isolated database lifecycle.
@@ -69,7 +69,8 @@ Current evidence:
   `CPANEL_ADMIN_LIVE_RUN_PREFIX=codex_live_a1_`, and `CPANEL_ADMIN_LIVE_DOMAIN` with all operations
   still executed as `--dry-run`.
 - Reversible actual lifecycle specs exist for databases, email, FTP, and security. Other mutable
-  packs remain dry-run-only until an independent verification and cleanup or rollback path exists.
+  packs, including runtime Git repository/deployment mutations, remain dry-run-only until an
+  independent verification and cleanup or rollback path exists.
 - Recent disposable-account reversible lifecycle execution against `test-123reg` passed for
   databases, email, FTP, and security using `CPANEL_ADMIN_LIVE_RUN_PREFIX=codex_live_c3_`; each
   created resource was cleaned up by the test.

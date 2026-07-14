@@ -92,7 +92,7 @@ def _add_policy_parameter(parser: argparse.ArgumentParser, parameter: object) ->
     if source is InputSource.PROTECTED_FILE:
         parser.add_argument(f"{flag}-file", flag, **kwargs)
         return
-    if source is InputSource.LOCAL_FILE:
+    if source in {InputSource.LOCAL_FILE, InputSource.JSON_FILE}:
         parser.add_argument(flag, **kwargs)
         return
     if source is InputSource.ENVIRONMENT:

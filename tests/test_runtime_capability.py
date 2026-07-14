@@ -22,7 +22,12 @@ RUNTIME_INCLUDED = {
     "NginxCaching/enable_cache",
     "NginxCaching/reset_cache_config",
     "PassengerApps/list_applications",
+    "VersionControl/create",
+    "VersionControl/delete",
     "VersionControl/retrieve",
+    "VersionControl/update",
+    "VersionControlDeployment/create",
+    "VersionControlDeployment/delete",
     "VersionControlDeployment/retrieve",
 }
 RUNTIME_EXCLUDED = {
@@ -37,13 +42,6 @@ RUNTIME_EXCLUDED = {
     "PassengerApps/ensure_deps": "dependency installation can execute package manager code",
     "PassengerApps/register_application": "Passenger registration needs path and env var adapters",
     "PassengerApps/unregister_application": "Passenger removal needs app-state preflight",
-    "VersionControl/create": "Git repository creation needs source repository adapter review",
-    "VersionControl/delete": (
-        "Git repository deletion is destructive and needs repository preflight"
-    ),
-    "VersionControl/update": "Git repository updates need source repository adapter review",
-    "VersionControlDeployment/create": "deployment task creation needs repository state preflight",
-    "VersionControlDeployment/delete": "deployment task deletion needs task-state preflight",
 }
 
 
@@ -60,5 +58,13 @@ def test_runtime_policy_matches_review() -> None:
     assert subject.get("runtime.nginx-reset-cache").elevated_impact is True
     assert subject.get("runtime.php-domain-handler").parameters["type"].required is True
     assert subject.get("runtime.version-control").parameters["fields"].required is False
+    assert subject.get("runtime.git-create").risk is Risk.MUTATE
+    assert subject.get("runtime.git-create").parameters["source_repository"].required is False
+    assert subject.get("runtime.git-update").risk is Risk.MUTATE
+    assert subject.get("runtime.git-delete").risk is Risk.MUTATE
+    assert subject.get("runtime.git-delete").elevated_impact is True
+    assert subject.get("runtime.deployment-create").risk is Risk.MUTATE
+    assert subject.get("runtime.deployment-delete").risk is Risk.MUTATE
+    assert subject.get("runtime.deployment-delete").elevated_impact is True
     for identity, reason in RUNTIME_EXCLUDED.items():
         assert subject.exclusion(identity).reason == reason

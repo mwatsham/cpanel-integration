@@ -16,13 +16,13 @@ Diagnostics support covers quota, resource usage, bandwidth, stats, features, lo
 settings, and account/server variables exposed to the cPanel account. Security support covers IP
 blocking, ModSecurity status/toggles, ClamAV status reads, notification preference reads,
 known-host verification, SSH port reads, and task queue reads. Runtime support covers PHP
-version/config reads, NGINX cache controls, Passenger app listing, Git repository listing, and
-deployment status reads. Backup support covers backup listing, home-directory full-backup
+version/config reads, NGINX cache controls, Passenger app listing, guarded cPanel Git repository
+management, and Git deployment task reads/mutations. Backup support covers backup listing, home-directory full-backup
 initiation, and backup file metadata reads. It does not support WHM, root or reseller
 administration, account provisioning, server settings, browser automation, deprecated API 2,
 anonymous FTP configuration changes, diagnostics setting changes, malware disinfection, secret
-token export, PHP config writes, Passenger app lifecycle changes, Git repository mutation, remote
-backup destinations, restore execution, or arbitrary UAPI calls.
+token export, PHP config writes, Passenger app lifecycle changes, arbitrary shell Git commands,
+remote backup destinations, restore execution, or arbitrary UAPI calls.
 
 ## Install
 
@@ -116,11 +116,52 @@ Global options precede the capability group:
 .venv/bin/cpanel-admin --profile production security known-host-verify --host-name example.com
 .venv/bin/cpanel-admin --profile production runtime php-installed
 .venv/bin/cpanel-admin --profile production runtime passenger-apps
+.venv/bin/cpanel-admin --profile production runtime git-repositories
+.venv/bin/cpanel-admin --profile production runtime deployments
 .venv/bin/cpanel-admin --profile production runtime nginx-clear-cache --dry-run
 .venv/bin/cpanel-admin --profile production backups list
 .venv/bin/cpanel-admin --profile production backups full-to-home --dry-run
 .venv/bin/cpanel-admin --profile production backups file-info --path public_html/index.html
 ```
+
+For cPanel Git repository management, put the source repository object in a local JSON file:
+
+```json
+{
+  "url": "https://github.com/example/site.git",
+  "branch": "main"
+}
+```
+
+Then dry-run and execute through the reviewed runtime commands:
+
+```bash
+.venv/bin/cpanel-admin --profile production runtime git-create \
+  --repository-root public_html --name site --type git \
+  --source-repository ./source-repository.json --dry-run
+
+.venv/bin/cpanel-admin --profile production runtime git-update \
+  --repository-root public_html --branch main \
+  --source-repository ./source-repository.json --dry-run
+
+.venv/bin/cpanel-admin --profile production runtime deployment-create \
+  --repository-root public_html --dry-run
+```
+
+Repository deletion and deployment-task deletion are elevated-impact mutations. Use the digest and
+expiry returned by `--dry-run`:
+
+```bash
+.venv/bin/cpanel-admin --profile production runtime git-delete \
+  --repository-root public_html --dry-run
+
+.venv/bin/cpanel-admin --profile production runtime deployment-delete \
+  --deploy-id deploy-123 --dry-run
+```
+
+Do not paste private repository credentials, deploy keys, or personal access tokens into chat or
+command arguments. Configure private repository access through cPanel/provider-supported credential
+mechanisms outside the skill, then use this skill to manage the cPanel Git repository mapping.
 
 Non-destructive mutations support a review step:
 

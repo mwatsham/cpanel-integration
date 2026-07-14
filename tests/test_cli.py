@@ -719,6 +719,111 @@ def test_runtime_php_installed_versions_uses_fixed_readonly_uapi(cli_env) -> Non
     assert transport.calls[0]["parameters"] == {}
 
 
+@pytest.mark.parametrize(
+    ("args", "operation", "identity", "requires_confirmation"),
+    [
+        (
+            [
+                "runtime",
+                "git-create",
+                "--repository-root",
+                "public_html",
+                "--name",
+                "site",
+                "--type",
+                "git",
+                "--source-repository",
+                "source-repository.json",
+                "--dry-run",
+            ],
+            "runtime.git-create",
+            "VersionControl/create",
+            False,
+        ),
+        (
+            [
+                "runtime",
+                "git-update",
+                "--repository-root",
+                "public_html",
+                "--name",
+                "site",
+                "--branch",
+                "main",
+                "--source-repository",
+                "source-repository.json",
+                "--dry-run",
+            ],
+            "runtime.git-update",
+            "VersionControl/update",
+            False,
+        ),
+        (
+            [
+                "runtime",
+                "git-delete",
+                "--repository-root",
+                "public_html",
+                "--dry-run",
+            ],
+            "runtime.git-delete",
+            "VersionControl/delete",
+            True,
+        ),
+        (
+            [
+                "runtime",
+                "deployment-create",
+                "--repository-root",
+                "public_html",
+                "--dry-run",
+            ],
+            "runtime.deployment-create",
+            "VersionControlDeployment/create",
+            False,
+        ),
+        (
+            [
+                "runtime",
+                "deployment-delete",
+                "--deploy-id",
+                "deploy-123",
+                "--dry-run",
+            ],
+            "runtime.deployment-delete",
+            "VersionControlDeployment/delete",
+            True,
+        ),
+    ],
+)
+def test_runtime_git_management_dry_runs_are_policy_guarded(
+    cli_env, tmp_path: Path, args, operation, identity, requires_confirmation
+) -> None:
+    env, key = cli_env
+    add_profile(env, key)
+    source = tmp_path / "source-repository.json"
+    source.write_text('{"url": "https://github.com/example/site.git", "branch": "main"}')
+    resolved_args = [str(source) if item == "source-repository.json" else item for item in args]
+    transport = FakeTransport()
+
+    code, payload, stderr = invoke(
+        ["--profile", "test", *resolved_args],
+        env=env,
+        transport=transport,
+    )
+
+    assert code == 0
+    assert stderr == ""
+    assert transport.calls == []
+    assert payload["operation"] == operation
+    assert payload["identity"] == identity
+    assert payload["risk"] == "mutate"
+    assert payload["requires_confirmation"] is requires_confirmation
+    if "source-repository.json" in args:
+        assert payload["parameters"]["source_repository"]["name"] == "source-repository.json"
+        assert payload["parameters"]["source_repository"]["bytes"] == 64
+
+
 def test_backup_list_uses_fixed_readonly_uapi(cli_env) -> None:
     env, key = cli_env
     add_profile(env, key)

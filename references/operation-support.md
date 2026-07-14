@@ -4,8 +4,8 @@
 
 - Source UAPI version: `11.136.0.25`
 - Source SHA-256: `3d9ec80cd8d774312c4bb6b0dfdbc17e6e6ffc92a8f0c2cd88f01e32864fa2c6`
-- Included operations: 195
-- Excluded operations: 198
+- Included operations: 200
+- Excluded operations: 193
 
 The local allowlist is an application safeguard, not a substitute for cPanel account permissions. This catalog does not provide arbitrary UAPI passthrough.
 
@@ -389,12 +389,12 @@ The local allowlist is an application safeguard, not a substitute for cPanel acc
 | `Variables/get_server_information` | included | diagnostics | read | reviewed account diagnostics read operation |
 | `Variables/get_session_information` | included | diagnostics | read | reviewed account diagnostics read operation |
 | `Variables/get_user_information` | included | diagnostics | read | reviewed account diagnostics read operation |
-| `VersionControl/create` | excluded | runtime | - | Git repository creation needs source repository adapter review |
-| `VersionControl/delete` | excluded | runtime | - | Git repository deletion is destructive and needs repository preflight |
+| `VersionControl/create` | included | runtime | mutate | reviewed Git repository management operation |
+| `VersionControl/delete` | included | runtime | mutate | reviewed Git repository management operation |
 | `VersionControl/retrieve` | included | runtime | read | reviewed runtime read operation |
-| `VersionControl/update` | excluded | runtime | - | Git repository updates need source repository adapter review |
-| `VersionControlDeployment/create` | excluded | runtime | - | deployment task creation needs repository state preflight |
-| `VersionControlDeployment/delete` | excluded | runtime | - | deployment task deletion needs task-state preflight |
+| `VersionControl/update` | included | runtime | mutate | reviewed Git repository management operation |
+| `VersionControlDeployment/create` | included | runtime | mutate | reviewed Git deployment operation |
+| `VersionControlDeployment/delete` | included | runtime | mutate | reviewed Git deployment operation |
 | `VersionControlDeployment/retrieve` | included | runtime | read | reviewed runtime read operation |
 | `WebVhosts/list_domains` | excluded | domains | - | not enabled until the domain capability review |
 | `WebVhosts/list_ssl_capable_domains` | included | domains | read | supported by the existing MVP operation set |

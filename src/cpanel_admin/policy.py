@@ -69,7 +69,7 @@ EXPECTED_CANDIDATE_OPERATIONS = 393
 EXPECTED_CANDIDATE_IDENTITY_SHA256 = (
     "834c8bd9c048d93e9089fd22a7c569d4923cc8a5c9ecbc4172123ec2276a6ecb"
 )
-EXPECTED_POLICY_SHA256 = "0d07ac52f6bbb0186776f57c79bb734784fbbb0e9d2427d884e0b66dea6351d0"
+EXPECTED_POLICY_SHA256 = "5c1ea3a2571440d2a47d969095b421a831156d7e09bb7a6083158fda128e77f3"
 
 _PROTECTED_SECRET_SOURCES = frozenset(
     {
@@ -108,6 +108,7 @@ class InputSource(StrEnum):
     STDIN = "stdin"
     PROTECTED_FILE = "protected_file"
     LOCAL_FILE = "local_file"
+    JSON_FILE = "json_file"
     ENVIRONMENT = "environment"
     ENCRYPTED_PROFILE = "encrypted_profile"
 
@@ -907,7 +908,7 @@ def _mapping(value: object, label: str) -> Mapping[str, object]:
 
 
 def _sequence(value: object, label: str) -> tuple[object, ...]:
-    if not isinstance(value, Sequence) or isinstance(value, (str, bytes, bytearray)):
+    if not isinstance(value, Sequence) or isinstance(value, str | bytes | bytearray):
         raise PolicyError(f"{label} must be an array")
     return tuple(value)
 

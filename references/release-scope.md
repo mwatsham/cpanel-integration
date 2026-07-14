@@ -32,6 +32,9 @@ The following packs remain dry-run-only for live mutation coverage in this relea
 They are still covered by policy tests, CLI tests, operation contract tests, generated metadata
 checks, and live dry-run plan tests. They are not executed as live mutations because a safe automated
 cleanup or rollback path is not available in the reviewed allowlist for this release.
+Runtime now includes guarded cPanel Git repository and deployment-task mutations, but those Git
+mutations remain dry-run-only in the disposable live suite until repository cleanup and deployment
+rollback can be proven safely for the test account.
 
 Do not promote a dry-run-only pack to actual live execution until the test can prove all of these:
 

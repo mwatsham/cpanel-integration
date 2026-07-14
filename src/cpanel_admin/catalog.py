@@ -252,7 +252,7 @@ def _is_single_segment_path(path: str) -> bool:
 
 
 def _excluded_paths_from_value(value: object) -> tuple[CatalogExcludedPath, ...]:
-    if not isinstance(value, Sequence) or isinstance(value, (str, bytes, bytearray)):
+    if not isinstance(value, Sequence) or isinstance(value, str | bytes | bytearray):
         raise CatalogError("catalog excluded_paths must be an array")
     excluded_paths: list[CatalogExcludedPath] = []
     for item in value:
@@ -269,7 +269,7 @@ def _excluded_paths_from_value(value: object) -> tuple[CatalogExcludedPath, ...]
 
 
 def _parameter_sequence(value: object, path: str) -> tuple[Mapping[str, object], ...]:
-    if not isinstance(value, Sequence) or isinstance(value, (str, bytes, bytearray)):
+    if not isinstance(value, Sequence) or isinstance(value, str | bytes | bytearray):
         raise CatalogError(f"parameters for {path!r} must be an array")
     return tuple(_mapping(item, f"parameter for {path!r}") for item in value)
 
@@ -324,7 +324,7 @@ def _schema_type(schema: Mapping[str, object], identity: str, name: str) -> str:
     for keyword in ("oneOf", "anyOf"):
         if keyword in schema:
             value = schema[keyword]
-            if not isinstance(value, Sequence) or isinstance(value, (str, bytes, bytearray)):
+            if not isinstance(value, Sequence) or isinstance(value, str | bytes | bytearray):
                 raise CatalogError(f"parameter {identity}:{name} has an unsupported schema")
             alternatives.extend(
                 _mapping(item, f"{keyword} schema for parameter {identity}:{name}")
@@ -350,20 +350,20 @@ def _combined_schema_enum(schema: Mapping[str, object]) -> object:
     for keyword in ("oneOf", "anyOf"):
         raw_alternatives = schema.get(keyword)
         if not isinstance(raw_alternatives, Sequence) or isinstance(
-            raw_alternatives, (str, bytes, bytearray)
+            raw_alternatives, str | bytes | bytearray
         ):
             continue
         for raw_alternative in raw_alternatives:
             if isinstance(raw_alternative, Mapping) and "enum" in raw_alternative:
                 enum = raw_alternative["enum"]
-                if isinstance(enum, Sequence) and not isinstance(enum, (str, bytes, bytearray)):
+                if isinstance(enum, Sequence) and not isinstance(enum, str | bytes | bytearray):
                     values.extend(cast(Sequence[JsonScalar], enum))
                     found = True
     return values if found else ()
 
 
 def _enum_values(value: object, identity: str, name: str) -> tuple[JsonScalar, ...]:
-    if not isinstance(value, Sequence) or isinstance(value, (str, bytes, bytearray)):
+    if not isinstance(value, Sequence) or isinstance(value, str | bytes | bytearray):
         raise CatalogError(f"parameter {identity}:{name} has an unsupported enum")
     if not all(_is_json_scalar(item) for item in value):
         raise CatalogError(f"parameter {identity}:{name} has an unsupported enum")
@@ -421,7 +421,7 @@ def _operation_from_dict(identity: str, value: object) -> CatalogOperation:
     raw_media_types = raw.get("request_media_types", ())
     if (
         not isinstance(raw_media_types, Sequence)
-        or isinstance(raw_media_types, (str, bytes, bytearray))
+        or isinstance(raw_media_types, str | bytes | bytearray)
         or not all(isinstance(item, str) and item for item in raw_media_types)
     ):
         raise CatalogError(f"catalog operation {identity} has invalid request media types")
@@ -573,7 +573,7 @@ def _parameter_from_dict(identity: str, name: str, value: object) -> CatalogPara
 
 
 def _is_json_scalar(value: object) -> bool:
-    return value is None or isinstance(value, (str, int, float, bool))
+    return value is None or isinstance(value, str | int | float | bool)
 
 
 def _is_json_value(value: object) -> bool:

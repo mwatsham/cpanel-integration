@@ -66,10 +66,21 @@ def _is_fingerprint(value: object) -> bool:
     )
 
 
+def _is_file_fingerprint(value: object) -> bool:
+    if not isinstance(value, Mapping) or set(value) != {"name", "bytes", "sha256"}:
+        return False
+    name = value["name"]
+    return (
+        isinstance(name, str)
+        and bool(name)
+        and _is_fingerprint({"bytes": value["bytes"], "sha256": value["sha256"]})
+    )
+
+
 def _safe_value(value: object, *, secrets: tuple[str, ...] = ()) -> JsonValue:
     """Create immutable, redacted JSON evidence without retaining caller state."""
 
-    if value is None or isinstance(value, (bool, int)):
+    if value is None or isinstance(value, bool | int):
         return cast(JsonValue, value)
     if isinstance(value, float):
         if not isfinite(value):
@@ -103,6 +114,15 @@ def _canonical_public_inputs(
         value = inputs.values[name]
         if value is None:
             raise PolicyError(f"resolved inputs contain unnormalized optional parameter: {name}")
+        source = parameter.sources[0] if len(parameter.sources) == 1 else None
+        if source is InputSource.JSON_FILE:
+            if not isinstance(value, Mapping) or not value:
+                raise PolicyError(f"resolved JSON file input is invalid: {name}")
+            safe_file = inputs.safe_values.get(name)
+            if not _is_file_fingerprint(safe_file):
+                raise PolicyError(f"resolved JSON file input has no fingerprint: {name}")
+            safe_values[name] = cast(JsonValue, safe_file)
+            continue
         try:
             from .operations import validate_value
 
@@ -111,7 +131,6 @@ def _canonical_public_inputs(
             raise PolicyError(f"resolved input is invalid for reviewed parameter: {name}") from exc
         if normalized != value:
             raise PolicyError(f"resolved input is not normalized for reviewed parameter: {name}")
-        source = parameter.sources[0] if len(parameter.sources) == 1 else None
         if source is InputSource.LOCAL_FILE:
             if not isinstance(value, str):
                 raise PolicyError(f"resolved local file input is invalid: {name}")

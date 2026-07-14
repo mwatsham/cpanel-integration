@@ -302,7 +302,7 @@ def _freeze_safe_value(value: JsonValue) -> JsonValue:
 
 
 def _validate_json_value(value: object) -> None:
-    if value is None or isinstance(value, (bool, int, float)):
+    if value is None or isinstance(value, bool | int | float):
         return
     if isinstance(value, str):
         if value.startswith("/"):

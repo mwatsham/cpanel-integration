@@ -9397,35 +9397,103 @@
       "verification": null
     },
     "VersionControl/create": {
-      "audit_fields": [],
+      "audit_fields": [
+        "repository_root",
+        "name"
+      ],
       "capability": "runtime",
-      "command": [],
+      "command": [
+        "runtime",
+        "git-create"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "VersionControl/create",
-      "parameters": {},
+      "impact": "Create a cPanel Git repository mapping for a website path.",
+      "name": "runtime.git-create",
+      "parameters": {
+        "name": {
+          "name": "name",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "name",
+          "validator": "bounded_text"
+        },
+        "repository_root": {
+          "name": "repository_root",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "repository_root",
+          "validator": "bounded_text"
+        },
+        "source_repository": {
+          "name": "source_repository",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "json_file"
+          ],
+          "uapi_name": "source_repository",
+          "validator": "json_file"
+        },
+        "type": {
+          "name": "type",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "type",
+          "validator": "enum"
+        }
+      },
       "preflight": null,
-      "reason": "Git repository creation needs source repository adapter review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed Git repository management operation",
+      "recovery": "Remove the Git repository mapping if it was created for the wrong path.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "VersionControl/delete": {
-      "audit_fields": [],
+      "audit_fields": [
+        "repository_root"
+      ],
       "capability": "runtime",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "runtime",
+        "git-delete"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "VersionControl/delete",
-      "parameters": {},
+      "impact": "Delete a cPanel Git repository mapping for a website path.",
+      "name": "runtime.git-delete",
+      "parameters": {
+        "repository_root": {
+          "name": "repository_root",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "repository_root",
+          "validator": "bounded_text"
+        }
+      },
       "preflight": null,
-      "reason": "Git repository deletion is destructive and needs repository preflight",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed Git repository management operation",
+      "recovery": "Recreate the repository mapping from a verified remote repository if needed.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "VersionControl/retrieve": {
@@ -9460,51 +9528,137 @@
       "verification": null
     },
     "VersionControl/update": {
-      "audit_fields": [],
+      "audit_fields": [
+        "repository_root",
+        "name",
+        "branch"
+      ],
       "capability": "runtime",
-      "command": [],
+      "command": [
+        "runtime",
+        "git-update"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "VersionControl/update",
-      "parameters": {},
+      "impact": "Update cPanel Git repository settings for a website path.",
+      "name": "runtime.git-update",
+      "parameters": {
+        "branch": {
+          "name": "branch",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "branch",
+          "validator": "bounded_text"
+        },
+        "name": {
+          "name": "name",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "name",
+          "validator": "bounded_text"
+        },
+        "repository_root": {
+          "name": "repository_root",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "repository_root",
+          "validator": "bounded_text"
+        },
+        "source_repository": {
+          "name": "source_repository",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "json_file"
+          ],
+          "uapi_name": "source_repository",
+          "validator": "json_file"
+        }
+      },
       "preflight": null,
-      "reason": "Git repository updates need source repository adapter review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed Git repository management operation",
+      "recovery": "Update the repository settings back to the previous reviewed values.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "VersionControlDeployment/create": {
-      "audit_fields": [],
+      "audit_fields": [
+        "repository_root"
+      ],
       "capability": "runtime",
-      "command": [],
+      "command": [
+        "runtime",
+        "deployment-create"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "VersionControlDeployment/create",
-      "parameters": {},
+      "impact": "Create a cPanel Git deployment task for a repository root.",
+      "name": "runtime.deployment-create",
+      "parameters": {
+        "repository_root": {
+          "name": "repository_root",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "repository_root",
+          "validator": "bounded_text"
+        }
+      },
       "preflight": null,
-      "reason": "deployment task creation needs repository state preflight",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed Git deployment operation",
+      "recovery": "Delete the deployment task if it was created for the wrong repository root.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "VersionControlDeployment/delete": {
-      "audit_fields": [],
+      "audit_fields": [
+        "deploy_id"
+      ],
       "capability": "runtime",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "runtime",
+        "deployment-delete"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "VersionControlDeployment/delete",
-      "parameters": {},
+      "impact": "Delete a cPanel Git deployment task.",
+      "name": "runtime.deployment-delete",
+      "parameters": {
+        "deploy_id": {
+          "name": "deploy_id",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "deploy_id",
+          "validator": "bounded_text"
+        }
+      },
       "preflight": null,
-      "reason": "deployment task deletion needs task-state preflight",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed Git deployment operation",
+      "recovery": "Create a replacement deployment task for the repository root if needed.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "VersionControlDeployment/retrieve": {

@@ -538,6 +538,7 @@ _VALIDATOR_FUNCTIONS: dict[str, Validator] = {
     "integer": _integer,
     "ip": _ip_cidr,
     "ip_cidr": _ip_cidr,
+    "json_file": lambda item: _bounded_text(item, label="JSON file path", maximum=4096),
     "local_file": lambda item: _bounded_text(item, label="Local file path", maximum=4096),
     "path": _path,
     "pem": _pem,
