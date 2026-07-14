@@ -208,6 +208,7 @@ The default suite uses mocked transports and never accesses cPanel:
 Live tests are opt-in and must use a disposable cPanel account. See
 [disposable live testing](references/live-testing.md) for the required gates, representative
 read-only command matrix, optional redacted report, and isolated database lifecycle test.
+Track release evidence in the [requirement-by-requirement audit](references/release-audit.md).
 
 ## Architecture
 
