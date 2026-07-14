@@ -64,6 +64,16 @@ def test_lifecycle_spec_builders_use_prefix_and_require_domain_when_needed() -> 
     assert {"domains", "email", "ftp", "ssl"} <= set(missing_domain)
 
 
+def test_live_execution_specs_are_reversible_only() -> None:
+    specs = {spec.capability: spec for spec in test_live_cpanel.LIVE_EXECUTION_SPECS}
+    assert {"databases", "email", "ftp", "security"} <= specs.keys()
+    for spec in specs.values():
+        assert spec.create is not None
+        assert spec.verify_created is not None
+        assert spec.cleanup is not None
+        assert spec.verify_cleaned is not None
+
+
 def test_live_testing_reference_documents_required_gates() -> None:
     reference = Path("references/live-testing.md")
     assert reference.exists()
@@ -75,6 +85,7 @@ def test_live_testing_reference_documents_required_gates() -> None:
     assert "CPANEL_ADMIN_LIVE_RUN_PREFIX" in text
     assert "CPANEL_ADMIN_LIVE_DOMAIN" in text
     assert "test_live_lifecycle_dry_run_plans" in text
+    assert "test_live_reversible_lifecycle_execution" in text
     assert "disposable" in text.lower()
     assert "pytest tests/test_live_cpanel.py -m live" in text
 

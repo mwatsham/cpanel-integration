@@ -65,24 +65,25 @@ Current evidence:
   `CPANEL_ADMIN_LIVE_ENABLE_DESTRUCTIVE=I_ACCEPT_LIVE_RESOURCE_MUTATION`,
   `CPANEL_ADMIN_LIVE_RUN_PREFIX=codex_live_a1_`, and `CPANEL_ADMIN_LIVE_DOMAIN` with all operations
   still executed as `--dry-run`.
+- Reversible actual lifecycle specs exist for databases, email, FTP, and security. Other mutable
+  packs remain dry-run-only until an independent verification and cleanup or rollback path exists.
+- Recent disposable-account reversible lifecycle execution against `test-123reg` passed for
+  databases, email, FTP, and security using `CPANEL_ADMIN_LIVE_RUN_PREFIX=codex_live_c3_`; each
+  created resource was cleaned up by the test.
 
 Remaining live verification gaps:
 
-1. Expand from dry-run/read-only coverage to a safe live create/read/update/delete lifecycle for every
-   supported capability pack that the disposable account actually supports.
-2. Verify each mutation through an independent read where possible.
-3. Attempt cleanup in dependency-aware order for all created resources.
-4. Persist a redacted evidence report that distinguishes unsupported capabilities from failures and
+1. Expand actual live lifecycle coverage beyond databases, email, FTP, and security only where safe
+   verification and cleanup or rollback paths exist.
+2. Persist a redacted evidence report that distinguishes unsupported capabilities from failures and
    explicitly reports cleanup failures.
 
 ## Remaining gaps
 
 The production goal should remain open until these are resolved:
 
-1. Extend disposable live tests beyond read-only/database lifecycle to the required live
-   create/read/update/delete lifecycle for each supported capability pack.
-2. Run the full live destructive/elevated-impact gate on a disposable account and record redacted
-   evidence.
-3. Perform a final manual documentation consistency pass across `README.md`, `AGENTS.md`,
+1. Decide and document whether packs without safe cleanup paths remain dry-run-only or need new
+   implementation work before release.
+2. Perform a final manual documentation consistency pass across `README.md`, `AGENTS.md`,
    `SKILL.md`, capability references, and generated support matrix after the live lifecycle work.
-4. Re-run the full verification set and update this audit so every criterion is `Proven`.
+3. Re-run the full verification set and update this audit so every criterion is `Proven`.

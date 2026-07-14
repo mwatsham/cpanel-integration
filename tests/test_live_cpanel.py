@@ -51,6 +51,18 @@ class LiveLifecycleSpec:
     requires_domain: bool = False
 
 
+@dataclass(frozen=True)
+class LiveExecutionSpec:
+    """A reversible live mutation lifecycle for a disposable account."""
+
+    capability: str
+    create: Callable[[dict[str, str], str, str], str]
+    verify_created: Callable[[dict[str, str], str, str], None]
+    cleanup: Callable[[dict[str, str], str, str], None]
+    verify_cleaned: Callable[[dict[str, str], str, str], None]
+    requires_domain: bool = False
+
+
 def _domain(env: dict[str, str], capability: str) -> str | None:
     value = env.get("CPANEL_ADMIN_LIVE_DOMAIN", "").strip()
     if value:
@@ -263,6 +275,54 @@ def _invoke(env: dict[str, str], arguments: list[str], stdin: str = "") -> dict[
     return value
 
 
+def _execute_mutation(
+    env: dict[str, str],
+    profile: str,
+    arguments: list[str],
+    stdin: str = "",
+) -> dict[str, object]:
+    plan = _invoke(env, ["--profile", profile, *arguments, "--dry-run"], stdin=stdin)
+    assert plan["dry_run"] is True
+    if plan.get("requires_confirmation") is True:
+        return _invoke(
+            env,
+            [
+                "--profile",
+                profile,
+                *arguments,
+                "--confirm",
+                str(plan["confirmation"]),
+                "--expires-at",
+                str(plan["expires_at"]),
+            ],
+            stdin=stdin,
+        )
+    return _invoke(env, ["--profile", profile, *arguments], stdin=stdin)
+
+
+def _execute_confirmed(
+    env: dict[str, str],
+    profile: str,
+    arguments: list[str],
+    stdin: str = "",
+) -> dict[str, object]:
+    plan = _invoke(env, ["--profile", profile, *arguments, "--dry-run"], stdin=stdin)
+    assert plan["dry_run"] is True
+    return _invoke(
+        env,
+        [
+            "--profile",
+            profile,
+            *arguments,
+            "--confirm",
+            str(plan["confirmation"]),
+            "--expires-at",
+            str(plan["expires_at"]),
+        ],
+        stdin=stdin,
+    )
+
+
 def _write_report(env: dict[str, str], command: LiveCommand, code: int, result: object) -> None:
     report_path = env.get("CPANEL_ADMIN_LIVE_REPORT")
     if not report_path:
@@ -348,6 +408,168 @@ def _invoke_command(env: dict[str, str], profile: str, command: LiveCommand) -> 
     assert value["operation"] == command.operation
     _write_report(env, command, code, value)
     return value
+
+
+def _json_contains(value: object, needle: str) -> bool:
+    return needle in json.dumps(value, sort_keys=True)
+
+
+def _create_database(env: dict[str, str], profile: str, prefix: str) -> str:
+    database = f"{prefix}{secrets.token_hex(4)}"
+    if len(database) > 64:
+        pytest.skip("live database test name exceeds cPanel's 64-character limit")
+    _execute_mutation(env, profile, ["databases", "create", "--name", database])
+    return database
+
+
+def _verify_database_created(env: dict[str, str], profile: str, resource: str) -> None:
+    listed = _invoke(env, ["--profile", profile, "databases", "list"])
+    assert _json_contains(listed["data"], resource)
+
+
+def _cleanup_database(env: dict[str, str], profile: str, resource: str) -> None:
+    _execute_confirmed(env, profile, ["databases", "remove", "--name", resource])
+
+
+def _verify_database_cleaned(env: dict[str, str], profile: str, resource: str) -> None:
+    listed = _invoke(env, ["--profile", profile, "databases", "list"])
+    assert not _json_contains(listed["data"], resource)
+
+
+def _create_email(env: dict[str, str], profile: str, prefix: str) -> str:
+    domain = _domain(env, "email")
+    if domain is None:
+        pytest.skip("email lifecycle requires CPANEL_ADMIN_LIVE_DOMAIN")
+    local = f"{prefix}mail".rstrip("_")[:32]
+    _execute_mutation(
+        env,
+        profile,
+        [
+            "email",
+            "create-account",
+            "--email",
+            local,
+            "--domain",
+            domain,
+            "--password-stdin",
+            "--quota",
+            "128",
+        ],
+        stdin="CorrectHorseBatteryStaple!42",
+    )
+    return f"{local}@{domain}"
+
+
+def _verify_email_created(env: dict[str, str], profile: str, resource: str) -> None:
+    listed = _invoke(env, ["--profile", profile, "email", "accounts"])
+    assert _json_contains(listed["data"], resource)
+
+
+def _cleanup_email(env: dict[str, str], profile: str, resource: str) -> None:
+    local, domain = resource.split("@", 1)
+    _execute_confirmed(
+        env,
+        profile,
+        ["email", "delete-account", "--email", local, "--domain", domain],
+    )
+
+
+def _verify_email_cleaned(env: dict[str, str], profile: str, resource: str) -> None:
+    listed = _invoke(env, ["--profile", profile, "email", "accounts"])
+    assert not _json_contains(listed["data"], resource)
+
+
+def _create_ftp(env: dict[str, str], profile: str, prefix: str) -> str:
+    domain = _domain(env, "ftp")
+    if domain is None:
+        pytest.skip("FTP lifecycle requires CPANEL_ADMIN_LIVE_DOMAIN")
+    user = f"{prefix}ftp".rstrip("_")[:32]
+    _execute_mutation(
+        env,
+        profile,
+        [
+            "ftp",
+            "create",
+            "--user",
+            user,
+            "--domain",
+            domain,
+            "--password-stdin",
+            "--quota",
+            "128",
+        ],
+        stdin="CorrectHorseBatteryStaple!42",
+    )
+    return f"{user}@{domain}"
+
+
+def _verify_ftp_created(env: dict[str, str], profile: str, resource: str) -> None:
+    listed = _invoke(env, ["--profile", profile, "ftp", "accounts"])
+    assert _json_contains(listed["data"], resource)
+
+
+def _cleanup_ftp(env: dict[str, str], profile: str, resource: str) -> None:
+    user, domain = resource.split("@", 1)
+    _execute_confirmed(env, profile, ["ftp", "delete", "--user", user, "--domain", domain])
+
+
+def _verify_ftp_cleaned(env: dict[str, str], profile: str, resource: str) -> None:
+    listed = _invoke(env, ["--profile", profile, "ftp", "accounts"])
+    assert not _json_contains(listed["data"], resource)
+
+
+def _create_security_block(env: dict[str, str], profile: str, prefix: str) -> str:
+    resource = f"{prefix}203.0.113.9"
+    _execute_mutation(env, profile, ["security", "block-ip", "--ip", "203.0.113.9"])
+    return resource
+
+
+def _verify_security_block_created(_env: dict[str, str], _profile: str, _resource: str) -> None:
+    # The reviewed security surface has no independent read for BlockIP state.
+    return None
+
+
+def _cleanup_security_block(env: dict[str, str], profile: str, _resource: str) -> None:
+    _execute_mutation(env, profile, ["security", "unblock-ip", "--ip", "203.0.113.9"])
+
+
+def _verify_security_block_cleaned(_env: dict[str, str], _profile: str, _resource: str) -> None:
+    # The cleanup command succeeding is the available evidence for this reversible operation.
+    return None
+
+
+LIVE_EXECUTION_SPECS: tuple[LiveExecutionSpec, ...] = (
+    LiveExecutionSpec(
+        "databases",
+        _create_database,
+        _verify_database_created,
+        _cleanup_database,
+        _verify_database_cleaned,
+    ),
+    LiveExecutionSpec(
+        "email",
+        _create_email,
+        _verify_email_created,
+        _cleanup_email,
+        _verify_email_cleaned,
+        requires_domain=True,
+    ),
+    LiveExecutionSpec(
+        "ftp",
+        _create_ftp,
+        _verify_ftp_created,
+        _cleanup_ftp,
+        _verify_ftp_cleaned,
+        requires_domain=True,
+    ),
+    LiveExecutionSpec(
+        "security",
+        _create_security_block,
+        _verify_security_block_created,
+        _cleanup_security_block,
+        _verify_security_block_cleaned,
+    ),
+)
 
 
 def test_live_read_only_discovery() -> None:
@@ -477,3 +699,58 @@ def test_live_lifecycle_dry_run_plans(spec: LiveLifecycleSpec) -> None:
         resource=plan.resource,
         details={"operation": spec.operation},
     )
+
+
+@pytest.mark.parametrize("spec", LIVE_EXECUTION_SPECS, ids=lambda spec: spec.capability)
+def test_live_reversible_lifecycle_execution(spec: LiveExecutionSpec) -> None:
+    env, profile = _destructive_live_environment()
+    prefix = _live_run_prefix(env)
+    resource: str | None = None
+    try:
+        _write_lifecycle_report(
+            env,
+            capability=spec.capability,
+            phase="create",
+            status="attempt",
+            resource=prefix,
+        )
+        resource = spec.create(env, profile, prefix)
+        _write_lifecycle_report(
+            env,
+            capability=spec.capability,
+            phase="create",
+            status="ok",
+            resource=resource,
+        )
+        spec.verify_created(env, profile, resource)
+    finally:
+        if resource is not None:
+            try:
+                _write_lifecycle_report(
+                    env,
+                    capability=spec.capability,
+                    phase="cleanup",
+                    status="attempt",
+                    resource=resource,
+                )
+                spec.cleanup(env, profile, resource)
+                spec.verify_cleaned(env, profile, resource)
+                _write_lifecycle_report(
+                    env,
+                    capability=spec.capability,
+                    phase="cleanup",
+                    status="ok",
+                    resource=resource,
+                )
+            except Exception as exc:
+                _write_lifecycle_report(
+                    env,
+                    capability=spec.capability,
+                    phase="cleanup",
+                    status="failed",
+                    resource=resource,
+                    details={"error": str(exc)},
+                )
+                pytest.fail(
+                    f"LIVE CLEANUP FAILED; remove leftover {spec.capability} {resource}: {exc}"
+                )

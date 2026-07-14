@@ -97,5 +97,18 @@ export CPANEL_ADMIN_LIVE_RUN_PREFIX=codex_live_a1_
 If cleanup fails, the test output names the leftover database. Remove that resource manually from
 cPanel before reusing the account.
 
+Reversible lifecycle execution currently covers only capability packs with an implemented cleanup
+path: databases, email, FTP, and security IP blocks. Run it only after the dry-run plans pass:
+
+```bash
+export CPANEL_ADMIN_LIVE_ENABLE_DESTRUCTIVE=I_ACCEPT_LIVE_RESOURCE_MUTATION
+export CPANEL_ADMIN_LIVE_RUN_PREFIX=codex_live_a1_
+export CPANEL_ADMIN_LIVE_DOMAIN=xhj.833.mytemp.website
+.venv/bin/python -m pytest tests/test_live_cpanel.py::test_live_reversible_lifecycle_execution -m live -v
+```
+
+Do not add actual live execution for files, SSL, backups, domains, or runtime operations until the
+test has an independent verification and cleanup or rollback path.
+
 Lifecycle tests append redacted events to `CPANEL_ADMIN_LIVE_REPORT` when it is set. Reports include
 capability, phase, status, resource name, and non-secret details only.
