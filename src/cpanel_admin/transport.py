@@ -7,7 +7,7 @@ import json
 import secrets
 import socket
 import ssl
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 from typing import Protocol
 from urllib.error import HTTPError, URLError
@@ -19,7 +19,7 @@ from urllib.request import (
     build_opener,
 )
 
-from .errors import TransportError, UAPIError, UsageError
+from .errors import PartialFailure, TransportError, UAPIError, UsageError
 from .profiles import Profile
 from .redaction import redact
 
@@ -115,10 +115,13 @@ def _string_list(value: object) -> list[str]:
     return [str(value)]
 
 
-def _request_secrets(parameters: Mapping[str, object]) -> tuple[str, ...]:
+def _request_secrets(
+    parameters: Mapping[str, object], sensitive_names: Collection[str] = ()
+) -> tuple[str, ...]:
+    sensitive = SENSITIVE_PARAMETER_NAMES | {name.lower() for name in sensitive_names}
     values: list[str] = []
     for name, value in parameters.items():
-        if name.lower() not in SENSITIVE_PARAMETER_NAMES:
+        if name.lower() not in sensitive:
             continue
         items = value if isinstance(value, list | tuple) else [value]
         values.extend(str(item) for item in items if item)
@@ -156,6 +159,35 @@ def _multipart_body(
     return bytes(body), boundary
 
 
+def _is_failed_item(item: Mapping[str, object]) -> bool:
+    status = item.get("status")
+    return status is not True and status not in {None, 1, "1"}
+
+
+def _item_failure_message(item: Mapping[str, object]) -> str:
+    errors = _string_list(item.get("errors"))
+    if errors:
+        return "; ".join(errors)
+    messages = _string_list(item.get("messages"))
+    if messages:
+        return "; ".join(messages)
+    message = _string_list(item.get("message"))
+    return "; ".join(message) or "failed"
+
+
+def _raise_partial_failure_if_needed(data: object, *, secrets: tuple[str, ...]) -> None:
+    if not isinstance(data, list):
+        return
+    failures: list[str] = []
+    for index, item in enumerate(data):
+        if not isinstance(item, Mapping) or not _is_failed_item(item):
+            continue
+        message = redact(_item_failure_message(item), secrets=secrets)
+        failures.append(f"item {index}: {message}")
+    if failures:
+        raise PartialFailure("cPanel UAPI partial failure: " + "; ".join(failures))
+
+
 class UAPITransport:
     """Call fixed UAPI operations and normalize their JSON envelope."""
 
@@ -179,6 +211,7 @@ class UAPITransport:
         *,
         method: str = "GET",
         files: Mapping[str, Upload] | None = None,
+        sensitive_names: Collection[str] = (),
     ) -> UAPIResponse:
         if not 1 <= timeout <= 120:
             raise UsageError("Timeout must be between 1 and 120 seconds")
@@ -189,6 +222,16 @@ class UAPITransport:
             raise UsageError("UAPI request method must be GET or POST")
         if files and method != "POST":
             raise UsageError("File uploads require a POST request")
+        request_secrets = _request_secrets(parameters, sensitive_names)
+        effective_method = (
+            "POST"
+            if method == "GET"
+            and not files
+            and {name.lower() for name in sensitive_names}.intersection(
+                name.lower() for name in parameters
+            )
+            else method
+        )
         headers = {
             "Authorization": f"cpanel {profile.username}:{token}",
             "Accept": "application/json",
@@ -199,7 +242,7 @@ class UAPITransport:
             data, boundary = _multipart_body(parameters, files)
             headers["Content-Type"] = f"multipart/form-data; boundary={boundary}"
             url = base
-        elif method == "POST":
+        elif effective_method == "POST":
             data = urlencode(parameters, doseq=True).encode("ascii")
             headers["Content-Type"] = "application/x-www-form-urlencoded"
             url = base
@@ -210,7 +253,7 @@ class UAPITransport:
             url,
             data=data,
             headers=headers,
-            method=method,
+            method=effective_method,
         )
         try:
             with self._opener.open(request, timeout=timeout) as response:
@@ -250,10 +293,12 @@ class UAPITransport:
         if result.get("status") != 1:
             errors = _string_list(result.get("errors"))
             reason = "; ".join(errors) or "cPanel UAPI operation failed"
-            safe_reason = redact(reason, secrets=(token, *_request_secrets(parameters)))
+            safe_reason = redact(reason, secrets=(token, *request_secrets))
             raise UAPIError(str(safe_reason))
+        data = result.get("data")
+        _raise_partial_failure_if_needed(data, secrets=(token, *request_secrets))
         return UAPIResponse(
-            data=result.get("data"),
+            data=data,
             warnings=_string_list(result.get("warnings")),
             messages=_string_list(result.get("messages")),
         )

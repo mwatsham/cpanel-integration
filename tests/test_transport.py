@@ -8,7 +8,7 @@ from urllib.request import Request
 
 import pytest
 
-from cpanel_admin.errors import TransportError, UAPIError
+from cpanel_admin.errors import PartialFailure, TransportError, UAPIError
 from cpanel_admin.profiles import Profile
 from cpanel_admin.transport import SameOriginRedirectHandler, UAPITransport, Upload
 
@@ -77,6 +77,35 @@ def test_parameters_are_url_encoded(profile: Profile) -> None:
     assert opener.requests[0][0].full_url.endswith("?dir=public+html&show=1")
 
 
+def test_secret_bearing_get_is_promoted_to_post_form(profile: Profile) -> None:
+    opener = FakeOpener(FakeResponse({"result": {"status": 1, "data": None}}))
+    UAPITransport(opener=opener).call(
+        profile,
+        "token",
+        "Email",
+        "add_pop",
+        {"email": "user", "password": "secret"},
+        sensitive_names=("password",),
+    )
+    request = opener.requests[0][0]
+    assert request.method == "POST"
+    assert "secret" not in request.full_url
+    assert request.data == b"email=user&password=secret"
+
+
+def test_sequence_values_use_repeated_form_keys(profile: Profile) -> None:
+    opener = FakeOpener(FakeResponse({"result": {"status": 1, "data": None}}))
+    UAPITransport(opener=opener).call(
+        profile,
+        "token",
+        "DNS",
+        "mass_edit_zone",
+        {"add": ["one", "two"]},
+        method="POST",
+    )
+    assert opener.requests[0][0].data == b"add=one&add=two"
+
+
 def test_multipart_upload_uses_post_without_query_secrets(profile: Profile) -> None:
     opener = FakeOpener(FakeResponse({"result": {"status": 1, "data": None}}))
     UAPITransport(opener=opener).call(
@@ -141,6 +170,62 @@ def test_uapi_error_redacts_submitted_secret_parameters(profile: Profile) -> Non
             method="POST",
         )
     assert password not in str(error.value)
+
+
+def test_uapi_error_redacts_policy_sensitive_names(profile: Profile) -> None:
+    private_key = "dkim-private-secret"
+    opener = FakeOpener(
+        FakeResponse({"result": {"status": 0, "errors": [f"invalid key {private_key}"]}})
+    )
+    with pytest.raises(UAPIError) as error:
+        UAPITransport(opener=opener).call(
+            profile,
+            "token",
+            "Email",
+            "install_dkim_private_keys",
+            {"domain": "example.com", "dkim_private_key": private_key},
+            method="POST",
+            sensitive_names=("dkim_private_key",),
+        )
+    assert private_key not in str(error.value)
+
+
+def test_partial_result_failures_raise_only_indexes_and_safe_messages(profile: Profile) -> None:
+    private_key = "dkim-private-secret"
+    opener = FakeOpener(
+        FakeResponse(
+            {
+                "result": {
+                    "status": 1,
+                    "data": [
+                        {"status": 1, "domain": "ok.example", "message": "created"},
+                        {
+                            "status": 0,
+                            "domain": "bad.example",
+                            "errors": [f"dkim import failed for {private_key}"],
+                        },
+                    ],
+                }
+            }
+        )
+    )
+    with pytest.raises(PartialFailure) as error:
+        UAPITransport(opener=opener).call(
+            profile,
+            "token",
+            "Email",
+            "install_dkim_private_keys",
+            {"dkim_private_key": private_key},
+            method="POST",
+            sensitive_names=("dkim_private_key",),
+        )
+    message = str(error.value)
+    assert "item 1" in message
+    assert "dkim import failed" in message
+    assert private_key not in message
+    assert "item 0" not in message
+    assert "ok.example" not in message
+    assert "bad.example" not in message
 
 
 @pytest.mark.parametrize("body", [b"not-json", b"[]"])
