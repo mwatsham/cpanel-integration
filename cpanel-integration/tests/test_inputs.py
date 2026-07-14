@@ -1,16 +1,23 @@
 import argparse
 import io
+import json
+import operator
 import os
+import subprocess
+import sys
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
+from typing import get_origin, get_type_hints
 
 import pytest
 from cryptography.fernet import Fernet
 
+import cpanel_admin.inputs as inputs_module
+from cpanel_admin.catalog import JsonValue
 from cpanel_admin.errors import UsageError
-from cpanel_admin.inputs import InputResolver, fingerprint, read_protected_file
-from cpanel_admin.operations import validate_value
+from cpanel_admin.inputs import InputResolver, ResolvedInputs, fingerprint, read_protected_file
+from cpanel_admin.operations import VALIDATORS, validate_value
 from cpanel_admin.policy import (
     InputSource,
     PolicyError,
@@ -21,6 +28,7 @@ from cpanel_admin.policy import (
 )
 from cpanel_admin.profiles import ProfileStore, default_profile_path
 from cpanel_admin.secrets import SecretCodec
+from cpanel_admin.transport import Upload
 
 
 def parameter(
@@ -69,7 +77,8 @@ def test_secret_parameter_reads_stdin_and_fingerprints_plan() -> None:
 
 
 def test_protected_file_parameter_is_validated_then_fingerprinted(tmp_path: Path) -> None:
-    content = "".join(("test-private-material ", "PRIVATE KEY-----"))
+    key_label = "PRIVATE KEY"
+    content = f"-----BEGIN {key_label}-----\nQQ==\n-----END {key_label}-----"
     path = tmp_path / "private.pem"
     path.write_text(content)
     path.chmod(0o600)
@@ -156,6 +165,158 @@ def test_protected_file_rejects_invalid_limit_and_non_utf8_input(tmp_path: Path)
         )
 
 
+def _exception_chain(error: BaseException) -> tuple[BaseException, ...]:
+    pending = [error]
+    seen: set[int] = set()
+    result: list[BaseException] = []
+    while pending:
+        current = pending.pop()
+        if id(current) in seen:
+            continue
+        seen.add(id(current))
+        result.append(current)
+        for linked in (current.__cause__, current.__context__):
+            if linked is not None:
+                pending.append(linked)
+        nested = getattr(current, "exceptions", ())
+        pending.extend(item for item in nested if isinstance(item, BaseException))
+        pending.extend(item for item in current.args if isinstance(item, BaseException))
+    return tuple(result)
+
+
+@pytest.mark.parametrize(
+    ("source", "namespace_value"),
+    [
+        (InputSource.STDIN, None),
+        (InputSource.ENVIRONMENT, "APP_SECRET"),
+        (InputSource.PROTECTED_FILE, "protected"),
+    ],
+)
+def test_secret_validation_failure_discards_recursive_exception_chain(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    source: InputSource,
+    namespace_value: str | None,
+) -> None:
+    marker = "marker-" + os.urandom(8).hex()
+
+    def leaking_validator(_validator: str, _value: object) -> object:
+        try:
+            raise ValueError(marker)
+        except ValueError as first:
+            try:
+                raise RuntimeError(marker, first) from first
+            except RuntimeError as second:
+                raise UsageError(marker, second) from second
+
+    monkeypatch.setattr(inputs_module, "validate_value", leaking_validator)
+    namespace = argparse.Namespace()
+    stdin = io.StringIO(marker)
+    env: dict[str, str] = {}
+    if source is InputSource.ENVIRONMENT:
+        namespace.password = namespace_value
+        env["APP_SECRET"] = marker
+    elif source is InputSource.PROTECTED_FILE:
+        path = tmp_path / "protected-input"
+        path.write_text(marker)
+        path.chmod(0o600)
+        namespace.password = str(path)
+
+    subject = operation(parameter("password", source, "secret", secret=True))
+    with pytest.raises(UsageError) as captured:
+        InputResolver().resolve(subject, namespace, stdin, env)
+
+    assert captured.value.__cause__ is None
+    assert captured.value.__context__ is None
+    chain = _exception_chain(captured.value)
+    assert len(chain) == 1
+    assert all(marker not in repr(item) for item in chain)
+    assert all(marker not in repr(item.args) for item in chain)
+
+
+def test_secret_utf8_failure_does_not_retain_input_bytes(tmp_path: Path) -> None:
+    marker = "marker-" + os.urandom(8).hex()
+    path = tmp_path / "protected-input"
+    path.write_bytes(marker.encode() + b"\xff")
+    path.chmod(0o600)
+    subject = operation(parameter("password", InputSource.PROTECTED_FILE, "secret", secret=True))
+
+    with pytest.raises(UsageError) as captured:
+        InputResolver().resolve(subject, argparse.Namespace(password=str(path)), io.StringIO(), {})
+
+    assert captured.value.__cause__ is None
+    assert captured.value.__context__ is None
+    chain = _exception_chain(captured.value)
+    assert len(chain) == 1
+    assert all(marker not in repr(item) for item in chain)
+
+
+_FIFO_PROBE = """
+import json
+import sys
+from pathlib import Path
+import cpanel_admin.inputs as inputs
+
+payload = json.loads(sys.stdin.read())
+fifo = Path(payload["fifo"])
+if payload["swap"]:
+    metadata = Path(payload["regular"]).lstat()
+    inputs._initial_metadata = lambda _path, _label: metadata
+try:
+    if payload["reader"] == "protected":
+        inputs.read_protected_file(fifo, maximum=1024)
+    else:
+        inputs._read_local_file(fifo)
+except Exception:
+    raise SystemExit(0)
+raise SystemExit(9)
+"""
+
+
+@pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="FIFO requires os.mkfifo")
+@pytest.mark.parametrize("reader", ["protected", "local"])
+@pytest.mark.parametrize("swap", [False, True])
+def test_fifo_and_regular_to_fifo_swap_never_block(tmp_path: Path, reader: str, swap: bool) -> None:
+    regular = tmp_path / "regular"
+    regular.write_bytes(b"abc")
+    regular.chmod(0o600)
+    fifo = tmp_path / "fifo"
+    os.mkfifo(fifo, mode=0o600)
+    payload = {"reader": reader, "swap": swap, "regular": str(regular), "fifo": str(fifo)}
+
+    completed = subprocess.run(
+        [sys.executable, "-c", _FIFO_PROBE],
+        input=json.dumps(payload),
+        text=True,
+        capture_output=True,
+        timeout=2,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+
+
+@pytest.mark.parametrize("reader", ["protected", "local"])
+@pytest.mark.parametrize("candidate", ["directory", "device"])
+def test_non_regular_input_is_rejected_before_open(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    reader: str,
+    candidate: str,
+) -> None:
+    path = tmp_path if candidate == "directory" else Path(os.devnull)
+
+    def unexpected_open(*_args: object, **_kwargs: object) -> int:
+        raise AssertionError("non-regular input reached os.open")
+
+    monkeypatch.setattr(os, "open", unexpected_open)
+    with pytest.raises(UsageError, match="regular file"):
+        if reader == "protected":
+            read_protected_file(path, maximum=1024)
+        else:
+            inputs_module._read_local_file(path)
+
+
 def test_local_file_upload_has_only_safe_basename_and_fingerprint(tmp_path: Path) -> None:
     path = tmp_path / "site.zip"
     path.write_bytes(b"abc")
@@ -195,6 +356,67 @@ def test_resolved_input_representation_exposes_only_safe_values(tmp_path: Path) 
     assert runtime_value not in representation
     assert str(path) not in representation
     assert "safe_values" in representation
+
+
+def test_resolved_inputs_copy_and_deep_freeze_every_mapping() -> None:
+    marker = "marker-" + os.urandom(8).hex()
+    source_upload = Upload("site.zip", b"abc")
+    original_values: dict[str, object] = {
+        "password": marker,
+        "nested": {"items": [1]},
+    }
+    original_safe: dict[str, JsonValue] = {
+        "password": {"bytes": len(marker), "sha256": "0" * 64},
+        "nested": {"items": [1]},
+    }
+    original_uploads = {"file-1": source_upload}
+
+    resolved = ResolvedInputs(
+        original_values,
+        original_safe,
+        original_uploads,
+        (marker,),
+    )
+
+    hints = get_type_hints(ResolvedInputs)
+    assert hints["values"] == dict[str, object]
+    assert get_origin(hints["safe_values"]) is dict
+    assert hints["uploads"] == dict[str, Upload]
+    assert isinstance(resolved.values, dict)
+    assert isinstance(resolved.safe_values, dict)
+    assert isinstance(resolved.uploads, dict)
+
+    original_values["password"] = "changed"
+    original_safe["password"] = {"bytes": 0}
+    original_uploads.clear()
+    object.__setattr__(source_upload, "filename", marker)
+    assert resolved.values["password"] == marker
+    assert resolved.safe_values["password"] == {"bytes": len(marker), "sha256": "0" * 64}
+    assert resolved.uploads["file-1"].filename == "site.zip"
+    assert resolved.uploads["file-1"] is not source_upload
+
+    for mapping in (resolved.values, resolved.safe_values, resolved.uploads):
+        with pytest.raises(TypeError):
+            operator.setitem(mapping, "new", marker)
+        with pytest.raises(TypeError):
+            operator.delitem(mapping, next(iter(mapping)))
+        with pytest.raises(TypeError):
+            mapping.clear()
+        with pytest.raises(TypeError):
+            mapping.update(new=marker)
+
+    safe_nested = resolved.safe_values["nested"]
+    assert isinstance(safe_nested, dict)
+    with pytest.raises(TypeError):
+        operator.setitem(safe_nested, "leak", marker)
+    items = safe_nested["items"]
+    assert isinstance(items, list)
+    with pytest.raises(TypeError):
+        items.append(marker)
+
+    with pytest.raises(TypeError):
+        operator.setitem(resolved.secrets, 0, "changed")
+    assert marker not in repr(resolved)
 
 
 def test_local_file_rejects_symlink_and_oversize_without_exposing_path(tmp_path: Path) -> None:
@@ -412,6 +634,63 @@ def test_missing_required_argument_and_unknown_validator_fail_closed() -> None:
 )
 def test_reusable_validator_registry(validator: str, value: object, expected: object) -> None:
     assert validate_value(validator, value) == expected
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        lambda registry: operator.setitem(registry, "new", lambda value: value),
+        lambda registry: operator.setitem(registry, "domain", lambda value: value),
+        lambda registry: operator.delitem(registry, "domain"),
+        lambda registry: registry.update(new=lambda value: value),
+        lambda registry: registry.clear(),
+    ],
+)
+def test_validator_registry_rejects_all_normal_mutations(mutation: object) -> None:
+    baseline = dict(VALIDATORS)
+    try:
+        with pytest.raises((TypeError, AttributeError)):
+            mutation(VALIDATORS)  # type: ignore[operator]
+    finally:
+        if isinstance(VALIDATORS, dict):
+            VALIDATORS.clear()
+            VALIDATORS.update(baseline)
+
+    assert dict(VALIDATORS) == baseline
+    assert validate_value("domain", "EXAMPLE.COM") == "example.com"
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "-----BEGIN FIRST-----\nQQ==\n-----END SECOND-----",
+        "-----BEGIN TEST-----\nnot base64!?\n-----END TEST-----",
+        "-----BEGIN TEST-----\nQQ==\n-----END TEST-----\ntrailing",
+        "-----BEGIN TEST-----\n\n-----END TEST-----",
+        "-----BEGIN TEST -----\nQQ==\n-----END TEST -----",
+        "-----BEGIN TEST-----\nA=\n-----END TEST-----",
+    ],
+)
+def test_pem_validator_requires_matching_labels_and_structural_body(value: str) -> None:
+    with pytest.raises(UsageError, match="PEM encoded"):
+        validate_value("pem", value)
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "https://example.com/has space",
+        "https://example.com/new\nline",
+        "https://example.com/tab\there",
+        "https://example.com/null\x00byte",
+        "https://example.com/delete\x7fbyte",
+        "https://example.com/control\x85byte",
+        "https://[broken",
+    ],
+)
+def test_url_validator_rejects_spaces_and_control_characters(value: str) -> None:
+    with pytest.raises(UsageError, match="Invalid URL"):
+        validate_value("url", value)
 
 
 def test_cron_validator_reports_unsupported_capability() -> None:

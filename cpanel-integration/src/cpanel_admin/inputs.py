@@ -9,9 +9,10 @@ import os
 import re
 import stat
 from collections.abc import Mapping
+from contextlib import suppress
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TextIO, cast
+from typing import NoReturn, TextIO, TypeVar, cast
 
 from .catalog import JsonValue
 from .errors import ConfigError, UsageError
@@ -24,6 +25,57 @@ from .transport import Upload
 MAX_LOCAL_FILE_BYTES = 10 * 1024 * 1024
 ENVIRONMENT_NAME_RE = re.compile(r"^[A-Z][A-Z0-9_]{0,127}$")
 _ENCRYPTED_PROFILE_FIELDS = frozenset({"encrypted_token"})
+_KeyT = TypeVar("_KeyT")
+_ValueT = TypeVar("_ValueT")
+
+
+class _FrozenDict(dict[_KeyT, _ValueT]):
+    """Copied dict shape with every normal mutation entry point disabled."""
+
+    def __init__(self, values: Mapping[_KeyT, _ValueT]) -> None:
+        dict.__init__(self, values)
+
+    def _reject_mutation(self, *args: object, **kwargs: object) -> NoReturn:
+        raise TypeError("resolved input mappings are immutable")
+
+    __setitem__ = _reject_mutation
+    __delitem__ = _reject_mutation
+    clear = _reject_mutation
+    pop = _reject_mutation
+    popitem = _reject_mutation
+    setdefault = _reject_mutation
+    update = _reject_mutation
+    __ior__ = _reject_mutation
+
+
+class _FrozenList(list[_ValueT]):
+    """Copied list shape with every normal mutation entry point disabled."""
+
+    def _reject_mutation(self, *args: object, **kwargs: object) -> NoReturn:
+        raise TypeError("resolved input lists are immutable")
+
+    __setitem__ = _reject_mutation
+    __delitem__ = _reject_mutation
+    append = _reject_mutation
+    clear = _reject_mutation
+    extend = _reject_mutation
+    insert = _reject_mutation
+    pop = _reject_mutation
+    remove = _reject_mutation
+    reverse = _reject_mutation
+    sort = _reject_mutation
+    __iadd__ = _reject_mutation
+    __imul__ = _reject_mutation
+
+
+def _freeze(value: object) -> object:
+    if isinstance(value, Mapping):
+        return _FrozenDict({key: _freeze(item) for key, item in value.items()})
+    if isinstance(value, list):
+        return _FrozenList(_freeze(item) for item in value)
+    if isinstance(value, tuple):
+        return tuple(_freeze(item) for item in value)
+    return value
 
 
 @dataclass(frozen=True)
@@ -32,6 +84,22 @@ class ResolvedInputs:
     safe_values: dict[str, JsonValue]
     uploads: dict[str, Upload] = field(repr=False)
     secrets: tuple[str, ...] = field(repr=False)
+
+    def __post_init__(self) -> None:
+        values = _FrozenDict({name: _freeze(value) for name, value in dict(self.values).items()})
+        safe_values = _FrozenDict(
+            {name: _freeze(value) for name, value in dict(self.safe_values).items()}
+        )
+        uploads = _FrozenDict(
+            {
+                name: Upload(upload.filename, bytes(upload.content), str(upload.content_type))
+                for name, upload in dict(self.uploads).items()
+            }
+        )
+        object.__setattr__(self, "values", values)
+        object.__setattr__(self, "safe_values", safe_values)
+        object.__setattr__(self, "uploads", uploads)
+        object.__setattr__(self, "secrets", tuple(str(secret) for secret in self.secrets))
 
 
 def fingerprint(content: bytes) -> dict[str, JsonValue]:
@@ -43,21 +111,40 @@ def fingerprint(content: bytes) -> dict[str, JsonValue]:
 
 
 def _initial_metadata(path: Path, label: str) -> os.stat_result:
-    try:
+    metadata: os.stat_result | None = None
+    with suppress(OSError):
         metadata = path.lstat()
-    except OSError:
-        raise UsageError(f"Unable to inspect {label}") from None
+    if metadata is None:
+        raise UsageError(f"Unable to inspect {label}")
     if stat.S_ISLNK(metadata.st_mode):
         raise UsageError(f"{label.capitalize()} must not be a symbolic link")
+    if not stat.S_ISREG(metadata.st_mode):
+        raise UsageError(f"{label.capitalize()} must be a regular file")
     return metadata
 
 
 def _open_readonly(path: Path, label: str) -> int:
-    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
-    try:
-        return os.open(path, flags)
-    except OSError:
-        raise UsageError(f"Unable to open {label} securely") from None
+    flags = (
+        os.O_RDONLY
+        | getattr(os, "O_CLOEXEC", 0)
+        | getattr(os, "O_NOFOLLOW", 0)
+        | getattr(os, "O_NONBLOCK", 0)
+    )
+    descriptor: int | None = None
+    with suppress(OSError):
+        descriptor = os.open(path, flags)
+    if descriptor is None:
+        raise UsageError(f"Unable to open {label} securely")
+    return descriptor
+
+
+def _descriptor_metadata(descriptor: int, label: str) -> os.stat_result:
+    metadata: os.stat_result | None = None
+    with suppress(OSError):
+        metadata = os.fstat(descriptor)
+    if metadata is None:
+        raise UsageError(f"Unable to inspect {label} securely")
+    return metadata
 
 
 def _same_file(before: os.stat_result, after: os.stat_result) -> bool:
@@ -83,6 +170,7 @@ def _unchanged_file(before: os.stat_result, after: os.stat_result) -> bool:
 def _bounded_descriptor_read(descriptor: int, maximum: int, label: str) -> bytes:
     chunks: list[bytes] = []
     remaining = maximum + 1
+    read_failed = False
     try:
         while remaining:
             chunk = os.read(descriptor, min(remaining, 64 * 1024))
@@ -91,7 +179,9 @@ def _bounded_descriptor_read(descriptor: int, maximum: int, label: str) -> bytes
             chunks.append(chunk)
             remaining -= len(chunk)
     except OSError:
-        raise UsageError(f"Unable to read {label} securely") from None
+        read_failed = True
+    if read_failed:
+        raise UsageError(f"Unable to read {label} securely")
     content = b"".join(chunks)
     if len(content) > maximum:
         raise UsageError(f"{label.capitalize()} exceeds the allowed size")
@@ -107,10 +197,7 @@ def read_protected_file(path: Path, maximum: int) -> bytes:
     before = _initial_metadata(file_path, "protected input file")
     descriptor = _open_readonly(file_path, "protected input file")
     try:
-        try:
-            opened = os.fstat(descriptor)
-        except OSError:
-            raise UsageError("Unable to inspect protected input file securely") from None
+        opened = _descriptor_metadata(descriptor, "protected input file")
         if not _same_file(before, opened):
             raise UsageError("Protected input file changed while being opened")
         if not stat.S_ISREG(opened.st_mode):
@@ -120,10 +207,7 @@ def read_protected_file(path: Path, maximum: int) -> bytes:
         if stat.S_IMODE(opened.st_mode) != 0o600:
             raise UsageError("Protected input file permissions must be 0600")
         content = _bounded_descriptor_read(descriptor, maximum, "protected input file")
-        try:
-            finished = os.fstat(descriptor)
-        except OSError:
-            raise UsageError("Unable to inspect protected input file securely") from None
+        finished = _descriptor_metadata(descriptor, "protected input file")
         if not _unchanged_file(opened, finished):
             raise UsageError("Protected input file changed while being read")
         return content
@@ -135,19 +219,13 @@ def _read_local_file(path: Path) -> bytes:
     before = _initial_metadata(path, "upload source")
     descriptor = _open_readonly(path, "upload source")
     try:
-        try:
-            opened = os.fstat(descriptor)
-        except OSError:
-            raise UsageError("Unable to inspect upload source securely") from None
+        opened = _descriptor_metadata(descriptor, "upload source")
         if not _same_file(before, opened):
             raise UsageError("Upload source changed while being opened")
         if not stat.S_ISREG(opened.st_mode):
             raise UsageError("Upload source must be a regular file")
         content = _bounded_descriptor_read(descriptor, MAX_LOCAL_FILE_BYTES, "upload source")
-        try:
-            finished = os.fstat(descriptor)
-        except OSError:
-            raise UsageError("Unable to inspect upload source securely") from None
+        finished = _descriptor_metadata(descriptor, "upload source")
         if not _unchanged_file(opened, finished):
             raise UsageError("Upload source changed while being read")
         return content
@@ -164,10 +242,12 @@ def _argument_value(namespace: argparse.Namespace, name: str) -> object | None:
 
 
 def _decode(content: bytes, label: str) -> str:
-    try:
-        return content.decode("utf-8")
-    except UnicodeDecodeError as exc:
-        raise UsageError(f"{label} must contain UTF-8 text") from exc
+    decoded: str | None = None
+    with suppress(UnicodeDecodeError):
+        decoded = content.decode("utf-8")
+    if decoded is None:
+        raise UsageError(f"{label} must contain UTF-8 text")
+    return decoded
 
 
 def _maximum_for(parameter: PolicyParameter) -> int:
@@ -189,12 +269,31 @@ def _read_encrypted_profile(
     profile_name = getattr(namespace, "profile", None)
     if not isinstance(profile_name, str) or not profile_name:
         raise _missing(operation, parameter)
+    value: str | None = None
+    failed = False
     try:
         profile = ProfileStore(default_profile_path(env)).get(profile_name)
         ciphertext = profile.encrypted_token
-        return SecretCodec.from_environment(env).decrypt(ciphertext)
+        value = SecretCodec.from_environment(env).decrypt(ciphertext)
     except ConfigError:
-        raise UsageError("Unable to resolve encrypted profile field") from None
+        failed = True
+    if failed or value is None:
+        raise UsageError("Unable to resolve encrypted profile field")
+    return value
+
+
+def _validate_parameter_value(parameter: PolicyParameter, raw: object) -> object:
+    if not parameter.secret:
+        return validate_value(parameter.validator, raw)
+    normalized: object | None = None
+    failed = False
+    try:
+        normalized = validate_value(parameter.validator, raw)
+    except Exception:
+        failed = True
+    if failed or not isinstance(normalized, str):
+        raise UsageError(f"Invalid protected value for {parameter.name}")
+    return str(normalized)
 
 
 class InputResolver:
@@ -233,10 +332,14 @@ class InputResolver:
             if source is InputSource.ARGUMENT:
                 raw = _argument_value(namespace, parameter.name)
             elif source is InputSource.STDIN:
+                stdin_failed = False
                 try:
                     raw = stdin.read()
                 except OSError:
-                    raise UsageError("Unable to read approved standard input") from None
+                    stdin_failed = True
+                    raw = None
+                if stdin_failed:
+                    raise UsageError("Unable to read approved standard input")
                 if parameter.validator != "content":
                     raw = cast(str, raw).rstrip("\r\n")
             elif source is InputSource.PROTECTED_FILE:
@@ -275,7 +378,7 @@ class InputResolver:
                     raise _missing(operation, parameter)
                 continue
 
-            normalized = validate_value(parameter.validator, raw)
+            normalized = _validate_parameter_value(parameter, raw)
             values[parameter.name] = normalized
 
             if source is InputSource.LOCAL_FILE:

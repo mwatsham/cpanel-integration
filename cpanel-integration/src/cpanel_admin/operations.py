@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 import ipaddress
 import re
-from collections.abc import Callable
+import unicodedata
+from collections.abc import Callable, Mapping
+from contextlib import suppress
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import PurePosixPath
+from types import MappingProxyType
 from urllib.parse import urlsplit
 
 from .errors import CapabilityError, UsageError
@@ -341,15 +346,21 @@ def _bounded_text(value: object, *, label: str, maximum: int) -> str:
 
 
 def _certificate(value: object) -> str:
-    content = _bounded_text(value, label="Certificate content", maximum=MAX_PEM_BYTES)
-    if "-----BEGIN CERTIFICATE-----" not in content or "-----END CERTIFICATE-----" not in content:
+    label, content = _pem_parts(value, label="Certificate content")
+    if label != "CERTIFICATE":
         raise UsageError("Certificate content is not PEM encoded")
     return content
 
 
 def _private_key(value: object) -> str:
-    content = _bounded_text(value, label="Private key content", maximum=MAX_PEM_BYTES)
-    if "PRIVATE KEY-----" not in content:
+    label, content = _pem_parts(value, label="Private key content")
+    if label not in {
+        "PRIVATE KEY",
+        "RSA PRIVATE KEY",
+        "EC PRIVATE KEY",
+        "ENCRYPTED PRIVATE KEY",
+        "OPENSSH PRIVATE KEY",
+    }:
         raise UsageError("Private key content is not PEM encoded")
     return content
 
@@ -416,31 +427,59 @@ def _ip_cidr(value: object) -> str:
 
 
 def _url(value: object) -> str:
-    if not isinstance(value, str) or not value or value != value.strip() or len(value) > 4096:
+    if (
+        not isinstance(value, str)
+        or not value
+        or value != value.strip()
+        or len(value) > 4096
+        or any(
+            character.isspace() or unicodedata.category(character).startswith("C")
+            for character in value
+        )
+    ):
         raise UsageError("Invalid URL")
-    parsed = urlsplit(value)
+    parsed = None
+    host: str | None = None
+    invalid_parse = False
+    try:
+        parsed = urlsplit(value)
+        host = parsed.hostname
+        _ = parsed.port
+    except ValueError:
+        invalid_parse = True
+    if invalid_parse or parsed is None:
+        raise UsageError("Invalid URL")
     if (
         parsed.scheme not in {"http", "https"}
-        or not parsed.hostname
+        or not host
         or parsed.username is not None
         or parsed.password is not None
     ):
         raise UsageError("Invalid URL")
-    try:
-        _ = parsed.port
-    except ValueError as exc:
-        raise UsageError("Invalid URL") from exc
     return value
 
 
-def _pem(value: object) -> str:
-    content = _bounded_text(value, label="PEM content", maximum=MAX_PEM_BYTES)
-    if not re.fullmatch(
-        r"-----BEGIN [A-Z0-9][A-Z0-9 ]*-----\r?\n.+\r?\n-----END [A-Z0-9][A-Z0-9 ]*-----",
+def _pem_parts(value: object, *, label: str = "PEM content") -> tuple[str, str]:
+    content = _bounded_text(value, label=label, maximum=MAX_PEM_BYTES)
+    matched = re.fullmatch(
+        r"-----BEGIN (?P<label>[A-Z0-9]+(?: [A-Z0-9]+)*)-----\r?\n"
+        r"(?P<body>(?:[A-Za-z0-9+/]{1,64}={0,2}\r?\n)+)"
+        r"-----END (?P=label)-----(?:\r?\n)?",
         content,
-        flags=re.DOTALL,
-    ):
-        raise UsageError("Content is not PEM encoded")
+    )
+    if matched is None:
+        raise UsageError(f"{label} is not PEM encoded")
+    encoded = matched.group("body").replace("\r", "").replace("\n", "")
+    decoded: bytes | None = None
+    with suppress(binascii.Error, ValueError):
+        decoded = base64.b64decode(encoded, validate=True)
+    if not decoded:
+        raise UsageError(f"{label} is not PEM encoded")
+    return matched.group("label"), content
+
+
+def _pem(value: object) -> str:
+    _label, content = _pem_parts(value)
     return content
 
 
@@ -449,7 +488,7 @@ def _unsupported_cron(_value: object) -> object:
 
 
 Validator = Callable[[object], object]
-VALIDATORS: dict[str, Validator] = {
+_VALIDATOR_FUNCTIONS: dict[str, Validator] = {
     "boolean": _boolean,
     "bounded_text": lambda item: _bounded_text(item, label="Text", maximum=MAX_TEXT_BYTES),
     "certificate": _certificate,
@@ -476,6 +515,8 @@ VALIDATORS: dict[str, Validator] = {
     "trash_age": _trash_age,
     "url": _url,
 }
+VALIDATORS: Mapping[str, Validator] = MappingProxyType(dict(_VALIDATOR_FUNCTIONS))
+del _VALIDATOR_FUNCTIONS
 
 
 def validate_value(validator: str, value: object) -> object:

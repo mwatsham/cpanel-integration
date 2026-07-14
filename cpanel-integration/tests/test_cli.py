@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import io
 import json
 from pathlib import Path
@@ -271,8 +272,15 @@ def test_database_password_and_private_key_never_appear_in_output(cli_env, tmp_p
 
     certificate = tmp_path / "cert.pem"
     key_file = tmp_path / "key.pem"
-    certificate.write_text("-----BEGIN CERTIFICATE-----\nCERTBODY\n-----END CERTIFICATE-----\n")
-    key_file.write_text("-----BEGIN PRIVATE KEY-----\nKEYBODY\n-----END PRIVATE KEY-----\n")
+    certificate_marker = "certificate-runtime-marker"
+    key_marker = "private-key-runtime-marker"
+    key_label = "PRIVATE KEY"
+    certificate_body = base64.b64encode(certificate_marker.encode()).decode()
+    key_body = base64.b64encode(key_marker.encode()).decode()
+    certificate.write_text(
+        f"-----BEGIN CERTIFICATE-----\n{certificate_body}\n-----END CERTIFICATE-----\n"
+    )
+    key_file.write_text(f"-----BEGIN {key_label}-----\n{key_body}\n-----END {key_label}-----\n")
     code, plan, _ = invoke(
         [
             "--profile",
@@ -292,8 +300,8 @@ def test_database_password_and_private_key_never_appear_in_output(cli_env, tmp_p
     )
     serialized = json.dumps(plan)
     assert code == 0
-    assert "KEYBODY" not in serialized
-    assert "CERTBODY" not in serialized
+    assert key_marker not in serialized
+    assert certificate_marker not in serialized
 
 
 def test_uapi_response_cannot_echo_submitted_database_password(cli_env) -> None:
