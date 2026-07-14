@@ -27,6 +27,43 @@ def test_live_harness_covers_representative_capability_groups() -> None:
     assert all(arguments[0] != "profiles" for arguments in commands.values())
 
 
+def test_live_lifecycle_specs_cover_mutable_capability_packs() -> None:
+    specs = {spec.capability: spec for spec in test_live_cpanel.LIVE_LIFECYCLE_SPECS}
+    expected = {
+        "backups",
+        "databases",
+        "domains",
+        "email",
+        "files",
+        "ftp",
+        "runtime",
+        "security",
+        "ssl",
+    }
+    assert expected <= specs.keys()
+    for spec in specs.values():
+        assert spec.operation
+        assert spec.phase in {"create", "update", "delete", "start"}
+        assert spec.dry_run is True
+
+
+def test_lifecycle_spec_builders_use_prefix_and_require_domain_when_needed() -> None:
+    prefix = "codex_live_a1_"
+    env = {"CPANEL_ADMIN_LIVE_DOMAIN": "example.com"}
+    for spec in test_live_cpanel.LIVE_LIFECYCLE_SPECS:
+        built = spec.build(env, prefix)
+        assert built.resource.startswith(prefix) or spec.capability in {"runtime", "backups", "ssl"}
+        assert "--dry-run" in built.arguments
+
+    missing_domain = [
+        spec.capability
+        for spec in test_live_cpanel.LIVE_LIFECYCLE_SPECS
+        if spec.requires_domain
+        and spec.build({"CPANEL_ADMIN_LIVE_DOMAIN": ""}, prefix).skip_reason is not None
+    ]
+    assert {"domains", "email", "ftp", "ssl"} <= set(missing_domain)
+
+
 def test_live_testing_reference_documents_required_gates() -> None:
     reference = Path("references/live-testing.md")
     assert reference.exists()
@@ -36,6 +73,8 @@ def test_live_testing_reference_documents_required_gates() -> None:
     assert "CPANEL_ADMIN_LIVE_PROFILE" in text
     assert "CPANEL_ADMIN_LIVE_ENABLE_DESTRUCTIVE=I_ACCEPT_LIVE_RESOURCE_MUTATION" in text
     assert "CPANEL_ADMIN_LIVE_RUN_PREFIX" in text
+    assert "CPANEL_ADMIN_LIVE_DOMAIN" in text
+    assert "test_live_lifecycle_dry_run_plans" in text
     assert "disposable" in text.lower()
     assert "pytest tests/test_live_cpanel.py -m live" in text
 

@@ -53,15 +53,22 @@ Current live verification is intentionally opt-in and gated by:
 Current evidence:
 
 - Representative read-only matrix exists in `tests/test_live_cpanel.py`.
+- Lifecycle dry-run plan specs exist for backups, databases, domains, email, files, FTP, runtime,
+  security, and SSL.
 - Redacted JSON-lines reporting exists through `CPANEL_ADMIN_LIVE_REPORT`.
 - `references/live-testing.md` documents gates, feature-unavailable skips, report handling, and the
   isolated database lifecycle.
 - Recent disposable-account run against `test-123reg` passed read-only verification for available
   packs and skipped unsupported account features explicitly.
+- Recent disposable-account lifecycle dry-run run against `test-123reg` passed plans for backups,
+  databases, domains, email, files, FTP, runtime, security, and SSL using
+  `CPANEL_ADMIN_LIVE_ENABLE_DESTRUCTIVE=I_ACCEPT_LIVE_RESOURCE_MUTATION`,
+  `CPANEL_ADMIN_LIVE_RUN_PREFIX=codex_live_a1_`, and `CPANEL_ADMIN_LIVE_DOMAIN` with all operations
+  still executed as `--dry-run`.
 
 Remaining live verification gaps:
 
-1. Expand from read-only coverage to a safe live create/read/update/delete lifecycle for every
+1. Expand from dry-run/read-only coverage to a safe live create/read/update/delete lifecycle for every
    supported capability pack that the disposable account actually supports.
 2. Verify each mutation through an independent read where possible.
 3. Attempt cleanup in dependency-aware order for all created resources.

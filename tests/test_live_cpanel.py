@@ -7,6 +7,7 @@ import json
 import os
 import re
 import secrets
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -28,6 +29,153 @@ class LiveCommand:
     arguments: tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class LifecyclePlan:
+    """A disposable live dry-run plan candidate."""
+
+    arguments: tuple[str, ...]
+    stdin: str
+    resource: str
+    skip_reason: str | None = None
+
+
+@dataclass(frozen=True)
+class LiveLifecycleSpec:
+    """A mutation lifecycle dry-run spec for a capability pack."""
+
+    capability: str
+    operation: str
+    phase: str
+    build: Callable[[dict[str, str], str], LifecyclePlan]
+    dry_run: bool = True
+    requires_domain: bool = False
+
+
+def _domain(env: dict[str, str], capability: str) -> str | None:
+    value = env.get("CPANEL_ADMIN_LIVE_DOMAIN", "").strip()
+    if value:
+        return value
+    return None
+
+
+def _requires_domain(capability: str, operation: str) -> LifecyclePlan:
+    return LifecyclePlan((), "", "", f"{operation} requires CPANEL_ADMIN_LIVE_DOMAIN")
+
+
+def _domain_subdomain_plan(env: dict[str, str], prefix: str) -> LifecyclePlan:
+    rootdomain = _domain(env, "domains")
+    if rootdomain is None:
+        return _requires_domain("domains", "domains.add-subdomain")
+    label = prefix.rstrip("_").replace("_", "-")
+    return LifecyclePlan(
+        (
+            "domains",
+            "add-subdomain",
+            "--domain",
+            label,
+            "--rootdomain",
+            rootdomain,
+            "--dir",
+            f"public_html/{prefix}subdomain",
+            "--dry-run",
+        ),
+        "",
+        f"{prefix}subdomain.{rootdomain}",
+    )
+
+
+def _files_write_plan(_env: dict[str, str], prefix: str) -> LifecyclePlan:
+    filename = f"{prefix}probe.txt"
+    return LifecyclePlan(
+        (
+            "files",
+            "write",
+            "--directory",
+            "public_html",
+            "--filename",
+            filename,
+            "--content-stdin",
+            "--dry-run",
+        ),
+        "codex live disposable probe\n",
+        filename,
+    )
+
+
+def _database_create_plan(_env: dict[str, str], prefix: str) -> LifecyclePlan:
+    database = f"{prefix}db"
+    return LifecyclePlan(("databases", "create", "--name", database, "--dry-run"), "", database)
+
+
+def _email_create_plan(env: dict[str, str], prefix: str) -> LifecyclePlan:
+    domain = _domain(env, "email")
+    if domain is None:
+        return _requires_domain("email", "email.create-account")
+    local = f"{prefix}mail".rstrip("_")[:32]
+    return LifecyclePlan(
+        (
+            "email",
+            "create-account",
+            "--email",
+            local,
+            "--domain",
+            domain,
+            "--password-stdin",
+            "--quota",
+            "128",
+            "--dry-run",
+        ),
+        "CorrectHorseBatteryStaple!42",
+        f"{local}@{domain}",
+    )
+
+
+def _ftp_create_plan(env: dict[str, str], prefix: str) -> LifecyclePlan:
+    domain = _domain(env, "ftp")
+    if domain is None:
+        return _requires_domain("ftp", "ftp.create")
+    user = f"{prefix}ftp".rstrip("_")[:32]
+    return LifecyclePlan(
+        (
+            "ftp",
+            "create",
+            "--user",
+            user,
+            "--domain",
+            domain,
+            "--password-stdin",
+            "--quota",
+            "128",
+            "--dry-run",
+        ),
+        "CorrectHorseBatteryStaple!42",
+        f"{user}@{domain}",
+    )
+
+
+def _security_block_ip_plan(_env: dict[str, str], prefix: str) -> LifecyclePlan:
+    return LifecyclePlan(
+        ("security", "block-ip", "--ip", "203.0.113.9", "--dry-run"),
+        "",
+        f"{prefix}203.0.113.9",
+    )
+
+
+def _runtime_nginx_plan(_env: dict[str, str], _prefix: str) -> LifecyclePlan:
+    return LifecyclePlan(("runtime", "nginx-clear-cache", "--dry-run"), "", "nginx-cache")
+
+
+def _backup_full_plan(_env: dict[str, str], _prefix: str) -> LifecyclePlan:
+    return LifecyclePlan(("backups", "full-to-home", "--dry-run"), "", "home-directory-backup")
+
+
+def _ssl_remove_plan(env: dict[str, str], _prefix: str) -> LifecyclePlan:
+    domain = _domain(env, "ssl")
+    if domain is None:
+        return _requires_domain("ssl", "ssl.remove")
+    return LifecyclePlan(("ssl", "remove", "--domain", domain, "--dry-run"), "", domain)
+
+
 LIVE_COMMANDS: tuple[LiveCommand, ...] = (
     LiveCommand("domains.list", ("domains", "list")),
     LiveCommand("ssl.hosts", ("ssl", "hosts")),
@@ -39,6 +187,24 @@ LIVE_COMMANDS: tuple[LiveCommand, ...] = (
     LiveCommand("runtime.php-installed", ("runtime", "php-installed")),
     LiveCommand("backups.list", ("backups", "list")),
     LiveCommand("capabilities.inspect", ("capabilities", "inspect")),
+)
+
+LIVE_LIFECYCLE_SPECS: tuple[LiveLifecycleSpec, ...] = (
+    LiveLifecycleSpec("backups", "backups.full-to-home", "start", _backup_full_plan),
+    LiveLifecycleSpec("databases", "databases.create", "create", _database_create_plan),
+    LiveLifecycleSpec(
+        "domains",
+        "domains.add-subdomain",
+        "create",
+        _domain_subdomain_plan,
+        requires_domain=True,
+    ),
+    LiveLifecycleSpec("email", "email.create-account", "create", _email_create_plan, True, True),
+    LiveLifecycleSpec("files", "files.write", "create", _files_write_plan),
+    LiveLifecycleSpec("ftp", "ftp.create", "create", _ftp_create_plan, True, True),
+    LiveLifecycleSpec("runtime", "runtime.nginx-clear-cache", "update", _runtime_nginx_plan),
+    LiveLifecycleSpec("security", "security.block-ip", "create", _security_block_ip_plan),
+    LiveLifecycleSpec("ssl", "ssl.remove", "delete", _ssl_remove_plan, True, True),
 )
 
 
@@ -284,3 +450,30 @@ def test_live_isolated_database_lifecycle() -> None:
                 pytest.fail(f"LIVE CLEANUP FAILED; remove leftover database {database}: {exc}")
     after = _invoke(env, ["--profile", profile, "databases", "list"])
     assert database not in json.dumps(after["data"])
+
+
+@pytest.mark.parametrize("spec", LIVE_LIFECYCLE_SPECS, ids=lambda spec: spec.operation)
+def test_live_lifecycle_dry_run_plans(spec: LiveLifecycleSpec) -> None:
+    env, profile = _destructive_live_environment()
+    prefix = _live_run_prefix(env)
+    plan = spec.build(env, prefix)
+    if plan.skip_reason is not None:
+        pytest.skip(plan.skip_reason)
+    _write_lifecycle_report(
+        env,
+        capability=spec.capability,
+        phase=spec.phase,
+        status="dry-run-attempt",
+        resource=plan.resource,
+    )
+    result = _invoke(env, ["--profile", profile, *plan.arguments], stdin=plan.stdin)
+    assert result["dry_run"] is True
+    assert result["operation"] == spec.operation
+    _write_lifecycle_report(
+        env,
+        capability=spec.capability,
+        phase=spec.phase,
+        status="dry-run-ok",
+        resource=plan.resource,
+        details={"operation": spec.operation},
+    )

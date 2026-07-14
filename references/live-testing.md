@@ -27,6 +27,13 @@ Use `CPANEL_ADMIN_LIVE_RUN_PREFIX` to make all created resources easy to identif
 must match `codex_live_<2-8 lowercase letters/digits>_`; otherwise the test fails before touching
 cPanel.
 
+Set `CPANEL_ADMIN_LIVE_DOMAIN` to a domain on the disposable account when running lifecycle dry-run
+plans for domain, email, FTP, or SSL operations:
+
+```bash
+export CPANEL_ADMIN_LIVE_DOMAIN=xhj.833.mytemp.website
+```
+
 ## Read-only coverage
 
 Run the representative read-only matrix with:
@@ -65,6 +72,18 @@ export CPANEL_ADMIN_LIVE_REPORT=.live/cpanel-read-only.jsonl
 Do not commit `.live/` reports unless every line has been reviewed for sensitive account metadata.
 
 ## Disposable mutation coverage
+
+Before executing live mutations, run lifecycle dry-run plans for all supported capability packs:
+
+```bash
+export CPANEL_ADMIN_LIVE_ENABLE_DESTRUCTIVE=I_ACCEPT_LIVE_RESOURCE_MUTATION
+export CPANEL_ADMIN_LIVE_RUN_PREFIX=codex_live_a1_
+export CPANEL_ADMIN_LIVE_DOMAIN=xhj.833.mytemp.website
+.venv/bin/python -m pytest tests/test_live_cpanel.py::test_live_lifecycle_dry_run_plans -m live -v
+```
+
+These dry-run plans validate target construction, profile decryption, account feature checks, input
+handling, confirmation planning, and redacted lifecycle reporting without executing the mutation.
 
 The database lifecycle test creates and removes a uniquely prefixed database. Enable it only on a
 disposable account with the second destructive gate:
