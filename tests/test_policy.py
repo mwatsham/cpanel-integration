@@ -44,6 +44,16 @@ PROTECTED_MVP_INPUTS = {
         (InputSource.STDIN,),
         "secret",
     ),
+    ("Email/add_pop", "password"): (
+        "password",
+        (InputSource.STDIN,),
+        "secret",
+    ),
+    ("Email/passwd_pop", "password"): (
+        "password",
+        (InputSource.STDIN,),
+        "secret",
+    ),
     ("SSL/install_ssl", "private_key"): (
         "key",
         (InputSource.PROTECTED_FILE,),
@@ -53,7 +63,45 @@ PROTECTED_MVP_INPUTS = {
 PROTECTED_ALTERNATE_UAPI_NAMES = {
     "Fileman/save_file_content": "file",
     "Mysql/create_user": "name",
+    "Email/add_pop": "email",
+    "Email/passwd_pop": "email",
     "SSL/install_ssl": "cert",
+}
+EMAIL_ADMIN_OPERATION_CONTRACTS = {
+    "Email/list_pops": ("email.accounts", ("email", "accounts")),
+    "Email/add_pop": ("email.create-account", ("email", "create-account")),
+    "Email/delete_pop": ("email.delete-account", ("email", "delete-account")),
+    "Email/passwd_pop": ("email.set-password", ("email", "set-password")),
+    "Email/edit_pop_quota": ("email.set-quota", ("email", "set-quota")),
+    "Email/list_forwarders": ("email.forwarders", ("email", "forwarders")),
+    "Email/add_forwarder": ("email.add-forwarder", ("email", "add-forwarder")),
+    "Email/delete_forwarder": ("email.delete-forwarder", ("email", "delete-forwarder")),
+    "Email/list_auto_responders": ("email.autoresponders", ("email", "autoresponders")),
+    "Email/add_auto_responder": ("email.add-autoresponder", ("email", "add-autoresponder")),
+    "Email/delete_auto_responder": (
+        "email.delete-autoresponder",
+        ("email", "delete-autoresponder"),
+    ),
+    "Email/list_filters": ("email.filters", ("email", "filters")),
+    "Email/enable_filter": ("email.enable-filter", ("email", "enable-filter")),
+    "Email/disable_filter": ("email.disable-filter", ("email", "disable-filter")),
+    "Email/delete_filter": ("email.delete-filter", ("email", "delete-filter")),
+    "Email/get_spam_settings": ("email.spam-settings", ("email", "spam-settings")),
+    "Email/enable_spam_assassin": ("email.enable-spam", ("email", "enable-spam")),
+    "Email/disable_spam_assassin": ("email.disable-spam", ("email", "disable-spam")),
+    "Email/enable_spam_box": ("email.enable-spam-box", ("email", "enable-spam-box")),
+    "Email/disable_spam_box": ("email.disable-spam-box", ("email", "disable-spam-box")),
+    "Email/list_mxs": ("email.mx-list", ("email", "mx-list")),
+    "Email/add_mx": ("email.add-mx", ("email", "add-mx")),
+    "Email/delete_mx": ("email.delete-mx", ("email", "delete-mx")),
+    "Email/change_mx": ("email.change-mx", ("email", "change-mx")),
+    "Email/set_manual_mx_redirects": ("email.set-routing", ("email", "set-routing")),
+    "Email/unset_manual_mx_redirects": ("email.unset-routing", ("email", "unset-routing")),
+    "EmailAuth/validate_current_spfs": ("email.validate-spf", ("email", "validate-spf")),
+    "EmailAuth/validate_current_dkims": ("email.validate-dkim", ("email", "validate-dkim")),
+    "EmailAuth/install_spf_records": ("email.install-spf", ("email", "install-spf")),
+    "EmailAuth/enable_dkim": ("email.enable-dkim", ("email", "enable-dkim")),
+    "EmailAuth/disable_dkim": ("email.disable-dkim", ("email", "disable-dkim")),
 }
 
 
@@ -82,7 +130,13 @@ def minimal_catalog(
                 location="query",
                 required=True,
                 schema_type="string",
-            )
+            ),
+            "password": CatalogParameter(
+                name="password",
+                location="query",
+                required=True,
+                schema_type="string",
+            ),
         },
         request_media_types=tuple(request_media_types or []),
     )
@@ -124,11 +178,20 @@ def minimal_policy(**operation_overrides: object) -> dict[str, object]:
                 "name": "email",
                 "uapi_name": "email",
                 "sources": ["argument"],
-                "validator": "email",
+                "validator": "email_local",
                 "required": True,
                 "secret": False,
                 "sensitive_output": False,
-            }
+            },
+            "password": {
+                "name": "password",
+                "uapi_name": "password",
+                "sources": ["stdin"],
+                "validator": "secret",
+                "required": True,
+                "secret": True,
+                "sensitive_output": True,
+            },
         },
         "impact": "Create an email account",
         "recovery": "Delete the email account",
@@ -152,21 +215,12 @@ def minimal_policy(**operation_overrides: object) -> dict[str, object]:
 
 
 def excluded_policy(**operation_overrides: object) -> dict[str, object]:
-    policy = minimal_policy(
-        name="Email/add_pop",
-        status="excluded",
-        risk=None,
-        command=[],
-        parameters={},
-        elevated_impact=False,
-        impact="",
-        recovery="",
-        preflight=None,
-        verification=None,
-        feature=None,
-        audit_fields=[],
-    )
-    policy["operations"][0].update(operation_overrides)
+    policy = minimal_policy()
+    for index, operation in enumerate(policy["operations"]):
+        if operation["identity"] == "AccountEnhancements/list":
+            operation.update(operation_overrides)
+            policy["operations"].insert(0, policy["operations"].pop(index))
+            break
     return policy
 
 
@@ -259,16 +313,28 @@ def test_foundation_operations_keep_stable_names_commands_and_lookup() -> None:
         contract.status is SupportStatus.INCLUDED
         for contract in STABLE_MVP_OPERATION_CONTRACTS.values()
     )
-    assert {
+    included = {
         operation.identity: (operation.name, operation.command) for operation in registry.included()
-    } == expected
+    }
+    assert included.items() >= expected.items()
     for identity, (name, command) in expected.items():
         assert registry.get(name).identity == identity
         assert registry.by_command(command).identity == identity
-    assert registry.exclusion("Email/add_pop").status is SupportStatus.EXCLUDED
     assert tuple(operation.identity for operation in registry.included()) == tuple(
         sorted(operation.identity for operation in registry.included())
     )
+
+
+def test_email_administration_operations_are_reviewed_and_stable() -> None:
+    registry = PolicyRegistry.load(pinned_catalog(), POLICY_PATH)
+    included = {
+        operation.identity: (operation.name, operation.command) for operation in registry.included()
+    }
+    assert included.items() >= EMAIL_ADMIN_OPERATION_CONTRACTS.items()
+    assert registry.get("email.create-account").parameters["password"].secret is True
+    assert registry.get("email.set-password").parameters["password"].secret is True
+    assert registry.get("email.add-autoresponder").risk is Risk.MUTATE
+    assert registry.get("email.delete-account").risk is Risk.DESTRUCTIVE
 
 
 @pytest.mark.parametrize(
@@ -347,7 +413,7 @@ def test_no_command_accepts_module_or_function_parameters() -> None:
     [
         ({"identity": "Missing/function"}, "unknown catalog operation"),
         ({"reason": ""}, "reason"),
-        ({"parameters": {}}, "parameters do not match"),
+        ({"parameters": {}}, r"protected input|parameters do not match"),
         ({"impact": ""}, "impact"),
         ({"recovery": ""}, "recovery"),
     ],
@@ -555,7 +621,7 @@ def _files_write_from_surface(registry: PolicyRegistry, surface: str):
     ("index_name", "key"),
     [
         ("_by_name", "files.write"),
-        ("_by_identity", "Email/add_pop"),
+        ("_by_identity", "AccountEnhancements/list"),
         ("_by_command", ("files", "write")),
     ],
 )
@@ -577,7 +643,7 @@ def test_registry_indexes_are_immutable_copies(
     registry = PolicyRegistry.load(pinned_catalog(), POLICY_PATH)
     index = getattr(registry, index_name)
     files_write = registry.get("files.write")
-    excluded = registry.exclusion("Email/add_pop")
+    excluded = registry.exclusion("AccountEnhancements/list")
     replacement = registry.get("domains.list")
 
     with pytest.raises((TypeError, AttributeError)):
@@ -585,7 +651,7 @@ def test_registry_indexes_are_immutable_copies(
 
     assert registry.get("files.write") is files_write
     assert registry.by_command(("files", "write")) is files_write
-    assert registry.exclusion("Email/add_pop") is excluded
+    assert registry.exclusion("AccountEnhancements/list") is excluded
 
 
 @pytest.mark.parametrize("surface", ["get", "by_command", "all", "included"])
@@ -654,14 +720,14 @@ def test_excluded_operation_parameters_keep_dict_shape_and_are_immutable(
     mutation: Callable[[dict[str, PolicyParameter], PolicyParameter], object],
 ) -> None:
     registry = PolicyRegistry.load(pinned_catalog(), POLICY_PATH)
-    parameters = registry.exclusion("Email/add_pop").parameters
+    parameters = registry.exclusion("AccountEnhancements/list").parameters
     value = registry.get("files.write").parameters["filename"]
 
     assert isinstance(parameters, dict)
     with pytest.raises(TypeError):
         mutation(parameters, value)
     assert parameters == {}
-    assert registry.exclusion("Email/add_pop").parameters is parameters
+    assert registry.exclusion("AccountEnhancements/list").parameters is parameters
 
 
 @pytest.mark.parametrize(
@@ -768,7 +834,7 @@ def test_excluded_and_unknown_lookups_never_resolve() -> None:
 
     excluded = PolicyRegistry.from_dict(minimal_catalog(), excluded_policy())
     with pytest.raises(PolicyError, match="operation is excluded"):
-        excluded.get("Email/add_pop")
+        excluded.get("AccountEnhancements/list")
     with pytest.raises(PolicyError, match="unknown policy operation identity"):
         excluded.exclusion("Missing/function")
 

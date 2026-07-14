@@ -254,6 +254,8 @@ class DefaultOperationAdapter:
         _validate_resolved_inputs(operation, inputs)
         result: dict[str, object] = {}
         for name, parameter in operation.parameters.items():
+            if name not in inputs.values:
+                continue
             if parameter.sources[0] is InputSource.LOCAL_FILE:
                 continue
             result[parameter.uapi_name] = inputs.values[name]

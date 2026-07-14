@@ -6,9 +6,11 @@ named profiles, structured JSON, and operation-bound confirmation for destructiv
 
 ## Scope
 
-The MVP supports domains, account files, SSL certificates, and MySQL/MariaDB databases. It does not
-support WHM, root or reseller administration, account provisioning, server settings, browser
-automation, deprecated API 2, or arbitrary UAPI calls.
+The skill supports domains, account files, SSL certificates, MySQL/MariaDB databases, and reviewed
+email administration for mailbox accounts, quotas, passwords, forwarders, autoresponders, filter
+state, spam controls, MX routing, SPF, and DKIM. It does not support WHM, root or reseller
+administration, account provisioning, server settings, browser automation, deprecated API 2, or
+arbitrary UAPI calls.
 
 ## Install
 
@@ -82,6 +84,9 @@ Global options precede the capability group:
 .venv/bin/cpanel-admin --profile production files list --path public_html
 .venv/bin/cpanel-admin --profile production ssl hosts
 .venv/bin/cpanel-admin --profile production databases list
+.venv/bin/cpanel-admin --profile production email accounts
+.venv/bin/cpanel-admin --profile production email forwarders --domain example.com
+.venv/bin/cpanel-admin --profile production email mx-list --domain example.com
 ```
 
 Non-destructive mutations support a review step:
@@ -89,6 +94,14 @@ Non-destructive mutations support a review step:
 ```bash
 .venv/bin/cpanel-admin --profile staging databases create \
   --name account_demo --dry-run
+```
+
+Mailbox passwords are protected inputs. Pipe them through standard input rather than placing them on
+the command line:
+
+```bash
+printf '%s' "$MAILBOX_PASSWORD" | .venv/bin/cpanel-admin --profile staging email create-account \
+  --email admin --domain example.com --password-stdin --dry-run
 ```
 
 Destructive actions require two commands. First request a five-minute plan:

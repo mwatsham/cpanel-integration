@@ -23,6 +23,7 @@ MAX_PEM_BYTES = 1024 * 1024
 DATABASE_RE = re.compile(r"^[A-Za-z0-9_]{1,64}$")
 SUBDOMAIN_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$")
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+$")
+EMAIL_LOCAL_RE = re.compile(r"^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+$")
 
 MYSQL_PRIVILEGES = frozenset(
     {
@@ -415,6 +416,38 @@ def _email(value: object) -> str:
     return f"{local}@{normalized_domain}"
 
 
+def _email_local(value: object) -> str:
+    if (
+        not isinstance(value, str)
+        or value != value.strip()
+        or not value
+        or len(value.encode("utf-8")) > 64
+        or "@" in value
+        or "/" in value
+        or "\\" in value
+        or "\0" in value
+        or value.startswith(".")
+        or value.endswith(".")
+        or ".." in value
+        or not EMAIL_LOCAL_RE.fullmatch(value)
+    ):
+        raise UsageError("Invalid email local part")
+    return value
+
+
+def _quota(value: object) -> int | str:
+    if isinstance(value, bool):
+        raise UsageError("Invalid quota")
+    if isinstance(value, int) and value >= 0:
+        return value
+    if isinstance(value, str):
+        if value == "unlimited":
+            return value
+        if value.isdecimal():
+            return int(value)
+    raise UsageError("Invalid quota")
+
+
 def _ip_cidr(value: object) -> str:
     if not isinstance(value, str) or not value or value != value.strip():
         raise UsageError("Invalid IP address or CIDR network")
@@ -499,6 +532,7 @@ _VALIDATOR_FUNCTIONS: dict[str, Validator] = {
     "database": _database,
     "domain": _domain,
     "email": _email,
+    "email_local": _email_local,
     "enum": _enum,
     "filename": _filename,
     "integer": _integer,
@@ -510,6 +544,7 @@ _VALIDATOR_FUNCTIONS: dict[str, Validator] = {
     "private_key": _private_key,
     "privilege": _privileges,
     "privileges": _privileges,
+    "quota": _quota,
     "secret": lambda item: _bounded_text(item, label="Secret", maximum=4096),
     "subdomain": _subdomain,
     "trash_age": _trash_age,

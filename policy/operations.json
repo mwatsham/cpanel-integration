@@ -1285,19 +1285,137 @@
       "verification": null
     },
     "Email/add_auto_responder": {
-      "audit_fields": [],
+      "audit_fields": [
+        "email",
+        "domain",
+        "subject"
+      ],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "add-autoresponder"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Email/add_auto_responder",
-      "parameters": {},
+      "impact": "Create or replace an autoresponder.",
+      "name": "email.add-autoresponder",
+      "parameters": {
+        "body": {
+          "name": "body",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "body",
+          "validator": "bounded_text"
+        },
+        "charset": {
+          "name": "charset",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "charset",
+          "validator": "bounded_text"
+        },
+        "domain": {
+          "name": "domain",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        },
+        "email": {
+          "name": "email",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "email",
+          "validator": "email_local"
+        },
+        "from": {
+          "name": "from",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "from",
+          "validator": "email"
+        },
+        "interval": {
+          "name": "interval",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "interval",
+          "validator": "integer"
+        },
+        "is_html": {
+          "name": "is_html",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "is_html",
+          "validator": "integer"
+        },
+        "start": {
+          "name": "start",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "start",
+          "validator": "integer"
+        },
+        "stop": {
+          "name": "stop",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "stop",
+          "validator": "integer"
+        },
+        "subject": {
+          "name": "subject",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "subject",
+          "validator": "bounded_text"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email administration operation",
+      "recovery": "Delete or update the autoresponder.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "Email/add_domain_forwarder": {
@@ -1317,19 +1435,72 @@
       "verification": null
     },
     "Email/add_forwarder": {
-      "audit_fields": [],
+      "audit_fields": [
+        "email",
+        "domain",
+        "fwdopt",
+        "fwdemail"
+      ],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "add-forwarder"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Email/add_forwarder",
-      "parameters": {},
+      "impact": "Create a mailbox forwarder.",
+      "name": "email.add-forwarder",
+      "parameters": {
+        "domain": {
+          "name": "domain",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        },
+        "email": {
+          "name": "email",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "email",
+          "validator": "email_local"
+        },
+        "fwdemail": {
+          "name": "fwdemail",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "fwdemail",
+          "validator": "email"
+        },
+        "fwdopt": {
+          "name": "fwdopt",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "fwdopt",
+          "validator": "enum"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email administration operation",
+      "recovery": "Delete the forwarder.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "Email/add_list": {
@@ -1365,35 +1536,126 @@
       "verification": null
     },
     "Email/add_mx": {
-      "audit_fields": [],
+      "audit_fields": [
+        "domain",
+        "exchanger",
+        "priority"
+      ],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "add-mx"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Email/add_mx",
-      "parameters": {},
+      "impact": "Add an MX record for a domain.",
+      "name": "email.add-mx",
+      "parameters": {
+        "domain": {
+          "name": "domain",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        },
+        "exchanger": {
+          "name": "exchanger",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "exchanger",
+          "validator": "domain"
+        },
+        "priority": {
+          "name": "priority",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "priority",
+          "validator": "integer"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email administration operation",
+      "recovery": "Delete the MX record.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "Email/add_pop": {
-      "audit_fields": [],
+      "audit_fields": [
+        "email"
+      ],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "create-account"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Email/add_pop",
-      "parameters": {},
+      "impact": "Create a mailbox in the cPanel account.",
+      "name": "email.create-account",
+      "parameters": {
+        "domain": {
+          "name": "domain",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        },
+        "email": {
+          "name": "email",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "email",
+          "validator": "email_local"
+        },
+        "password": {
+          "name": "password",
+          "required": true,
+          "secret": true,
+          "sensitive_output": true,
+          "sources": [
+            "stdin"
+          ],
+          "uapi_name": "password",
+          "validator": "secret"
+        },
+        "quota": {
+          "name": "quota",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "quota",
+          "validator": "quota"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email administration operation",
+      "recovery": "Delete the mailbox or change its password/quota from cPanel.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "Email/add_spam_filter": {
@@ -1429,19 +1691,83 @@
       "verification": null
     },
     "Email/change_mx": {
-      "audit_fields": [],
+      "audit_fields": [
+        "domain",
+        "oldexchanger",
+        "exchanger",
+        "priority"
+      ],
       "capability": "email",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "email",
+        "change-mx"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "Email/change_mx",
-      "parameters": {},
+      "impact": "Change an MX record and may affect mail routing.",
+      "name": "email.change-mx",
+      "parameters": {
+        "domain": {
+          "name": "domain",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        },
+        "exchanger": {
+          "name": "exchanger",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "exchanger",
+          "validator": "domain"
+        },
+        "oldexchanger": {
+          "name": "oldexchanger",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "oldexchanger",
+          "validator": "domain"
+        },
+        "oldpriority": {
+          "name": "oldpriority",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "oldpriority",
+          "validator": "integer"
+        },
+        "priority": {
+          "name": "priority",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "priority",
+          "validator": "integer"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email administration operation",
+      "recovery": "Restore the previous MX exchanger and priority.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "Email/check_fastmail": {
@@ -1541,19 +1867,36 @@
       "verification": null
     },
     "Email/delete_auto_responder": {
-      "audit_fields": [],
+      "audit_fields": [
+        "email"
+      ],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "delete-autoresponder"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Email/delete_auto_responder",
-      "parameters": {},
+      "impact": "Delete an autoresponder.",
+      "name": "email.delete-autoresponder",
+      "parameters": {
+        "email": {
+          "name": "email",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "email",
+          "validator": "email"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email administration operation",
+      "recovery": "Recreate the autoresponder.",
+      "risk": "destructive",
+      "status": "included",
       "verification": null
     },
     "Email/delete_domain_forwarder": {
@@ -1573,35 +1916,93 @@
       "verification": null
     },
     "Email/delete_filter": {
-      "audit_fields": [],
+      "audit_fields": [
+        "account",
+        "filtername"
+      ],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "delete-filter"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Email/delete_filter",
-      "parameters": {},
+      "impact": "Delete an email filter.",
+      "name": "email.delete-filter",
+      "parameters": {
+        "account": {
+          "name": "account",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "account",
+          "validator": "email"
+        },
+        "filtername": {
+          "name": "filtername",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "filtername",
+          "validator": "bounded_text"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email administration operation",
+      "recovery": "Re-enable/re-disable or recreate the filter.",
+      "risk": "destructive",
+      "status": "included",
       "verification": null
     },
     "Email/delete_forwarder": {
-      "audit_fields": [],
+      "audit_fields": [
+        "address",
+        "forwarder"
+      ],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "delete-forwarder"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Email/delete_forwarder",
-      "parameters": {},
+      "impact": "Delete an email forwarder.",
+      "name": "email.delete-forwarder",
+      "parameters": {
+        "address": {
+          "name": "address",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "address",
+          "validator": "email"
+        },
+        "forwarder": {
+          "name": "forwarder",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "forwarder",
+          "validator": "email"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email administration operation",
+      "recovery": "Recreate the forwarder.",
+      "risk": "destructive",
+      "status": "included",
       "verification": null
     },
     "Email/delete_held_messages": {
@@ -1637,51 +2038,149 @@
       "verification": null
     },
     "Email/delete_mx": {
-      "audit_fields": [],
+      "audit_fields": [
+        "domain",
+        "exchanger",
+        "priority"
+      ],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "delete-mx"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Email/delete_mx",
-      "parameters": {},
+      "impact": "Delete an MX record and may disrupt mail delivery.",
+      "name": "email.delete-mx",
+      "parameters": {
+        "domain": {
+          "name": "domain",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        },
+        "exchanger": {
+          "name": "exchanger",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "exchanger",
+          "validator": "domain"
+        },
+        "priority": {
+          "name": "priority",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "priority",
+          "validator": "integer"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email administration operation",
+      "recovery": "Recreate the MX record.",
+      "risk": "destructive",
+      "status": "included",
       "verification": null
     },
     "Email/delete_pop": {
-      "audit_fields": [],
+      "audit_fields": [
+        "email"
+      ],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "delete-account"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Email/delete_pop",
-      "parameters": {},
+      "impact": "Delete a mailbox and may remove access to stored mail.",
+      "name": "email.delete-account",
+      "parameters": {
+        "domain": {
+          "name": "domain",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        },
+        "email": {
+          "name": "email",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "email",
+          "validator": "email_local"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email administration operation",
+      "recovery": "Recreate the mailbox and restore mail from backups if available.",
+      "risk": "destructive",
+      "status": "included",
       "verification": null
     },
     "Email/disable_filter": {
-      "audit_fields": [],
+      "audit_fields": [
+        "account",
+        "filtername"
+      ],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "disable-filter"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Email/disable_filter",
-      "parameters": {},
+      "impact": "Change an email filter state.",
+      "name": "email.disable-filter",
+      "parameters": {
+        "account": {
+          "name": "account",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "account",
+          "validator": "email"
+        },
+        "filtername": {
+          "name": "filtername",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "filtername",
+          "validator": "bounded_text"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email administration operation",
+      "recovery": "Re-enable/re-disable or recreate the filter.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "Email/disable_mailbox_autocreate": {
@@ -1703,17 +2202,20 @@
     "Email/disable_spam_assassin": {
       "audit_fields": [],
       "capability": "email",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "email",
+        "disable-spam"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "Email/disable_spam_assassin",
+      "impact": "Disable SpamAssassin scanning and may increase unwanted mail.",
+      "name": "email.disable-spam",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email administration operation",
+      "recovery": "Re-enable SpamAssassin.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "Email/disable_spam_autodelete": {
@@ -1735,17 +2237,20 @@
     "Email/disable_spam_box": {
       "audit_fields": [],
       "capability": "email",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "email",
+        "disable-spam-box"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "Email/disable_spam_box",
+      "impact": "Disable spam box delivery and may alter spam handling.",
+      "name": "email.disable-spam-box",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email administration operation",
+      "recovery": "Re-enable spam box.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "Email/dispatch_client_settings": {
@@ -1765,35 +2270,105 @@
       "verification": null
     },
     "Email/edit_pop_quota": {
-      "audit_fields": [],
+      "audit_fields": [
+        "email",
+        "domain",
+        "quota"
+      ],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "set-quota"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Email/edit_pop_quota",
-      "parameters": {},
+      "impact": "Change a mailbox storage quota.",
+      "name": "email.set-quota",
+      "parameters": {
+        "domain": {
+          "name": "domain",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        },
+        "email": {
+          "name": "email",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "email",
+          "validator": "email_local"
+        },
+        "quota": {
+          "name": "quota",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "quota",
+          "validator": "quota"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email administration operation",
+      "recovery": "Set the prior quota again if needed.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "Email/enable_filter": {
-      "audit_fields": [],
+      "audit_fields": [
+        "account",
+        "filtername"
+      ],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "enable-filter"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Email/enable_filter",
-      "parameters": {},
+      "impact": "Change an email filter state.",
+      "name": "email.enable-filter",
+      "parameters": {
+        "account": {
+          "name": "account",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "account",
+          "validator": "email"
+        },
+        "filtername": {
+          "name": "filtername",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "filtername",
+          "validator": "bounded_text"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email administration operation",
+      "recovery": "Re-enable/re-disable or recreate the filter.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "Email/enable_mailbox_autocreate": {
@@ -1815,33 +2390,39 @@
     "Email/enable_spam_assassin": {
       "audit_fields": [],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "enable-spam"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Email/enable_spam_assassin",
+      "impact": "Enable SpamAssassin scanning for the account.",
+      "name": "email.enable-spam",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email administration operation",
+      "recovery": "Disable SpamAssassin if the change is not desired.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "Email/enable_spam_box": {
       "audit_fields": [],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "enable-spam-box"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Email/enable_spam_box",
+      "impact": "Enable spam box delivery for the account.",
+      "name": "email.enable-spam-box",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email administration operation",
+      "recovery": "Disable spam box if needed.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "Email/export_lists": {
@@ -2167,17 +2748,20 @@
     "Email/get_spam_settings": {
       "audit_fields": [],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "spam-settings"
+      ],
       "elevated_impact": false,
       "feature": null,
       "impact": "",
-      "name": "Email/get_spam_settings",
+      "name": "email.spam-settings",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the email capability review",
+      "reason": "reviewed email administration operation",
       "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Email/get_webmail_settings": {
@@ -2247,17 +2831,32 @@
     "Email/list_auto_responders": {
       "audit_fields": [],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "autoresponders"
+      ],
       "elevated_impact": false,
       "feature": null,
       "impact": "",
-      "name": "Email/list_auto_responders",
-      "parameters": {},
+      "name": "email.autoresponders",
+      "parameters": {
+        "domain": {
+          "name": "domain",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
+      "reason": "reviewed email administration operation",
       "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Email/list_default_address": {
@@ -2295,17 +2894,32 @@
     "Email/list_filters": {
       "audit_fields": [],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "filters"
+      ],
       "elevated_impact": false,
       "feature": null,
       "impact": "",
-      "name": "Email/list_filters",
-      "parameters": {},
+      "name": "email.filters",
+      "parameters": {
+        "account": {
+          "name": "account",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "account",
+          "validator": "email"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
+      "reason": "reviewed email administration operation",
       "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Email/list_filters_backups": {
@@ -2327,17 +2941,32 @@
     "Email/list_forwarders": {
       "audit_fields": [],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "forwarders"
+      ],
       "elevated_impact": false,
       "feature": null,
       "impact": "",
-      "name": "Email/list_forwarders",
-      "parameters": {},
+      "name": "email.forwarders",
+      "parameters": {
+        "domain": {
+          "name": "domain",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
+      "reason": "reviewed email administration operation",
       "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Email/list_forwarders_backups": {
@@ -2391,33 +3020,51 @@
     "Email/list_mxs": {
       "audit_fields": [],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "mx-list"
+      ],
       "elevated_impact": false,
       "feature": null,
       "impact": "",
-      "name": "Email/list_mxs",
-      "parameters": {},
+      "name": "email.mx-list",
+      "parameters": {
+        "domain": {
+          "name": "domain",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
+      "reason": "reviewed email administration operation",
       "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Email/list_pops": {
       "audit_fields": [],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "accounts"
+      ],
       "elevated_impact": false,
       "feature": null,
       "impact": "",
-      "name": "Email/list_pops",
+      "name": "email.accounts",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the email capability review",
+      "reason": "reviewed email administration operation",
       "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Email/list_pops_with_disk": {
@@ -2469,19 +3116,58 @@
       "verification": null
     },
     "Email/passwd_pop": {
-      "audit_fields": [],
+      "audit_fields": [
+        "email"
+      ],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "set-password"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Email/passwd_pop",
-      "parameters": {},
+      "impact": "Change a mailbox password.",
+      "name": "email.set-password",
+      "parameters": {
+        "domain": {
+          "name": "domain",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        },
+        "email": {
+          "name": "email",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "email",
+          "validator": "email_local"
+        },
+        "password": {
+          "name": "password",
+          "required": true,
+          "secret": true,
+          "sensitive_output": true,
+          "sources": [
+            "stdin"
+          ],
+          "uapi_name": "password",
+          "validator": "secret"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email administration operation",
+      "recovery": "Set another password or ask the mailbox user to update clients.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "Email/release_outgoing": {
@@ -2581,19 +3267,48 @@
       "verification": null
     },
     "Email/set_manual_mx_redirects": {
-      "audit_fields": [],
+      "audit_fields": [
+        "domain",
+        "mx_host"
+      ],
       "capability": "email",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "email",
+        "set-routing"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "Email/set_manual_mx_redirects",
-      "parameters": {},
+      "impact": "Set manual MX routing for a domain.",
+      "name": "email.set-routing",
+      "parameters": {
+        "domain": {
+          "name": "domain",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        },
+        "mx_host": {
+          "name": "mx_host",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "mx_host",
+          "validator": "domain"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email administration operation",
+      "recovery": "Unset manual routing.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "Email/stats_db_status": {
@@ -2725,19 +3440,36 @@
       "verification": null
     },
     "Email/unset_manual_mx_redirects": {
-      "audit_fields": [],
+      "audit_fields": [
+        "domain"
+      ],
       "capability": "email",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "email",
+        "unset-routing"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "Email/unset_manual_mx_redirects",
-      "parameters": {},
+      "impact": "Remove manual MX routing for a domain.",
+      "name": "email.unset-routing",
+      "parameters": {
+        "domain": {
+          "name": "domain",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email administration operation",
+      "recovery": "Set manual routing again if required.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "Email/unsuspend_incoming": {
@@ -2821,35 +3553,69 @@
       "verification": null
     },
     "EmailAuth/disable_dkim": {
-      "audit_fields": [],
+      "audit_fields": [
+        "domain"
+      ],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "disable-dkim"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "EmailAuth/disable_dkim",
-      "parameters": {},
+      "impact": "Disable DKIM records and may reduce email authentication.",
+      "name": "email.disable-dkim",
+      "parameters": {
+        "domain": {
+          "name": "domain",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email DNS administration operation",
+      "recovery": "Re-enable DKIM.",
+      "risk": "destructive",
+      "status": "included",
       "verification": null
     },
     "EmailAuth/enable_dkim": {
-      "audit_fields": [],
+      "audit_fields": [
+        "domain"
+      ],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "enable-dkim"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "EmailAuth/enable_dkim",
-      "parameters": {},
+      "impact": "Enable DKIM records for a domain.",
+      "name": "email.enable-dkim",
+      "parameters": {
+        "domain": {
+          "name": "domain",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email DNS administration operation",
+      "recovery": "Disable DKIM if needed.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "EmailAuth/ensure_dkim_keys_exist": {
@@ -2901,19 +3667,47 @@
       "verification": null
     },
     "EmailAuth/install_spf_records": {
-      "audit_fields": [],
+      "audit_fields": [
+        "domain"
+      ],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "install-spf"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "EmailAuth/install_spf_records",
-      "parameters": {},
+      "impact": "Install or update an SPF DNS record.",
+      "name": "email.install-spf",
+      "parameters": {
+        "domain": {
+          "name": "domain",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        },
+        "record": {
+          "name": "record",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "record",
+          "validator": "bounded_text"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email DNS administration operation",
+      "recovery": "Restore the previous SPF record if needed.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "EmailAuth/remove_dmarc": {
@@ -2935,17 +3729,32 @@
     "EmailAuth/validate_current_dkims": {
       "audit_fields": [],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "validate-dkim"
+      ],
       "elevated_impact": false,
       "feature": null,
       "impact": "",
-      "name": "EmailAuth/validate_current_dkims",
-      "parameters": {},
+      "name": "email.validate-dkim",
+      "parameters": {
+        "domain": {
+          "name": "domain",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
+      "reason": "reviewed email DNS administration operation",
       "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "EmailAuth/validate_current_dmarcs": {
@@ -2983,17 +3792,32 @@
     "EmailAuth/validate_current_spfs": {
       "audit_fields": [],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "validate-spf"
+      ],
       "elevated_impact": false,
       "feature": null,
       "impact": "",
-      "name": "EmailAuth/validate_current_spfs",
-      "parameters": {},
+      "name": "email.validate-spf",
+      "parameters": {
+        "domain": {
+          "name": "domain",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
+      "reason": "reviewed email DNS administration operation",
       "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Features/get_feature_metadata": {

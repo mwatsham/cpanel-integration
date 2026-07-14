@@ -4,8 +4,8 @@
 
 - Source UAPI version: `11.136.0.25`
 - Source SHA-256: `3d9ec80cd8d774312c4bb6b0dfdbc17e6e6ffc92a8f0c2cd88f01e32864fa2c6`
-- Included operations: 21
-- Excluded operations: 372
+- Included operations: 52
+- Excluded operations: 341
 
 The local allowlist is an application safeguard, not a substitute for cPanel account permissions. This catalog does not provide arbitrary UAPI passthrough.
 
@@ -90,41 +90,41 @@ The local allowlist is an application safeguard, not a substitute for cPanel acc
 | `DynamicDNS/recreate` | excluded | domains | - | not enabled until the domain capability review |
 | `DynamicDNS/set_description` | excluded | domains | - | not enabled until the domain capability review |
 | `Email/account_name` | excluded | email | - | not enabled until the email capability review |
-| `Email/add_auto_responder` | excluded | email | - | not enabled until the email capability review |
+| `Email/add_auto_responder` | included | email | mutate | reviewed email administration operation |
 | `Email/add_domain_forwarder` | excluded | email | - | not enabled until the email capability review |
-| `Email/add_forwarder` | excluded | email | - | not enabled until the email capability review |
+| `Email/add_forwarder` | included | email | mutate | reviewed email administration operation |
 | `Email/add_list` | excluded | email | - | not enabled until the email capability review |
 | `Email/add_mailman_delegates` | excluded | email | - | not enabled until the email capability review |
-| `Email/add_mx` | excluded | email | - | not enabled until the email capability review |
-| `Email/add_pop` | excluded | email | - | not enabled until the email capability review |
+| `Email/add_mx` | included | email | mutate | reviewed email administration operation |
+| `Email/add_pop` | included | email | mutate | reviewed email administration operation |
 | `Email/add_spam_filter` | excluded | email | - | not enabled until the email capability review |
 | `Email/browse_mailbox` | excluded | email | - | not enabled until the email capability review |
-| `Email/change_mx` | excluded | email | - | not enabled until the email capability review |
+| `Email/change_mx` | included | email | mutate | reviewed email administration operation |
 | `Email/check_fastmail` | excluded | email | - | not enabled until the email capability review |
 | `Email/count_auto_responders` | excluded | email | - | not enabled until the email capability review |
 | `Email/count_filters` | excluded | email | - | not enabled until the email capability review |
 | `Email/count_forwarders` | excluded | email | - | not enabled until the email capability review |
 | `Email/count_lists` | excluded | email | - | not enabled until the email capability review |
 | `Email/count_pops` | excluded | email | - | not enabled until the email capability review |
-| `Email/delete_auto_responder` | excluded | email | - | not enabled until the email capability review |
+| `Email/delete_auto_responder` | included | email | destructive | reviewed email administration operation |
 | `Email/delete_domain_forwarder` | excluded | email | - | not enabled until the email capability review |
-| `Email/delete_filter` | excluded | email | - | not enabled until the email capability review |
-| `Email/delete_forwarder` | excluded | email | - | not enabled until the email capability review |
+| `Email/delete_filter` | included | email | destructive | reviewed email administration operation |
+| `Email/delete_forwarder` | included | email | destructive | reviewed email administration operation |
 | `Email/delete_held_messages` | excluded | email | - | not enabled until the email capability review |
 | `Email/delete_list` | excluded | email | - | not enabled until the email capability review |
-| `Email/delete_mx` | excluded | email | - | not enabled until the email capability review |
-| `Email/delete_pop` | excluded | email | - | not enabled until the email capability review |
-| `Email/disable_filter` | excluded | email | - | not enabled until the email capability review |
+| `Email/delete_mx` | included | email | destructive | reviewed email administration operation |
+| `Email/delete_pop` | included | email | destructive | reviewed email administration operation |
+| `Email/disable_filter` | included | email | mutate | reviewed email administration operation |
 | `Email/disable_mailbox_autocreate` | excluded | email | - | not enabled until the email capability review |
-| `Email/disable_spam_assassin` | excluded | email | - | not enabled until the email capability review |
+| `Email/disable_spam_assassin` | included | email | mutate | reviewed email administration operation |
 | `Email/disable_spam_autodelete` | excluded | email | - | not enabled until the email capability review |
-| `Email/disable_spam_box` | excluded | email | - | not enabled until the email capability review |
+| `Email/disable_spam_box` | included | email | mutate | reviewed email administration operation |
 | `Email/dispatch_client_settings` | excluded | email | - | not enabled until the email capability review |
-| `Email/edit_pop_quota` | excluded | email | - | not enabled until the email capability review |
-| `Email/enable_filter` | excluded | email | - | not enabled until the email capability review |
+| `Email/edit_pop_quota` | included | email | mutate | reviewed email administration operation |
+| `Email/enable_filter` | included | email | mutate | reviewed email administration operation |
 | `Email/enable_mailbox_autocreate` | excluded | email | - | not enabled until the email capability review |
-| `Email/enable_spam_assassin` | excluded | email | - | not enabled until the email capability review |
-| `Email/enable_spam_box` | excluded | email | - | not enabled until the email capability review |
+| `Email/enable_spam_assassin` | included | email | mutate | reviewed email administration operation |
+| `Email/enable_spam_box` | included | email | mutate | reviewed email administration operation |
 | `Email/export_lists` | excluded | email | - | not enabled until the email capability review |
 | `Email/fetch_charmaps` | excluded | email | - | not enabled until the email capability review |
 | `Email/fts_rescan_mailbox` | excluded | email | - | not enabled until the email capability review |
@@ -145,33 +145,33 @@ The local allowlist is an application safeguard, not a substitute for cPanel acc
 | `Email/get_max_email_quota` | excluded | email | - | not enabled until the email capability review |
 | `Email/get_max_email_quota_mib` | excluded | email | - | not enabled until the email capability review |
 | `Email/get_pop_quota` | excluded | email | - | not enabled until the email capability review |
-| `Email/get_spam_settings` | excluded | email | - | not enabled until the email capability review |
+| `Email/get_spam_settings` | included | email | read | reviewed email administration operation |
 | `Email/get_webmail_settings` | excluded | email | - | not enabled until the email capability review |
 | `Email/has_delegated_mailman_lists` | excluded | email | - | not enabled until the email capability review |
 | `Email/has_plaintext_authentication` | excluded | email | - | not enabled until the email capability review |
 | `Email/hold_outgoing` | excluded | email | - | not enabled until the email capability review |
-| `Email/list_auto_responders` | excluded | email | - | not enabled until the email capability review |
+| `Email/list_auto_responders` | included | email | read | reviewed email administration operation |
 | `Email/list_default_address` | excluded | email | - | not enabled until the email capability review |
 | `Email/list_domain_forwarders` | excluded | email | - | not enabled until the email capability review |
-| `Email/list_filters` | excluded | email | - | not enabled until the email capability review |
+| `Email/list_filters` | included | email | read | reviewed email administration operation |
 | `Email/list_filters_backups` | excluded | email | - | not enabled until the email capability review |
-| `Email/list_forwarders` | excluded | email | - | not enabled until the email capability review |
+| `Email/list_forwarders` | included | email | read | reviewed email administration operation |
 | `Email/list_forwarders_backups` | excluded | email | - | not enabled until the email capability review |
 | `Email/list_lists` | excluded | email | - | not enabled until the email capability review |
 | `Email/list_mail_domains` | excluded | email | - | not enabled until the email capability review |
-| `Email/list_mxs` | excluded | email | - | not enabled until the email capability review |
-| `Email/list_pops` | excluded | email | - | not enabled until the email capability review |
+| `Email/list_mxs` | included | email | read | reviewed email administration operation |
+| `Email/list_pops` | included | email | read | reviewed email administration operation |
 | `Email/list_pops_with_disk` | excluded | email | - | not enabled until the email capability review |
 | `Email/list_system_filter_info` | excluded | email | - | not enabled until the email capability review |
 | `Email/passwd_list` | excluded | email | - | not enabled until the email capability review |
-| `Email/passwd_pop` | excluded | email | - | not enabled until the email capability review |
+| `Email/passwd_pop` | included | email | mutate | reviewed email administration operation |
 | `Email/release_outgoing` | excluded | email | - | not enabled until the email capability review |
 | `Email/remove_mailman_delegates` | excluded | email | - | not enabled until the email capability review |
 | `Email/reorder_filters` | excluded | email | - | not enabled until the email capability review |
 | `Email/set_always_accept` | excluded | email | - | not enabled until the email capability review |
 | `Email/set_default_address` | excluded | email | - | not enabled until the email capability review |
 | `Email/set_list_privacy_options` | excluded | email | - | not enabled until the email capability review |
-| `Email/set_manual_mx_redirects` | excluded | email | - | not enabled until the email capability review |
+| `Email/set_manual_mx_redirects` | included | email | mutate | reviewed email administration operation |
 | `Email/stats_db_status` | excluded | email | - | not enabled until the email capability review |
 | `Email/store_filter` | excluded | email | - | not enabled until the email capability review |
 | `Email/suspend_incoming` | excluded | email | - | not enabled until the email capability review |
@@ -180,23 +180,23 @@ The local allowlist is an application safeguard, not a substitute for cPanel acc
 | `Email/terminate_mailbox_sessions` | excluded | email | - | not enabled until the email capability review |
 | `Email/trace_delivery` | excluded | email | - | not enabled until the email capability review |
 | `Email/trace_filter` | excluded | email | - | not enabled until the email capability review |
-| `Email/unset_manual_mx_redirects` | excluded | email | - | not enabled until the email capability review |
+| `Email/unset_manual_mx_redirects` | included | email | mutate | reviewed email administration operation |
 | `Email/unsuspend_incoming` | excluded | email | - | not enabled until the email capability review |
 | `Email/unsuspend_login` | excluded | email | - | not enabled until the email capability review |
 | `Email/unsuspend_outgoing` | excluded | email | - | not enabled until the email capability review |
 | `Email/verify_password` | excluded | email | - | not enabled until the email capability review |
 | `EmailAuth/apply_dmarc` | excluded | email | - | not enabled until the email capability review |
-| `EmailAuth/disable_dkim` | excluded | email | - | not enabled until the email capability review |
-| `EmailAuth/enable_dkim` | excluded | email | - | not enabled until the email capability review |
+| `EmailAuth/disable_dkim` | included | email | destructive | reviewed email DNS administration operation |
+| `EmailAuth/enable_dkim` | included | email | mutate | reviewed email DNS administration operation |
 | `EmailAuth/ensure_dkim_keys_exist` | excluded | email | - | not enabled until the email capability review |
 | `EmailAuth/fetch_dkim_private_keys` | excluded | email | - | not enabled until the email capability review |
 | `EmailAuth/install_dkim_private_keys` | excluded | email | - | not enabled until the email capability review |
-| `EmailAuth/install_spf_records` | excluded | email | - | not enabled until the email capability review |
+| `EmailAuth/install_spf_records` | included | email | mutate | reviewed email DNS administration operation |
 | `EmailAuth/remove_dmarc` | excluded | email | - | not enabled until the email capability review |
-| `EmailAuth/validate_current_dkims` | excluded | email | - | not enabled until the email capability review |
+| `EmailAuth/validate_current_dkims` | included | email | read | reviewed email DNS administration operation |
 | `EmailAuth/validate_current_dmarcs` | excluded | email | - | not enabled until the email capability review |
 | `EmailAuth/validate_current_ptrs` | excluded | email | - | not enabled until the email capability review |
-| `EmailAuth/validate_current_spfs` | excluded | email | - | not enabled until the email capability review |
+| `EmailAuth/validate_current_spfs` | included | email | read | reviewed email DNS administration operation |
 | `Features/get_feature_metadata` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
 | `Features/has_feature` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
 | `Features/has_features_like` | excluded | diagnostics | - | not enabled until the diagnostics capability review |

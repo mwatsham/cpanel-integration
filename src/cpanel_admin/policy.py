@@ -69,7 +69,7 @@ EXPECTED_CANDIDATE_OPERATIONS = 393
 EXPECTED_CANDIDATE_IDENTITY_SHA256 = (
     "834c8bd9c048d93e9089fd22a7c569d4923cc8a5c9ecbc4172123ec2276a6ecb"
 )
-EXPECTED_POLICY_SHA256 = "a1ee67f1dfd363401eeb0f7c2e21b6802582af7ddfb552d092ff3e82dd0294f3"
+EXPECTED_POLICY_SHA256 = "edaa7b9e769d8c281577bea51fc37a5f9ae1920e799cef2b931d7ad2dee85c7c"
 
 _PROTECTED_SECRET_SOURCES = frozenset(
     {
@@ -209,6 +209,24 @@ _PROTECTED_INPUT_CONTRACTS = MappingProxyType(
                 sensitive_output=True,
             ),
             ("Mysql/create_user", "password"): PolicyParameter(
+                name="password",
+                uapi_name="password",
+                sources=(InputSource.STDIN,),
+                validator="secret",
+                required=True,
+                secret=True,
+                sensitive_output=True,
+            ),
+            ("Email/add_pop", "password"): PolicyParameter(
+                name="password",
+                uapi_name="password",
+                sources=(InputSource.STDIN,),
+                validator="secret",
+                required=True,
+                secret=True,
+                sensitive_output=True,
+            ),
+            ("Email/passwd_pop", "password"): PolicyParameter(
                 name="password",
                 uapi_name="password",
                 sources=(InputSource.STDIN,),

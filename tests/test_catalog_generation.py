@@ -306,8 +306,8 @@ def test_generator_emits_deterministic_safe_support_matrix(tmp_path: Path) -> No
     support = outputs[0][1]
     assert "| `DomainInfo/list_domains` | included | domains | read |" in support
     assert (
-        "| `Email/add_pop` | excluded | email | - | "
-        "not enabled until the email capability review |" in support
+        "| `Email/add_pop` | included | email | mutate | "
+        "reviewed email administration operation |" in support
     )
     assert "protected_file" not in support
     assert "sensitive_output" not in support
@@ -407,7 +407,7 @@ def test_packaged_catalog_exposes_complete_typed_immutable_policy() -> None:
     )
     assert len(policies) == 393
     included = catalog.get("DomainInfo/list_domains").policy
-    excluded = catalog.get("Email/add_pop").policy
+    excluded = catalog.get("Email/add_list").policy
     assert isinstance(included, PolicyOperation)
     assert included.status is SupportStatus.INCLUDED
     assert included.risk is Risk.READ
@@ -487,7 +487,7 @@ def test_generated_catalog_rejects_fabricated_destructive_policy(tmp_path: Path)
         _load_tampered_catalog(tmp_path, fabricate_destructive)
 
 
-EXPECTED_COMPLETE_POLICY_SHA256 = "a1ee67f1dfd363401eeb0f7c2e21b6802582af7ddfb552d092ff3e82dd0294f3"
+EXPECTED_COMPLETE_POLICY_SHA256 = "edaa7b9e769d8c281577bea51fc37a5f9ae1920e799cef2b931d7ad2dee85c7c"
 
 
 def _attacker_policy_sha256(value: dict[str, object]) -> str:

@@ -622,7 +622,10 @@ def test_missing_required_argument_and_unknown_validator_fail_closed() -> None:
         ("integer", 7, 7),
         ("boolean", True, True),
         ("email", "Admin@Example.COM", "Admin@example.com"),
+        ("email_local", "Admin-User_1", "Admin-User_1"),
         ("ip_cidr", "192.0.2.1/24", "192.0.2.0/24"),
+        ("quota", "unlimited", "unlimited"),
+        ("quota", "512", 512),
         ("url", "https://example.com/path", "https://example.com/path"),
         ("bounded_text", "value", "value"),
         (
@@ -658,6 +661,20 @@ def test_validator_registry_rejects_all_normal_mutations(mutation: object) -> No
 
     assert dict(VALIDATORS) == baseline
     assert validate_value("domain", "EXAMPLE.COM") == "example.com"
+
+
+@pytest.mark.parametrize(
+    "value", ["", "admin@example.com", ".admin", "admin.", "has space", "../x"]
+)
+def test_email_local_validator_rejects_invalid_mailbox_names(value: str) -> None:
+    with pytest.raises(UsageError, match="Invalid email local part"):
+        validate_value("email_local", value)
+
+
+@pytest.mark.parametrize("value", ["-1", "1.5", "", "lots", True])
+def test_quota_validator_rejects_invalid_quota_values(value: object) -> None:
+    with pytest.raises(UsageError, match="Invalid quota"):
+        validate_value("quota", value)
 
 
 @pytest.mark.parametrize(

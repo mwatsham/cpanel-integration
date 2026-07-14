@@ -521,6 +521,56 @@ def test_legacy_ssl_install_path_selectors_remain_supported(cli_env, tmp_path: P
     assert key_marker not in serialized
 
 
+def test_email_account_creation_uses_protected_password_stdin(cli_env) -> None:
+    env, key = cli_env
+    add_profile(env, key)
+    parser = build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(
+            [
+                "--profile",
+                "test",
+                "email",
+                "create-account",
+                "--email",
+                "admin",
+                "--domain",
+                "example.com",
+                "--password",
+                "plain-secret",
+            ]
+        )
+
+    transport = FakeTransport()
+    code, payload, stderr = invoke(
+        [
+            "--profile",
+            "test",
+            "email",
+            "create-account",
+            "--email",
+            "admin",
+            "--domain",
+            "example.com",
+            "--password-stdin",
+        ],
+        env=env,
+        stdin="plain-secret\n",
+        transport=transport,
+    )
+
+    serialized = json.dumps(payload)
+    assert code == 0
+    assert stderr == ""
+    assert payload["operation"] == "email.create-account"
+    assert (transport.calls[0]["module"], transport.calls[0]["function"]) == (
+        "Email",
+        "add_pop",
+    )
+    assert transport.calls[0]["parameters"]["password"] == "plain-secret"
+    assert "plain-secret" not in serialized
+
+
 def test_dynamic_policy_parser_fails_closed_for_malformed_command_path() -> None:
     malformed = PolicyOperation(
         name="bad.command",
