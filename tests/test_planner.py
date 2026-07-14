@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 
@@ -247,7 +248,7 @@ def test_public_plan_and_verification_evidence_are_redacted_copied_and_json_safe
     resolved = ResolvedInputs(
         {"name": "acct_user", "password": "open-sesame", "source": "/private/source"},
         raw_safe,
-        {},
+        {"file-1": Upload("source", b"source", "text/plain")},
         ("open-sesame",),
     )
     policy = operation(
@@ -267,15 +268,15 @@ def test_public_plan_and_verification_evidence_are_redacted_copied_and_json_safe
 
     assert "open-sesame" not in repr(plan)
     assert "/private/tmp/token.txt" not in repr(plan)
-    assert plan.parameters["password"] == "[REDACTED]"
-    assert plan.parameters["source"]["nested"][0]["path"] == "[REDACTED]"
+    assert plan.parameters["password"] == fingerprint(b"open-sesame")
+    assert plan.parameters["source"] == {"name": "source", **fingerprint(b"source")}
     with pytest.raises(TypeError):
-        plan.parameters["source"]["nested"][0]["path"] = "changed"
+        plan.parameters["source"]["name"] = "changed"
 
     evidence = {"password": "open-sesame", "nested": ["/private/evidence"]}
     result = VerificationResult(True, "verified", evidence)
     evidence["nested"][0] = "changed"
-    assert result.evidence == {"password": "[REDACTED]", "nested": ["[REDACTED]"]}
+    assert result.evidence == {"password": "[REDACTED]", "nested": ("[REDACTED]",)}
     with pytest.raises(PolicyError, match="JSON"):
         VerificationResult(True, "verified", {"bad": object()})
 
@@ -330,7 +331,135 @@ def test_planner_redacts_and_copies_untrusted_adapter_evidence() -> None:
 
     assert result.evidence == {
         "password": "[REDACTED]",
-        "details": [{"path": "[REDACTED]"}],
+        "details": ({"path": "[REDACTED]"},),
     }
     with pytest.raises(TypeError):
         result.evidence["details"][0]["path"] = "changed"
+
+
+def test_planner_derives_safe_values_and_secret_redaction_from_reviewed_inputs() -> None:
+    marker = "unlisted-secret"
+    policy = operation(
+        parameters={
+            "name": PolicyParameter("name", "name", (InputSource.ARGUMENT,), "database", True),
+            "password": PolicyParameter(
+                "password", "password", (InputSource.STDIN,), "secret", True, secret=True
+            ),
+        }
+    )
+    resolved = ResolvedInputs(
+        values={"name": "acct_user", "password": marker},
+        safe_values={"name": "acct_user", "password": marker},
+        uploads={},
+        secrets=(),
+    )
+
+    plan = planner(policy).dry_run(context(), policy, resolved)
+
+    assert plan.parameters == {
+        "name": "acct_user",
+        "password": fingerprint(marker.encode("utf-8")),
+    }
+    assert marker not in repr(plan)
+    assert marker not in repr(plan.bound_parameters)
+
+
+def test_planner_redacts_unlisted_secret_and_absolute_path_from_adapter_outputs() -> None:
+    marker = "unlisted-secret"
+    path = "/private/adapter/secret.txt"
+
+    class MaliciousAdapter:
+        preflight_selector = "check"
+
+        def preflight(self, context, operation, inputs):
+            del context, operation, inputs
+            return {"ordinary": {"secret": marker, "path": path}}
+
+        def to_uapi(self, operation, inputs, preflight):
+            del operation, inputs, preflight
+            return {}
+
+        def verify(self, context, operation, inputs, response):
+            del context, operation, inputs, response
+            return type(
+                "Result",
+                (),
+                {
+                    "ok": True,
+                    "category": "verified",
+                    "evidence": {"ordinary": [marker, {"path": path}]},
+                },
+            )()
+
+    policy = replace(
+        operation(
+            parameters={
+                "name": PolicyParameter("name", "name", (InputSource.ARGUMENT,), "database", True),
+                "password": PolicyParameter(
+                    "password", "password", (InputSource.STDIN,), "secret", True, secret=True
+                ),
+            }
+        ),
+        feature="malicious",
+        preflight="check",
+    )
+    resolved = ResolvedInputs(
+        values={"name": "acct_user", "password": marker},
+        safe_values={"name": "acct_user", "password": marker},
+        uploads={},
+        secrets=(),
+    )
+    subject = OperationPlanner(
+        ConfirmationService(Fernet.generate_key()),
+        registry=PolicyRegistry((policy,), (), ()),
+        policy_digest="reviewed-policy",
+        adapters={"malicious": MaliciousAdapter()},
+    )
+
+    plan = subject.dry_run(context(), policy, resolved)
+    result = subject.verify(context(), policy, resolved, {})
+
+    for public in (plan, plan.bound_parameters, result, plan.preflight, result.evidence):
+        assert marker not in repr(public)
+        assert path not in repr(public)
+    assert plan.preflight == {"ordinary": {"secret": "[REDACTED]", "path": "[REDACTED]"}}
+    assert result.evidence == {"ordinary": ("[REDACTED]", {"path": "[REDACTED]"})}
+
+
+def test_public_plan_and_verification_containers_are_genuinely_immutable_mappings_and_tuples() -> (
+    None
+):
+    class EvidenceAdapter:
+        preflight_selector = "check"
+
+        def preflight(self, context, operation, inputs):
+            del context, operation, inputs
+            return {"items": [{"etag": "stable"}]}
+
+        def to_uapi(self, operation, inputs, preflight):
+            del operation, inputs, preflight
+            return {}
+
+        def verify(self, context, operation, inputs, response):
+            del context, operation, inputs, response
+            return VerificationResult(True, "verified", {"items": [{"etag": "stable"}]})
+
+    policy = replace(operation(), feature="evidence", preflight="check")
+    subject = OperationPlanner(
+        ConfirmationService(Fernet.generate_key()),
+        registry=PolicyRegistry((policy,), (), ()),
+        policy_digest="reviewed-policy",
+        adapters={"evidence": EvidenceAdapter()},
+    )
+    plan = subject.dry_run(context(), policy, inputs())
+    result = subject.verify(context(), policy, inputs(), {})
+
+    for value in (plan.parameters, plan.preflight, result.evidence):
+        assert isinstance(value, Mapping)
+        assert not isinstance(value, dict)
+        with pytest.raises(TypeError):
+            dict.__setitem__(value, "changed", "value")
+    for value in (plan.preflight["items"], result.evidence["items"]):
+        assert isinstance(value, tuple)
+        with pytest.raises(TypeError):
+            list.__setitem__(value, 0, "changed")

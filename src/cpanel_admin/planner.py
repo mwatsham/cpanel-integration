@@ -2,77 +2,71 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from math import isfinite
-from os.path import isabs
+from os.path import basename, isabs
 from types import MappingProxyType
-from typing import NoReturn, Protocol, TypeVar, cast
+from typing import Protocol, cast
 
 from .catalog import JsonValue
 from .confirmation import ConfirmationService
-from .inputs import ResolvedInputs
-from .policy import PolicyError, PolicyOperation, PolicyRegistry, Risk, SupportStatus
+from .inputs import ResolvedInputs, fingerprint
+from .policy import InputSource, PolicyError, PolicyOperation, PolicyRegistry, Risk, SupportStatus
 from .redaction import redact
 
-_KeyT = TypeVar("_KeyT")
-_ValueT = TypeVar("_ValueT")
+_ABSOLUTE_PATH = re.compile(r"(?<![A-Za-z0-9_.-])/(?:[^\s/]+(?:/[^\s/]+)*)")
 
 
-class _FrozenDict(dict[_KeyT, _ValueT]):
-    def __init__(self, values: Mapping[_KeyT, _ValueT]) -> None:
-        dict.__init__(self, values)
+def _safe_string(value: str, *, secrets: tuple[str, ...]) -> str:
+    """Return a public string that cannot disclose a secret or local path."""
 
-    def _reject_mutation(self, *args: object, **kwargs: object) -> NoReturn:
-        raise TypeError("execution plan mappings are immutable")
-
-    __setitem__ = _reject_mutation
-    __delitem__ = _reject_mutation
-    clear = _reject_mutation
-    pop = _reject_mutation
-    popitem = _reject_mutation
-    setdefault = _reject_mutation
-    update = _reject_mutation
-    __ior__ = _reject_mutation
-
-
-class _FrozenList(list[_ValueT]):
-    def _reject_mutation(self, *args: object, **kwargs: object) -> NoReturn:
-        raise TypeError("execution plan lists are immutable")
-
-    __setitem__ = _reject_mutation
-    __delitem__ = _reject_mutation
-    append = _reject_mutation
-    clear = _reject_mutation
-    extend = _reject_mutation
-    insert = _reject_mutation
-    pop = _reject_mutation
-    remove = _reject_mutation
-    reverse = _reject_mutation
-    sort = _reject_mutation
-    __iadd__ = _reject_mutation
-    __imul__ = _reject_mutation
+    redacted = cast(str, redact(value, secrets=secrets))
+    if isabs(redacted) or _ABSOLUTE_PATH.search(redacted):
+        return "[REDACTED]"
+    return redacted
 
 
 def _safe_mapping(
-    value: Mapping[str, object], *, secrets: tuple[str, ...] = ()
-) -> dict[str, JsonValue]:
-    """Redact, validate, and freeze public JSON mappings."""
+    value: Mapping[str, object],
+    *,
+    secrets: tuple[str, ...] = (),
+    preserve_fingerprints: bool = False,
+) -> Mapping[str, JsonValue]:
+    """Return a copied, deeply immutable public JSON mapping."""
 
     if not all(isinstance(key, str) for key in value):
         raise PolicyError("public evidence must be a JSON object with string keys")
-    return _FrozenDict(
-        {
-            key: cast(JsonValue, _safe_value(item, secrets=secrets))
-            for key, item in sorted(value.items())
-        }
+    public: dict[str, JsonValue] = {}
+    for key, item in sorted(value.items()):
+        public_key = _safe_string(key, secrets=secrets)
+        if public_key in public:
+            raise PolicyError("public evidence contains duplicate redacted keys")
+        redacted_item = item
+        if not (preserve_fingerprints and _is_fingerprint(item)):
+            redacted_item = cast(Mapping[str, object], redact({key: item}, secrets=secrets))[key]
+        public[public_key] = cast(JsonValue, _safe_value(redacted_item, secrets=secrets))
+    return MappingProxyType(public)
+
+
+def _is_fingerprint(value: object) -> bool:
+    if not isinstance(value, Mapping) or set(value) != {"bytes", "sha256"}:
+        return False
+    size = value["bytes"]
+    digest = value["sha256"]
+    return (
+        isinstance(size, int)
+        and not isinstance(size, bool)
+        and size >= 0
+        and isinstance(digest, str)
+        and re.fullmatch(r"[0-9a-f]{64}", digest) is not None
     )
 
 
 def _safe_value(value: object, *, secrets: tuple[str, ...] = ()) -> JsonValue:
     """Create immutable, redacted JSON evidence without retaining caller state."""
 
-    value = redact(value, secrets=secrets)
     if value is None or isinstance(value, (bool, int)):
         return cast(JsonValue, value)
     if isinstance(value, float):
@@ -80,23 +74,28 @@ def _safe_value(value: object, *, secrets: tuple[str, ...] = ()) -> JsonValue:
             raise PolicyError("public evidence must use finite JSON numbers")
         return cast(JsonValue, value)
     if isinstance(value, str):
-        return "[REDACTED]" if isabs(value) else value
+        return _safe_string(value, secrets=secrets)
     if isinstance(value, Mapping):
         return _safe_mapping(value, secrets=secrets)
     if isinstance(value, list):
-        return _FrozenList(_safe_value(item, secrets=secrets) for item in value)
+        return tuple(_safe_value(item, secrets=secrets) for item in value)
+    if isinstance(value, tuple):
+        return tuple(_safe_value(item, secrets=secrets) for item in value)
     raise PolicyError("public evidence must be JSON-safe")
 
 
-def _validate_resolved_inputs(operation: PolicyOperation, inputs: ResolvedInputs) -> None:
-    """Reject externally-constructed inputs unless they exactly match reviewed policy."""
+def _canonical_public_inputs(
+    operation: PolicyOperation, inputs: ResolvedInputs
+) -> tuple[Mapping[str, JsonValue], tuple[str, ...]]:
+    """Validate reviewed values and derive their only permitted public projection."""
 
     declared = set(operation.parameters)
     supplied = set(inputs.values)
-    safe_supplied = set(inputs.safe_values)
     required = {name for name, parameter in operation.parameters.items() if parameter.required}
-    if supplied != safe_supplied or supplied - declared or required - supplied:
+    if supplied - declared or required - supplied:
         raise PolicyError("resolved inputs must exactly match reviewed operation parameters")
+    safe_values: dict[str, JsonValue] = {}
+    secrets: list[str] = []
     for name in sorted(supplied):
         parameter = operation.parameters[name]
         value = inputs.values[name]
@@ -110,6 +109,49 @@ def _validate_resolved_inputs(operation: PolicyOperation, inputs: ResolvedInputs
             raise PolicyError(f"resolved input is invalid for reviewed parameter: {name}") from exc
         if normalized != value:
             raise PolicyError(f"resolved input is not normalized for reviewed parameter: {name}")
+        source = parameter.sources[0] if len(parameter.sources) == 1 else None
+        if source is InputSource.LOCAL_FILE:
+            if not isinstance(value, str):
+                raise PolicyError(f"resolved local file input is invalid: {name}")
+            matching_uploads = [
+                upload
+                for upload in inputs.uploads.values()
+                if getattr(upload, "filename", None) == basename(value)
+            ]
+            if len(matching_uploads) != 1:
+                raise PolicyError(f"resolved local file input has no matching upload: {name}")
+            upload = matching_uploads[0]
+            content = getattr(upload, "content", None)
+            if not isinstance(content, bytes):
+                raise PolicyError(f"resolved local file upload is invalid: {name}")
+            safe_values[name] = {"name": basename(value), **fingerprint(content)}
+        elif (
+            parameter.secret
+            or parameter.sensitive_output
+            or source
+            in {
+                InputSource.STDIN,
+                InputSource.PROTECTED_FILE,
+                InputSource.ENVIRONMENT,
+                InputSource.ENCRYPTED_PROFILE,
+            }
+        ):
+            if not isinstance(normalized, str):
+                raise PolicyError(f"protected reviewed input is invalid: {name}")
+            safe_values[name] = fingerprint(normalized.encode("utf-8"))
+        else:
+            safe_values[name] = cast(JsonValue, _safe_value(normalized))
+        if parameter.secret or parameter.sensitive_output:
+            secrets.append(str(normalized))
+    return _safe_mapping(safe_values, secrets=tuple(secrets), preserve_fingerprints=True), tuple(
+        secrets
+    )
+
+
+def _validate_resolved_inputs(operation: PolicyOperation, inputs: ResolvedInputs) -> None:
+    """Validate externally constructed values without trusting public metadata."""
+
+    _canonical_public_inputs(operation, inputs)
 
 
 @dataclass(frozen=True)
@@ -122,14 +164,16 @@ class BoundParameters:
     operation: str
     risk: Risk
     elevated_impact: bool
-    parameters: dict[str, JsonValue]
+    parameters: Mapping[str, JsonValue]
     preflight: JsonValue
     policy_digest: str
     policy_version: str
     expires_at: str | None
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "parameters", _safe_mapping(self.parameters))
+        object.__setattr__(
+            self, "parameters", _safe_mapping(self.parameters, preserve_fingerprints=True)
+        )
         object.__setattr__(self, "preflight", _safe_value(self.preflight))
 
 
@@ -141,7 +185,7 @@ class ExecutionPlan:
     identity: str
     risk: Risk
     elevated_impact: bool
-    parameters: dict[str, JsonValue]
+    parameters: Mapping[str, JsonValue]
     preflight: JsonValue
     impact: str
     recovery: str
@@ -152,7 +196,9 @@ class ExecutionPlan:
     bound_parameters: BoundParameters
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "parameters", _safe_mapping(self.parameters))
+        object.__setattr__(
+            self, "parameters", _safe_mapping(self.parameters, preserve_fingerprints=True)
+        )
         object.__setattr__(self, "preflight", _safe_value(self.preflight))
 
 
@@ -308,13 +354,11 @@ class OperationPlanner:
     ) -> ExecutionPlan:
         self._validate_operation(operation, inputs)
         profile, account = self._context_identity(context)
+        values, secrets = _canonical_public_inputs(operation, inputs)
         preflight: JsonValue = None
         if operation.preflight is not None:
             adapter = self._preflight_adapter(operation)
-            preflight = _safe_value(
-                adapter.preflight(context, operation, inputs), secrets=inputs.secrets
-            )
-        values = _safe_mapping(inputs.safe_values, secrets=inputs.secrets)
+            preflight = _safe_value(adapter.preflight(context, operation, inputs), secrets=secrets)
         bound = BoundParameters(
             profile,
             account,
@@ -353,8 +397,8 @@ class OperationPlanner:
             operation.identity,
             operation.risk,
             operation.elevated_impact,
-            _safe_mapping(values, secrets=inputs.secrets),
-            _safe_value(preflight, secrets=inputs.secrets),
+            _safe_mapping(values, preserve_fingerprints=True),
+            _safe_value(preflight, secrets=secrets),
             operation.impact,
             operation.recovery,
             operation.verification is not None,
@@ -412,6 +456,7 @@ class OperationPlanner:
     ) -> VerificationResult:
         self._validate_operation(operation, inputs)
         self._context_identity(context)
+        _, secrets = _canonical_public_inputs(operation, inputs)
         result = self._adapter(operation).verify(context, operation, inputs, response)
         if not isinstance(result, VerificationResult):
             try:
@@ -421,5 +466,5 @@ class OperationPlanner:
         return VerificationResult(
             bool(result.ok),
             str(result.category),
-            _safe_value(result.evidence, secrets=inputs.secrets),
+            _safe_value(result.evidence, secrets=secrets),
         )
