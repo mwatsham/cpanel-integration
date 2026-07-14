@@ -86,3 +86,44 @@ def test_unsupported_parameter_type_is_rejected() -> None:
 def test_invalid_fernet_key_is_rejected() -> None:
     with pytest.raises(ConfigError, match="valid Fernet key"):
         ConfirmationService(b"not-a-key")
+
+
+def test_v2_digest_binds_account_identity_preflight_and_policy() -> None:
+    now = datetime(2026, 7, 14, 12, 0, tzinfo=UTC)
+    service = ConfirmationService(Fernet.generate_key(), clock=lambda: now)
+    plan = service.plan_v2(
+        profile="production",
+        account="acct",
+        identity="Fileman/save_file_content",
+        operation="files.write",
+        parameters={"directory": "public_html", "content": {"sha256": "a", "bytes": 1}},
+        preflight={"etag": "stable"},
+        policy_digest="reviewed-policy",
+        policy_version="1",
+    )
+
+    service.verify_v2(
+        plan.confirmation,
+        profile="production",
+        account="acct",
+        identity="Fileman/save_file_content",
+        operation="files.write",
+        parameters={"directory": "public_html", "content": {"bytes": 1, "sha256": "a"}},
+        preflight={"etag": "stable"},
+        policy_digest="reviewed-policy",
+        policy_version="1",
+        expires_at=plan.expires_at,
+    )
+    with pytest.raises(ConfirmationError, match="does not match"):
+        service.verify_v2(
+            plan.confirmation,
+            profile="production",
+            account="acct",
+            identity="Fileman/save_file_content",
+            operation="files.write",
+            parameters={"directory": "public_html", "content": {"bytes": 1, "sha256": "a"}},
+            preflight={"etag": "changed"},
+            policy_digest="reviewed-policy",
+            policy_version="2",
+            expires_at=plan.expires_at,
+        )
