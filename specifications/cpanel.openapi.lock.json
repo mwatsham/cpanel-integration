@@ -1,0 +1,12 @@
+{
+  "excluded_noncanonical_paths": [
+    "/get_php_recommendations",
+    "/get_recommendations"
+  ],
+  "generator_schema": 1,
+  "openapi": "3.0.2",
+  "retrieved_at": "2026-07-13T22:00:20Z",
+  "sha256": "3d9ec80cd8d774312c4bb6b0dfdbc17e6e6ffc92a8f0c2cd88f01e32864fa2c6",
+  "source_url": "https://api.docs.cpanel.net/_bundle/specifications/cpanel.openapi.json?download",
+  "uapi_version": "11.136.0.25"
+}

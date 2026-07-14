@@ -1,0 +1,64 @@
+---
+name: cpanel-integration
+description: Safely administer individual cPanel accounts through documented UAPI operations for domains, files, SSL certificates, and MySQL or MariaDB databases. Use when Codex needs to inspect or change website resources in cPanel, manage encrypted named cPanel profiles, plan a destructive cPanel action, or diagnose an account-level cPanel UAPI failure. Do not use for WHM, root, reseller, account provisioning, server-wide administration, browser automation, or arbitrary UAPI calls.
+---
+
+# Administer an individual cPanel account
+
+Use the `cpanel-admin` CLI as the execution and safety boundary. Do not construct direct cPanel
+requests or substitute deprecated API 2, WHM, shell, FTP, or browser automation.
+
+## Prepare
+
+1. Confirm the request concerns one individual cPanel account, not WHM or server administration.
+2. Read [references/operations.md](references/operations.md) to select an exact supported command.
+3. Ask for the named profile only when it cannot be inferred safely.
+4. Check that the Fernet key is available from `CPANEL_ADMIN_FERNET_KEY` or the protected key file.
+5. Never ask the user to paste an API token, Fernet key, database password, or private key into
+   chat. Direct secret input to standard input or a protected local file as documented.
+
+## Execute
+
+- Run read-only commands directly when they match the user's request.
+- Run `--dry-run` before every mutation so the target, normalized parameters, impact, and recovery
+  guidance can be reviewed.
+- For non-destructive mutations, present the dry-run and execute only within the user's authority.
+- For destructive operations, read [references/safety.md](references/safety.md), run `--dry-run`,
+  present the returned plan, and obtain explicit user approval immediately before execution.
+- After approval, rerun the exact command with both `--confirm DIGEST` and
+  `--expires-at TIMESTAMP` from that plan. Never reuse a digest for changed parameters.
+- Treat any nonzero exit as failure. Report its concise error and exit-code category without
+  exposing environment values or request headers.
+- Verify mutations with the corresponding read command when the API offers one.
+
+## Guardrails
+
+- Keep TLS verification enabled and use only cPanel HTTPS port 2083.
+- Never add raw module/function passthrough or broaden the operation allowlist ad hoc.
+- Do not expose command input, environment secrets, encrypted tokens, password values, certificate
+  bodies, private keys, or authorization headers in output or summaries.
+- Explain capability errors plainly. Do not propose deprecated or broader fallbacks.
+- Stop if the profile or target is ambiguous, a dry-run differs from the intended action, recovery
+  is inadequate, or a destructive confirmation expires.
+
+## Configure a profile
+
+Generate a Fernet key locally and inject it through the operator's secret manager or install it in
+the protected default file described in `README.md`:
+
+```bash
+python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'
+```
+
+Pipe a cPanel account API token to standard input without placing it in the command line:
+
+```bash
+printf '%s' "$CPANEL_API_TOKEN" | cpanel-admin profiles add staging \
+  --host cpanel.example.com --username account --api-token-stdin
+```
+
+Do not print either environment variable. Never commit the environment values or protected key file
+to source control.
+
+For unattended local Codex sessions, prefer the separate `~/.config/cpanel-admin/fernet.key` file
+with mode `0600`. Never store the Fernet key inside `profiles.json`.

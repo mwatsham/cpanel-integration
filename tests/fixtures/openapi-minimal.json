@@ -1,0 +1,101 @@
+{
+  "openapi": "3.0.2",
+  "info": {
+    "title": "Minimal cPanel UAPI",
+    "version": "11.136.0.25"
+  },
+  "paths": {
+    "/Email/add_pop": {
+      "get": {
+        "operationId": "repeated-operation-id",
+        "summary": "Create an email account",
+        "parameters": [
+          {
+            "name": "email",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "quota",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 1024
+            }
+          },
+          {
+            "name": "flags",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "default": [],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "send_welcome",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "enum": [1, 0],
+              "default": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/Backup/restore_databases": {
+      "post": {
+        "operationId": "repeated-operation-id",
+        "summary": "Restore a database backup",
+        "deprecated": false,
+        "parameters": [
+          {
+            "name": "verbose",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "enum": [1, 0],
+              "default": 0
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    }
+  }
+}
