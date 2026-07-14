@@ -16,9 +16,11 @@ from cpanel_admin.catalog import (
     normalize_document,
 )
 from cpanel_admin.policy import (
+    EXPECTED_POLICY_SHA256,
     SELECTED_MODULES,
     PolicyError,
     PolicyRegistry,
+    canonical_policy_sha256,
     policy_operation_to_dict,
 )
 
@@ -85,9 +87,13 @@ def _generate_artifacts(
 ) -> tuple[str, str]:
     catalog = _load_catalog(source, lock_path)
     registry = PolicyRegistry.load(catalog, policy_path)
+    policy_sha256 = canonical_policy_sha256(registry)
+    if policy_sha256 != EXPECTED_POLICY_SHA256:
+        raise PolicyError("policy does not match trusted reviewed policy digest")
     value = json.loads(catalog.to_json())
     value["generator_schema"] = GENERATOR_SCHEMA
     value["generated_notice"] = GENERATED_NOTICE
+    value["policy_sha256"] = policy_sha256
     for operation in registry.all():
         value["operations"][operation.identity]["policy"] = policy_operation_to_dict(operation)
     generated = json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n"

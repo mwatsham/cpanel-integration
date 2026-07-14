@@ -67,6 +67,7 @@ class Catalog:
     excluded_paths: tuple[CatalogExcludedPath, ...]
     generator_schema: int | None = None
     generated_notice: str | None = None
+    policy_sha256: str | None = None
 
     def get(self, identity: str) -> CatalogOperation:
         try:
@@ -91,10 +92,28 @@ class Catalog:
             value["generator_schema"] = self.generator_schema
         if self.generated_notice is not None:
             value["generated_notice"] = self.generated_notice
+        if self.policy_sha256 is not None:
+            value["policy_sha256"] = self.policy_sha256
         return json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n"
 
     @classmethod
     def from_dict(cls, value: Mapping[str, object]) -> Catalog:
+        _reject_unknown_fields(
+            value,
+            frozenset(
+                {
+                    "schema_version",
+                    "source_version",
+                    "source_sha256",
+                    "operations",
+                    "excluded_paths",
+                    "generator_schema",
+                    "generated_notice",
+                    "policy_sha256",
+                }
+            ),
+            "catalog",
+        )
         try:
             schema_version = value["schema_version"]
             source_version = value["source_version"]
@@ -210,6 +229,14 @@ def _mapping(value: object, label: str) -> Mapping[str, object]:
     return cast(Mapping[str, object], value)
 
 
+def _reject_unknown_fields(
+    value: Mapping[str, object], allowed: frozenset[str], label: str
+) -> None:
+    unknown = set(value) - allowed
+    if unknown:
+        raise CatalogError(f"{label} has unknown fields: {', '.join(sorted(unknown))}")
+
+
 def _path_identity(path: str) -> tuple[str, str]:
     if not path.startswith("/") or path.startswith("//") or path.endswith("//"):
         raise CatalogError(f"OpenAPI path is missing Module/function path segments: {path!r}")
@@ -230,6 +257,7 @@ def _excluded_paths_from_value(value: object) -> tuple[CatalogExcludedPath, ...]
     excluded_paths: list[CatalogExcludedPath] = []
     for item in value:
         raw = _mapping(item, "catalog excluded path")
+        _reject_unknown_fields(raw, frozenset({"path", "reason"}), "catalog excluded path")
         path = raw.get("path")
         reason = raw.get("reason")
         if not isinstance(path, str) or not path or not isinstance(reason, str) or not reason:
@@ -355,6 +383,23 @@ def _request_media_types(operation: Mapping[str, object], identity: str) -> tupl
 
 def _operation_from_dict(identity: str, value: object) -> CatalogOperation:
     raw = _mapping(value, f"catalog operation {identity}")
+    _reject_unknown_fields(
+        raw,
+        frozenset(
+            {
+                "identity",
+                "module",
+                "function",
+                "method",
+                "summary",
+                "deprecated",
+                "parameters",
+                "request_media_types",
+                "policy",
+            }
+        ),
+        f"catalog operation {identity}",
+    )
     try:
         stored_identity = raw["identity"]
         module = raw["module"]
@@ -435,25 +480,44 @@ def _attach_generated_policy(
 ) -> Catalog:
     has_schema = "generator_schema" in value
     has_notice = "generated_notice" in value
+    has_digest = "policy_sha256" in value
     has_policy = any(
         isinstance(raw_operation, Mapping) and "policy" in raw_operation
         for raw_operation in raw_operations.values()
     )
-    if not (has_schema or has_notice or has_policy):
+    if not (has_schema or has_notice or has_digest or has_policy):
         return catalog
+    if not (has_schema and has_notice and has_digest and has_policy):
+        raise CatalogError("catalog has invalid or partial generated runtime metadata")
     if (
         value.get("generator_schema") != GENERATOR_SCHEMA
         or value.get("generated_notice") != GENERATED_NOTICE
     ):
         raise CatalogError("catalog has invalid or partial generated runtime metadata")
 
-    from .policy import SELECTED_MODULES, PolicyError, PolicyRegistry
+    from .policy import (
+        EXPECTED_POLICY_SHA256,
+        SELECTED_MODULES,
+        PolicyError,
+        PolicyRegistry,
+        canonical_policy_records_sha256,
+        canonical_policy_sha256,
+    )
+
+    if value.get("policy_sha256") != EXPECTED_POLICY_SHA256:
+        raise CatalogError("catalog does not match trusted reviewed policy digest")
 
     embedded: dict[str, object] = {}
     for identity, raw_operation in raw_operations.items():
         raw = _mapping(raw_operation, f"catalog operation {identity}")
         if "policy" in raw:
             embedded[identity] = raw["policy"]
+    try:
+        embedded_digest = canonical_policy_records_sha256(embedded)
+    except (TypeError, ValueError) as exc:
+        raise CatalogError("catalog has invalid generated runtime policy metadata") from exc
+    if embedded_digest != EXPECTED_POLICY_SHA256:
+        raise CatalogError("catalog does not match trusted reviewed policy digest")
     manifest = {
         "schema_version": 1,
         "selected_modules": list(SELECTED_MODULES),
@@ -463,6 +527,8 @@ def _attach_generated_policy(
         registry = PolicyRegistry.from_dict(catalog, manifest)
     except PolicyError as exc:
         raise CatalogError("catalog has invalid generated runtime policy metadata") from exc
+    if canonical_policy_sha256(registry) != EXPECTED_POLICY_SHA256:
+        raise CatalogError("catalog does not match trusted reviewed policy digest")
     by_identity = {operation.identity: operation for operation in registry.all()}
     operations = {
         identity: replace(operation, policy=by_identity.get(identity))
@@ -473,11 +539,17 @@ def _attach_generated_policy(
         operations=operations,
         generator_schema=GENERATOR_SCHEMA,
         generated_notice=GENERATED_NOTICE,
+        policy_sha256=EXPECTED_POLICY_SHA256,
     )
 
 
 def _parameter_from_dict(identity: str, name: str, value: object) -> CatalogParameter:
     raw = _mapping(value, f"catalog parameter {identity}:{name}")
+    _reject_unknown_fields(
+        raw,
+        frozenset({"name", "location", "required", "schema_type", "enum", "default"}),
+        f"catalog parameter {identity}:{name}",
+    )
     try:
         stored_name = raw["name"]
         location = raw["location"]

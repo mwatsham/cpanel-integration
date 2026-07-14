@@ -69,6 +69,7 @@ EXPECTED_CANDIDATE_OPERATIONS = 393
 EXPECTED_CANDIDATE_IDENTITY_SHA256 = (
     "834c8bd9c048d93e9089fd22a7c569d4923cc8a5c9ecbc4172123ec2276a6ecb"
 )
+EXPECTED_POLICY_SHA256 = "a1ee67f1dfd363401eeb0f7c2e21b6802582af7ddfb552d092ff3e82dd0294f3"
 
 _PROTECTED_SECRET_SOURCES = frozenset(
     {
@@ -435,6 +436,30 @@ class PolicyRegistry:
             missing=tuple(sorted(candidates - identities)),
             pending_review=(),
         )
+
+
+def _canonical_policy_json(operations: Mapping[str, object]) -> str:
+    value = {
+        "schema_version": 1,
+        "selected_modules": list(SELECTED_MODULES),
+        "operations": dict(operations),
+    }
+    return json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n"
+
+
+def canonical_policy_records_sha256(operations: Mapping[str, object]) -> str:
+    """Hash exact normalized records using the reviewed policy representation."""
+
+    return hashlib.sha256(_canonical_policy_json(operations).encode()).hexdigest()
+
+
+def canonical_policy_sha256(registry: PolicyRegistry) -> str:
+    """Hash every normalized field in a fully validated policy registry."""
+
+    records = {
+        operation.identity: policy_operation_to_dict(operation) for operation in registry.all()
+    }
+    return canonical_policy_records_sha256(records)
 
 
 def _selected_modules(value: object) -> tuple[str, ...]:

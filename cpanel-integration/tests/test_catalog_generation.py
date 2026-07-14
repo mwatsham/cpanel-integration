@@ -9,8 +9,9 @@ from pathlib import Path
 
 import pytest
 
+import cpanel_admin.policy as policy_module
 from cpanel_admin.catalog import Catalog, CatalogError, CatalogExcludedPath, normalize_document
-from cpanel_admin.policy import PolicyOperation, Risk, SupportStatus
+from cpanel_admin.policy import PolicyError, PolicyOperation, PolicyRegistry, Risk, SupportStatus
 from scripts.generate_catalog import generate
 
 ROOT = Path(__file__).parents[1]
@@ -436,7 +437,7 @@ def test_generated_catalog_rejects_missing_embedded_policy(tmp_path: Path) -> No
     def remove_policy(value: dict[str, object]) -> None:
         del value["operations"]["DomainInfo/list_domains"]["policy"]
 
-    with pytest.raises(CatalogError, match="generated runtime policy metadata"):
+    with pytest.raises(CatalogError, match=r"runtime policy metadata|trusted reviewed policy"):
         _load_tampered_catalog(tmp_path, remove_policy)
 
 
@@ -451,7 +452,7 @@ def test_generated_catalog_rejects_extra_embedded_policy(tmp_path: Path) -> None
         extra["name"] = extra_identity
         operations[extra_identity]["policy"] = extra
 
-    with pytest.raises(CatalogError, match="generated runtime policy metadata"):
+    with pytest.raises(CatalogError, match=r"runtime policy metadata|trusted reviewed policy"):
         _load_tampered_catalog(tmp_path, add_policy)
 
 
@@ -459,7 +460,7 @@ def test_generated_catalog_rejects_policy_identity_mismatch(tmp_path: Path) -> N
     def change_identity(value: dict[str, object]) -> None:
         value["operations"]["Email/add_pop"]["policy"]["identity"] = "Email/delete_pop"
 
-    with pytest.raises(CatalogError, match="generated runtime policy metadata"):
+    with pytest.raises(CatalogError, match=r"runtime policy metadata|trusted reviewed policy"):
         _load_tampered_catalog(tmp_path, change_identity)
 
 
@@ -467,5 +468,180 @@ def test_generated_catalog_rejects_fabricated_destructive_policy(tmp_path: Path)
     def fabricate_destructive(value: dict[str, object]) -> None:
         value["operations"]["Email/add_pop"]["policy"]["risk"] = "destructive"
 
-    with pytest.raises(CatalogError, match="generated runtime policy metadata"):
+    with pytest.raises(CatalogError, match=r"runtime policy metadata|trusted reviewed policy"):
         _load_tampered_catalog(tmp_path, fabricate_destructive)
+
+
+EXPECTED_COMPLETE_POLICY_SHA256 = "a1ee67f1dfd363401eeb0f7c2e21b6802582af7ddfb552d092ff3e82dd0294f3"
+
+
+def _attacker_policy_sha256(value: dict[str, object]) -> str:
+    operations = {
+        identity: operation["policy"]
+        for identity, operation in value["operations"].items()
+        if "policy" in operation
+    }
+    canonical = (
+        json.dumps(
+            {
+                "schema_version": 1,
+                "selected_modules": list(policy_module.SELECTED_MODULES),
+                "operations": operations,
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        + "\n"
+    )
+    return hashlib.sha256(canonical.encode()).hexdigest()
+
+
+def test_complete_reviewed_policy_digest_is_pinned_and_generated() -> None:
+    expected = getattr(policy_module, "EXPECTED_POLICY_SHA256", None)
+    canonical_policy_sha256 = getattr(policy_module, "canonical_policy_sha256", None)
+    assert expected == EXPECTED_COMPLETE_POLICY_SHA256
+    assert callable(canonical_policy_sha256)
+    registry = PolicyRegistry.load(Catalog.load(), POLICY)
+    assert canonical_policy_sha256(registry) == expected
+    generated = json.loads(GENERATED_CATALOG.read_text(encoding="utf-8"))
+    assert generated["policy_sha256"] == expected
+
+
+def _include_email_add_pop_as_destructive(value: dict[str, object]) -> None:
+    policy = value["operations"]["Email/add_pop"]["policy"]
+    policy.update(
+        {
+            "name": "email.fabricated-create",
+            "command": ["email", "fabricated-create"],
+            "status": "included",
+            "reason": "fabricated local support",
+            "risk": "destructive",
+            "parameters": {
+                "email": {
+                    "name": "email",
+                    "uapi_name": "email",
+                    "sources": ["argument"],
+                    "validator": "email",
+                    "required": True,
+                    "secret": False,
+                    "sensitive_output": False,
+                },
+                "password": {
+                    "name": "password",
+                    "uapi_name": "password",
+                    "sources": ["argument"],
+                    "validator": "string",
+                    "required": True,
+                    "secret": False,
+                    "sensitive_output": False,
+                },
+            },
+            "impact": "Fabricated destructive account change",
+            "recovery": "Fabricated recovery",
+            "audit_fields": ["email"],
+        }
+    )
+
+
+def _change_read_to_destructive(value: dict[str, object]) -> None:
+    policy = value["operations"]["DomainInfo/list_domains"]["policy"]
+    policy.update(
+        risk="destructive",
+        impact="Fabricated destructive domain change",
+        recovery="Fabricated recovery",
+    )
+
+
+def _change_elevated_impact(value: dict[str, object]) -> None:
+    value["operations"]["DomainInfo/list_domains"]["policy"]["elevated_impact"] = True
+
+
+def _change_input_source(value: dict[str, object]) -> None:
+    value["operations"]["Fileman/save_file_content"]["policy"]["parameters"]["directory"][
+        "sources"
+    ] = ["local_file"]
+
+
+def _change_exclusion_reason(value: dict[str, object]) -> None:
+    value["operations"]["Email/add_pop"]["policy"]["reason"] = "fabricated exclusion"
+
+
+def _change_exclusion_capability(value: dict[str, object]) -> None:
+    value["operations"]["Email/add_pop"]["policy"]["capability"] = "runtime"
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        _include_email_add_pop_as_destructive,
+        _change_read_to_destructive,
+        _change_elevated_impact,
+        _change_input_source,
+        _change_exclusion_reason,
+        _change_exclusion_capability,
+    ],
+    ids=[
+        "excluded-to-destructive-with-argument-password",
+        "read-to-destructive",
+        "elevated-impact",
+        "input-source",
+        "exclusion-reason",
+        "exclusion-capability",
+    ],
+)
+def test_compiled_policy_digest_rejects_coordinated_embedded_policy_attack(
+    tmp_path: Path, mutate: Callable[[dict[str, object]], object]
+) -> None:
+    def attack(value: dict[str, object]) -> None:
+        mutate(value)
+        value["policy_sha256"] = _attacker_policy_sha256(value)
+
+    with pytest.raises(CatalogError, match="trusted reviewed policy"):
+        _load_tampered_catalog(tmp_path, attack)
+
+
+def test_generator_rejects_valid_but_unreviewed_policy_drift(tmp_path: Path) -> None:
+    policy_path = tmp_path / "operations.json"
+    policy = json.loads(POLICY.read_text(encoding="utf-8"))
+    policy["operations"]["Email/add_pop"]["reason"] = "valid but unreviewed exclusion"
+    policy_path.write_text(json.dumps(policy), encoding="utf-8")
+    with pytest.raises(PolicyError, match="trusted reviewed policy"):
+        generate(PINNED_SOURCE, policy_path, lock_path=PINNED_LOCK)
+
+
+def test_catalog_rejects_unknown_top_level_field_in_base_and_generated_documents() -> None:
+    base = json.loads(
+        normalize_document(json.loads(FIXTURE.read_text()), source_sha256="abc").to_json()
+    )
+    generated = json.loads(GENERATED_CATALOG.read_text(encoding="utf-8"))
+    base["unknown"] = True
+    generated["unknown"] = True
+    with pytest.raises(CatalogError, match="unknown fields"):
+        Catalog.from_dict(base)
+    with pytest.raises(CatalogError, match="unknown fields"):
+        Catalog.from_dict(generated)
+
+
+def test_catalog_rejects_unknown_operation_and_parameter_fields() -> None:
+    value = json.loads(
+        normalize_document(json.loads(FIXTURE.read_text()), source_sha256="abc").to_json()
+    )
+    value["operations"]["Email/add_pop"]["unknown"] = True
+    with pytest.raises(CatalogError, match="unknown fields"):
+        Catalog.from_dict(value)
+
+    value = json.loads(
+        normalize_document(json.loads(FIXTURE.read_text()), source_sha256="abc").to_json()
+    )
+    value["operations"]["Email/add_pop"]["parameters"]["email"]["unknown"] = True
+    with pytest.raises(CatalogError, match="unknown fields"):
+        Catalog.from_dict(value)
+
+
+def test_catalog_rejects_policy_digest_without_other_generated_metadata() -> None:
+    value = json.loads(
+        normalize_document(json.loads(FIXTURE.read_text()), source_sha256="abc").to_json()
+    )
+    value["policy_sha256"] = EXPECTED_COMPLETE_POLICY_SHA256
+    with pytest.raises(CatalogError, match="partial generated runtime metadata"):
+        Catalog.from_dict(value)
