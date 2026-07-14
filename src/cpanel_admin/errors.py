@@ -49,6 +49,10 @@ class CapabilityError(CPanelAdminError):
     exit_code = 7
 
 
+class CapabilityDiscoveryError(CapabilityError):
+    """Requested functionality could not be confirmed from server capabilities."""
+
+
 class PartialFailure(CPanelAdminError):
     """A multi-item UAPI operation completed only partially."""
 
