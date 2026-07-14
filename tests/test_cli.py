@@ -606,6 +606,38 @@ def test_email_password_verification_uses_protected_password_stdin(cli_env) -> N
     assert "mail-secret-marker" not in serialized
 
 
+def test_email_domain_forwarder_dry_run_binds_routing_target(cli_env) -> None:
+    env, key = cli_env
+    add_profile(env, key)
+    transport = FakeTransport()
+
+    code, payload, stderr = invoke(
+        [
+            "--profile",
+            "test",
+            "email",
+            "add-domain-forwarder",
+            "--domain",
+            "example.com",
+            "--destdomain",
+            "archive.example.net",
+            "--dry-run",
+        ],
+        env=env,
+        transport=transport,
+    )
+
+    assert code == 0
+    assert stderr == ""
+    assert transport.calls == []
+    assert payload["operation"] == "email.add-domain-forwarder"
+    assert payload["requires_confirmation"] is True
+    assert payload["parameters"] == {
+        "destdomain": "archive.example.net",
+        "domain": "example.com",
+    }
+
+
 def test_dynamic_policy_parser_fails_closed_for_malformed_command_path() -> None:
     malformed = PolicyOperation(
         name="bad.command",

@@ -1445,19 +1445,48 @@
       "verification": null
     },
     "Email/add_domain_forwarder": {
-      "audit_fields": [],
+      "audit_fields": [
+        "domain",
+        "destdomain"
+      ],
       "capability": "email",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "email",
+        "add-domain-forwarder"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "Email/add_domain_forwarder",
-      "parameters": {},
+      "impact": "Forward all mail for a domain to another domain.",
+      "name": "email.add-domain-forwarder",
+      "parameters": {
+        "destdomain": {
+          "name": "destdomain",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "destdomain",
+          "validator": "domain"
+        },
+        "domain": {
+          "name": "domain",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email routing administration operation",
+      "recovery": "Delete the domain forwarder.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "Email/add_forwarder": {
@@ -1815,49 +1844,58 @@
     "Email/count_auto_responders": {
       "audit_fields": [],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "autoresponders-count"
+      ],
       "elevated_impact": false,
       "feature": null,
       "impact": "",
-      "name": "Email/count_auto_responders",
+      "name": "email.autoresponders-count",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the email capability review",
+      "reason": "reviewed email routing administration operation",
       "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Email/count_filters": {
       "audit_fields": [],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "filters-count"
+      ],
       "elevated_impact": false,
       "feature": null,
       "impact": "",
-      "name": "Email/count_filters",
+      "name": "email.filters-count",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the email capability review",
+      "reason": "reviewed email routing administration operation",
       "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Email/count_forwarders": {
       "audit_fields": [],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "forwarders-count"
+      ],
       "elevated_impact": false,
       "feature": null,
       "impact": "",
-      "name": "Email/count_forwarders",
+      "name": "email.forwarders-count",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the email capability review",
+      "reason": "reviewed email routing administration operation",
       "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Email/count_lists": {
@@ -1929,19 +1967,36 @@
       "verification": null
     },
     "Email/delete_domain_forwarder": {
-      "audit_fields": [],
+      "audit_fields": [
+        "domain"
+      ],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "delete-domain-forwarder"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Email/delete_domain_forwarder",
-      "parameters": {},
+      "impact": "Delete a domain-level forwarder.",
+      "name": "email.delete-domain-forwarder",
+      "parameters": {
+        "domain": {
+          "name": "domain",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email routing administration operation",
+      "recovery": "Recreate the domain forwarder if needed.",
+      "risk": "destructive",
+      "status": "included",
       "verification": null
     },
     "Email/delete_filter": {
@@ -2555,17 +2610,43 @@
     "Email/get_auto_responder": {
       "audit_fields": [],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "autoresponder"
+      ],
       "elevated_impact": false,
       "feature": null,
       "impact": "",
-      "name": "Email/get_auto_responder",
-      "parameters": {},
+      "name": "email.autoresponder",
+      "parameters": {
+        "email": {
+          "name": "email",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "email",
+          "validator": "email"
+        },
+        "temp_charset": {
+          "name": "temp_charset",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "temp_charset",
+          "validator": "bounded_text"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
+      "reason": "reviewed email routing administration operation",
       "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Email/get_charsets": {
@@ -2683,17 +2764,43 @@
     "Email/get_filter": {
       "audit_fields": [],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "filter"
+      ],
       "elevated_impact": false,
       "feature": null,
       "impact": "",
-      "name": "Email/get_filter",
-      "parameters": {},
+      "name": "email.filter",
+      "parameters": {
+        "account": {
+          "name": "account",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "account",
+          "validator": "email"
+        },
+        "filtername": {
+          "name": "filtername",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "filtername",
+          "validator": "bounded_text"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
+      "reason": "reviewed email routing administration operation",
       "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Email/get_held_message_count": {
@@ -3038,33 +3145,74 @@
     "Email/list_default_address": {
       "audit_fields": [],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "default-address"
+      ],
       "elevated_impact": false,
       "feature": null,
       "impact": "",
-      "name": "Email/list_default_address",
-      "parameters": {},
+      "name": "email.default-address",
+      "parameters": {
+        "domain": {
+          "name": "domain",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        },
+        "user": {
+          "name": "user",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "user",
+          "validator": "email_local"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
+      "reason": "reviewed email routing administration operation",
       "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Email/list_domain_forwarders": {
       "audit_fields": [],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "domain-forwarders"
+      ],
       "elevated_impact": false,
       "feature": null,
       "impact": "",
-      "name": "Email/list_domain_forwarders",
-      "parameters": {},
+      "name": "email.domain-forwarders",
+      "parameters": {
+        "domain": {
+          "name": "domain",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
+      "reason": "reviewed email routing administration operation",
       "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Email/list_filters": {
@@ -3101,17 +3249,20 @@
     "Email/list_filters_backups": {
       "audit_fields": [],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "filter-backup-domains"
+      ],
       "elevated_impact": false,
       "feature": null,
       "impact": "",
-      "name": "Email/list_filters_backups",
+      "name": "email.filter-backup-domains",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the email capability review",
+      "reason": "reviewed email routing administration operation",
       "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Email/list_forwarders": {
@@ -3148,17 +3299,20 @@
     "Email/list_forwarders_backups": {
       "audit_fields": [],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "forwarder-backup-domains"
+      ],
       "elevated_impact": false,
       "feature": null,
       "impact": "",
-      "name": "Email/list_forwarders_backups",
+      "name": "email.forwarder-backup-domains",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the email capability review",
+      "reason": "reviewed email routing administration operation",
       "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Email/list_lists": {
@@ -3391,17 +3545,20 @@
     "Email/list_system_filter_info": {
       "audit_fields": [],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "system-filter-info"
+      ],
       "elevated_impact": false,
       "feature": null,
       "impact": "",
-      "name": "Email/list_system_filter_info",
+      "name": "email.system-filter-info",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the email capability review",
+      "reason": "reviewed email routing administration operation",
       "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Email/passwd_list": {
@@ -3534,26 +3691,67 @@
       "name": "Email/reorder_filters",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the email capability review",
+      "reason": "requires a structured adapter for wildcard filter order inputs",
       "recovery": "",
       "risk": null,
       "status": "excluded",
       "verification": null
     },
     "Email/set_always_accept": {
-      "audit_fields": [],
+      "audit_fields": [
+        "domain",
+        "mxcheck",
+        "alwaysaccept"
+      ],
       "capability": "email",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "email",
+        "routing-mode"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "Email/set_always_accept",
-      "parameters": {},
+      "impact": "Change how cPanel routes mail for a domain.",
+      "name": "email.routing-mode",
+      "parameters": {
+        "alwaysaccept": {
+          "name": "alwaysaccept",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "alwaysaccept",
+          "validator": "enum"
+        },
+        "domain": {
+          "name": "domain",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        },
+        "mxcheck": {
+          "name": "mxcheck",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "mxcheck",
+          "validator": "enum"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email routing administration operation",
+      "recovery": "Restore the previous mail routing mode.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "Email/set_default_address": {
@@ -3566,7 +3764,7 @@
       "name": "Email/set_default_address",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the email capability review",
+      "reason": "requires an adapter to reject pipe-to-command destinations",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -3659,7 +3857,7 @@
       "name": "Email/store_filter",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the email capability review",
+      "reason": "requires a structured adapter for wildcard filter rule inputs",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -3784,17 +3982,32 @@
     "Email/trace_delivery": {
       "audit_fields": [],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "trace-delivery"
+      ],
       "elevated_impact": false,
       "feature": null,
       "impact": "",
-      "name": "Email/trace_delivery",
-      "parameters": {},
+      "name": "email.trace-delivery",
+      "parameters": {
+        "recipient": {
+          "name": "recipient",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "recipient",
+          "validator": "email"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
+      "reason": "reviewed email routing administration operation",
       "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Email/trace_filter": {
@@ -3807,7 +4020,7 @@
       "name": "Email/trace_filter",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the email capability review",
+      "reason": "requires a safe synthetic message adapter and no mailbox body exposure",
       "recovery": "",
       "risk": null,
       "status": "excluded",

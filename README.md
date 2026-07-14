@@ -87,7 +87,9 @@ Global options precede the capability group:
 .venv/bin/cpanel-admin --profile production email accounts
 .venv/bin/cpanel-admin --profile production email accounts-disk --domain example.com
 .venv/bin/cpanel-admin --profile production email forwarders --domain example.com
+.venv/bin/cpanel-admin --profile production email domain-forwarders --domain example.com
 .venv/bin/cpanel-admin --profile production email mx-list --domain example.com
+.venv/bin/cpanel-admin --profile production email routing-mode --domain example.com --mxcheck auto --dry-run
 .venv/bin/cpanel-admin --profile production email mailbox-status --account admin@example.com
 ```
 
