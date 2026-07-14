@@ -200,6 +200,7 @@ The default suite uses mocked transports and never accesses cPanel:
 .venv/bin/python -m pytest --cov=cpanel_admin --cov-report=term-missing --cov-fail-under=90
 .venv/bin/ruff check .
 .venv/bin/ruff format --check .
+.venv/bin/python scripts/check_generated.py
 .venv/bin/agentskills validate "$PWD"
 ```
 
@@ -216,6 +217,7 @@ performs TLS-verified requests, checks the UAPI application status, and redacts 
 Authoritative API references:
 
 - [Agent Skills specification](https://agentskills.io/specification)
+- [OpenAPI maintenance workflow](references/openapi-maintenance.md)
 - [cPanel UAPI introduction](https://api.docs.cpanel.net/cpanel/introduction)
 - [cPanel API tokens](https://api.docs.cpanel.net/cpanel/tokens)
 - [File upload tutorial](https://api.docs.cpanel.net/guides/quickstart-development-guide/tutorial-use-uapis-fileman-upload-files-function-in-custom-code)
