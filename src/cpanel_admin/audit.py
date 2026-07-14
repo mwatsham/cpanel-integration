@@ -26,6 +26,19 @@ _EVENT_FIELDS = (
     "error_category",
     "verification",
 )
+_SENSITIVE_TARGET_KEYS = frozenset(
+    {
+        "secret",
+        "token",
+        "password",
+        "key",
+        "content",
+        "path",
+        "raw_exception",
+        "request",
+        "response",
+    }
+)
 _ResultT = TypeVar("_ResultT")
 _KeyT = TypeVar("_KeyT")
 _ValueT = TypeVar("_ValueT")
@@ -300,7 +313,16 @@ def _validate_json_value(value: object) -> None:
             _validate_json_value(item)
         return
     if isinstance(value, dict) and all(isinstance(key, str) for key in value):
-        for item in value.values():
+        for key, item in value.items():
+            if _is_sensitive_target_key(key):
+                raise AuditError("Audit values must not contain sensitive target keys")
             _validate_json_value(item)
         return
     raise AuditError("Audit values must be JSON-safe")
+
+
+def _is_sensitive_target_key(key: str) -> bool:
+    normalized = key.strip().lower().replace("-", "_")
+    if normalized in _SENSITIVE_TARGET_KEYS:
+        return True
+    return any(part in _SENSITIVE_TARGET_KEYS for part in normalized.split("_"))

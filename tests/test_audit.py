@@ -79,6 +79,55 @@ def test_audit_event_is_immutable_and_rejects_unknown_target_values() -> None:
         )
 
 
+@pytest.mark.parametrize(
+    "target",
+    [
+        {"secret": "plain"},
+        {"token": "plain"},
+        {"password": "plain"},
+        {"key": "plain"},
+        {"content": "plain"},
+        {"path": "public_html/index.html"},
+        {"raw_exception": "Traceback with details"},
+        {"request": {"email": "user@example.test"}},
+        {"response": {"status": 0, "errors": ["rejected"]}},
+    ],
+)
+def test_direct_audit_event_rejects_sensitive_target_mappings(target: object) -> None:
+    with pytest.raises(AuditError, match="sensitive"):
+        AuditEvent(
+            timestamp="2026-07-14T12:00:00Z",
+            profile="staging",
+            operation="email.accounts.create",
+            identity="Email/add_pop",
+            risk="mutate",
+            confirmed=True,
+            target=target,
+            outcome="intent",
+            error_category=None,
+            verification=None,
+        )
+
+
+def test_direct_audit_event_rejects_nested_sensitive_target_keys(tmp_path: Path) -> None:
+    path = tmp_path / "audit.jsonl"
+    with pytest.raises(AuditError, match="sensitive"):
+        item = AuditEvent(
+            timestamp="2026-07-14T12:00:00Z",
+            profile="staging",
+            operation="email.accounts.create",
+            identity="Email/add_pop",
+            risk="mutate",
+            confirmed=True,
+            target={"email": "user@example.test", "details": [{"api_token": "plain"}]},
+            outcome="intent",
+            error_category=None,
+            verification=None,
+        )
+        AuditWriter(path).write(item, fail_closed=True)
+    assert not path.exists()
+
+
 def test_confirmed_mutation_does_not_call_transport_when_audit_intent_fails(tmp_path: Path) -> None:
     path = tmp_path / "audit.jsonl"
     path.mkdir()
