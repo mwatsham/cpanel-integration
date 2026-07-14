@@ -2,18 +2,22 @@
 
 from __future__ import annotations
 
+import ipaddress
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import PurePosixPath
-from typing import Any
+from urllib.parse import urlsplit
 
 from .errors import CapabilityError, UsageError
+from .policy import PolicyError
 
 MAX_TEXT_BYTES = 10 * 1024 * 1024
 MAX_PEM_BYTES = 1024 * 1024
 DATABASE_RE = re.compile(r"^[A-Za-z0-9_]{1,64}$")
 SUBDOMAIN_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$")
+EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+$")
 
 MYSQL_PRIVILEGES = frozenset(
     {
@@ -365,27 +369,127 @@ def _privileges(value: object) -> str:
     return ",".join(normalized)
 
 
+def _integer(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise UsageError("Value must be an integer")
+    return value
+
+
+def _boolean(value: object) -> bool:
+    if not isinstance(value, bool):
+        raise UsageError("Value must be a boolean")
+    return value
+
+
+def _trash_age(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 3650:
+        raise UsageError("Trash age must be between 0 and 3650 days")
+    return value
+
+
+def _enum(value: object) -> str:
+    return _bounded_text(value, label="Enum value", maximum=255)
+
+
+def _email(value: object) -> str:
+    if not isinstance(value, str) or value != value.strip() or not EMAIL_RE.fullmatch(value):
+        raise UsageError("Invalid email address")
+    local, domain = value.rsplit("@", 1)
+    try:
+        normalized_domain = _domain(domain)
+    except UsageError as exc:
+        raise UsageError("Invalid email address") from exc
+    if len(value.encode("utf-8")) > 254:
+        raise UsageError("Invalid email address")
+    return f"{local}@{normalized_domain}"
+
+
+def _ip_cidr(value: object) -> str:
+    if not isinstance(value, str) or not value or value != value.strip():
+        raise UsageError("Invalid IP address or CIDR network")
+    try:
+        if "/" in value:
+            return str(ipaddress.ip_network(value, strict=False))
+        return str(ipaddress.ip_address(value))
+    except ValueError as exc:
+        raise UsageError("Invalid IP address or CIDR network") from exc
+
+
+def _url(value: object) -> str:
+    if not isinstance(value, str) or not value or value != value.strip() or len(value) > 4096:
+        raise UsageError("Invalid URL")
+    parsed = urlsplit(value)
+    if (
+        parsed.scheme not in {"http", "https"}
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+    ):
+        raise UsageError("Invalid URL")
+    try:
+        _ = parsed.port
+    except ValueError as exc:
+        raise UsageError("Invalid URL") from exc
+    return value
+
+
+def _pem(value: object) -> str:
+    content = _bounded_text(value, label="PEM content", maximum=MAX_PEM_BYTES)
+    if not re.fullmatch(
+        r"-----BEGIN [A-Z0-9][A-Z0-9 ]*-----\r?\n.+\r?\n-----END [A-Z0-9][A-Z0-9 ]*-----",
+        content,
+        flags=re.DOTALL,
+    ):
+        raise UsageError("Content is not PEM encoded")
+    return content
+
+
+def _unsupported_cron(_value: object) -> object:
+    raise PolicyError("cron expressions are not supported")
+
+
+Validator = Callable[[object], object]
+VALIDATORS: dict[str, Validator] = {
+    "boolean": _boolean,
+    "bounded_text": lambda item: _bounded_text(item, label="Text", maximum=MAX_TEXT_BYTES),
+    "certificate": _certificate,
+    "cidr": _ip_cidr,
+    "content": lambda item: _bounded_text(item, label="File content", maximum=MAX_TEXT_BYTES),
+    "cron-expression": _unsupported_cron,
+    "cron_expression": _unsupported_cron,
+    "database": _database,
+    "domain": _domain,
+    "email": _email,
+    "enum": _enum,
+    "filename": _filename,
+    "integer": _integer,
+    "ip": _ip_cidr,
+    "ip_cidr": _ip_cidr,
+    "local_file": lambda item: _bounded_text(item, label="Local file path", maximum=4096),
+    "path": _path,
+    "pem": _pem,
+    "private_key": _private_key,
+    "privilege": _privileges,
+    "privileges": _privileges,
+    "secret": lambda item: _bounded_text(item, label="Secret", maximum=4096),
+    "subdomain": _subdomain,
+    "trash_age": _trash_age,
+    "url": _url,
+}
+
+
+def validate_value(validator: str, value: object) -> object:
+    """Normalize a value using one reviewed, reusable validator."""
+
+    try:
+        function = VALIDATORS[validator]
+    except KeyError as exc:
+        raise PolicyError(f"unknown validator: {validator}") from exc
+    return function(value)
+
+
 def _normalize(kind: Kind, value: object) -> object:
-    validators: dict[Kind, Any] = {
-        Kind.DOMAIN: _domain,
-        Kind.SUBDOMAIN: _subdomain,
-        Kind.PATH: _path,
-        Kind.FILENAME: _filename,
-        Kind.DATABASE: _database,
-        Kind.SECRET: lambda item: _bounded_text(item, label="Secret", maximum=4096),
-        Kind.CONTENT: lambda item: _bounded_text(
-            item, label="File content", maximum=MAX_TEXT_BYTES
-        ),
-        Kind.CERTIFICATE: _certificate,
-        Kind.PRIVATE_KEY: _private_key,
-        Kind.PRIVILEGES: _privileges,
-        Kind.LOCAL_FILE: lambda item: _bounded_text(item, label="Local file path", maximum=4096),
-    }
-    if kind is Kind.TRASH_AGE:
-        if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 3650:
-            raise UsageError("Trash age must be between 0 and 3650 days")
-        return value
-    return validators[kind](value)
+    return validate_value(kind.value, value)
 
 
 def validate_parameters(operation: Operation, values: dict[str, object]) -> dict[str, object]:
