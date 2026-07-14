@@ -13,7 +13,8 @@
 - Support individual cPanel accounts only.
 - Use cPanel UAPI over verified HTTPS on port `2083`.
 - Use documented API endpoints. Do not automate the cPanel web interface.
-- Support an explicit MVP allowlist for domains, files, SSL, and MySQL/MariaDB databases.
+- Support an explicit allowlist for domains, files, SSL, MySQL/MariaDB databases, email, and FTP
+  account administration.
 - Reject WHM API calls, root or reseller operations, account provisioning, and server-service administration.
 
 ## Structure

@@ -4989,243 +4989,535 @@
       "verification": null
     },
     "Ftp/add_ftp": {
-      "audit_fields": [],
+      "audit_fields": [
+        "user"
+      ],
       "capability": "ftp",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "ftp",
+        "create"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "Ftp/add_ftp",
-      "parameters": {},
+      "impact": "Create an FTP account for the cPanel account.",
+      "name": "ftp.create",
+      "parameters": {
+        "disallowdot": {
+          "name": "disallowdot",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "disallowdot",
+          "validator": "integer"
+        },
+        "domain": {
+          "name": "domain",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        },
+        "homedir": {
+          "name": "homedir",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "homedir",
+          "validator": "path"
+        },
+        "password": {
+          "name": "password",
+          "required": true,
+          "secret": true,
+          "sensitive_output": true,
+          "sources": [
+            "stdin"
+          ],
+          "uapi_name": "pass",
+          "validator": "secret"
+        },
+        "quota": {
+          "name": "quota",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "quota",
+          "validator": "integer"
+        },
+        "user": {
+          "name": "user",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "user",
+          "validator": "email_local"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the ftp capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed FTP account administration operation",
+      "recovery": "Delete the FTP account or change its password, home directory, or quota.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "Ftp/allows_anonymous_ftp": {
       "audit_fields": [],
       "capability": "ftp",
-      "command": [],
+      "command": [
+        "ftp",
+        "anonymous-allowed"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Ftp/allows_anonymous_ftp",
+      "impact": "Read whether anonymous FTP login is allowed.",
+      "name": "ftp.anonymous-allowed",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the ftp capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed FTP account administration read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Ftp/allows_anonymous_ftp_incoming": {
       "audit_fields": [],
       "capability": "ftp",
-      "command": [],
+      "command": [
+        "ftp",
+        "anonymous-incoming-allowed"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Ftp/allows_anonymous_ftp_incoming",
+      "impact": "Read whether anonymous incoming FTP transfers are allowed.",
+      "name": "ftp.anonymous-incoming-allowed",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the ftp capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed FTP account administration read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Ftp/delete_ftp": {
-      "audit_fields": [],
+      "audit_fields": [
+        "user"
+      ],
       "capability": "ftp",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "ftp",
+        "delete"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "Ftp/delete_ftp",
-      "parameters": {},
+      "impact": "Delete an FTP account and optionally remove its home directory contents.",
+      "name": "ftp.delete",
+      "parameters": {
+        "destroy": {
+          "name": "destroy",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "destroy",
+          "validator": "integer"
+        },
+        "domain": {
+          "name": "domain",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        },
+        "user": {
+          "name": "user",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "user",
+          "validator": "email_local"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the ftp capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed FTP account administration operation",
+      "recovery": "Recreate the FTP account and restore files from an independently verified backup if files were destroyed.",
+      "risk": "destructive",
+      "status": "included",
       "verification": null
     },
     "Ftp/ftp_exists": {
       "audit_fields": [],
       "capability": "ftp",
-      "command": [],
+      "command": [
+        "ftp",
+        "exists"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Ftp/ftp_exists",
-      "parameters": {},
+      "impact": "Check whether an FTP account exists.",
+      "name": "ftp.exists",
+      "parameters": {
+        "domain": {
+          "name": "domain",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        },
+        "user": {
+          "name": "user",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "user",
+          "validator": "email_local"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the ftp capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed FTP account administration read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Ftp/get_ftp_daemon_info": {
       "audit_fields": [],
       "capability": "ftp",
-      "command": [],
+      "command": [
+        "ftp",
+        "daemon-info"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Ftp/get_ftp_daemon_info",
+      "impact": "Read FTP daemon information.",
+      "name": "ftp.daemon-info",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the ftp capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed FTP account administration read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Ftp/get_port": {
       "audit_fields": [],
       "capability": "ftp",
-      "command": [],
+      "command": [
+        "ftp",
+        "port"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Ftp/get_port",
+      "impact": "Read the FTP server port.",
+      "name": "ftp.port",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the ftp capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed FTP account administration read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Ftp/get_quota": {
       "audit_fields": [],
       "capability": "ftp",
-      "command": [],
+      "command": [
+        "ftp",
+        "quota"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Ftp/get_quota",
-      "parameters": {},
+      "impact": "Read an FTP account quota.",
+      "name": "ftp.quota",
+      "parameters": {
+        "account": {
+          "name": "account",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "account",
+          "validator": "bounded_text"
+        },
+        "domain": {
+          "name": "domain",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the ftp capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed FTP account administration read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Ftp/get_welcome_message": {
       "audit_fields": [],
       "capability": "ftp",
-      "command": [],
+      "command": [
+        "ftp",
+        "welcome-message"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Ftp/get_welcome_message",
+      "impact": "Read the FTP welcome message.",
+      "name": "ftp.welcome-message",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the ftp capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed FTP account administration read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Ftp/kill_session": {
-      "audit_fields": [],
+      "audit_fields": [
+        "login"
+      ],
       "capability": "ftp",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "ftp",
+        "kill-session"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "Ftp/kill_session",
-      "parameters": {},
+      "impact": "Terminate a specific active FTP session.",
+      "name": "ftp.kill-session",
+      "parameters": {
+        "login": {
+          "name": "login",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "login",
+          "validator": "bounded_text"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the ftp capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed FTP account administration operation",
+      "recovery": "The user can reconnect with valid credentials.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "Ftp/list_ftp": {
       "audit_fields": [],
       "capability": "ftp",
-      "command": [],
+      "command": [
+        "ftp",
+        "accounts"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Ftp/list_ftp",
-      "parameters": {},
+      "impact": "List FTP accounts.",
+      "name": "ftp.accounts",
+      "parameters": {
+        "include_acct_types": {
+          "name": "include_acct_types",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "include_acct_types",
+          "validator": "bounded_text"
+        },
+        "skip_acct_types": {
+          "name": "skip_acct_types",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "skip_acct_types",
+          "validator": "bounded_text"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the ftp capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed FTP account administration read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Ftp/list_ftp_with_disk": {
       "audit_fields": [],
       "capability": "ftp",
-      "command": [],
+      "command": [
+        "ftp",
+        "accounts-disk"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Ftp/list_ftp_with_disk",
-      "parameters": {},
+      "impact": "List FTP accounts with disk usage.",
+      "name": "ftp.accounts-disk",
+      "parameters": {
+        "include_acct_types": {
+          "name": "include_acct_types",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "include_acct_types",
+          "validator": "bounded_text"
+        },
+        "skip_acct_types": {
+          "name": "skip_acct_types",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "skip_acct_types",
+          "validator": "bounded_text"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the ftp capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed FTP account administration read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Ftp/list_sessions": {
       "audit_fields": [],
       "capability": "ftp",
-      "command": [],
+      "command": [
+        "ftp",
+        "sessions"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Ftp/list_sessions",
+      "impact": "List active FTP sessions.",
+      "name": "ftp.sessions",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the ftp capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed FTP account administration read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Ftp/passwd": {
-      "audit_fields": [],
+      "audit_fields": [
+        "user"
+      ],
       "capability": "ftp",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "ftp",
+        "set-password"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "Ftp/passwd",
-      "parameters": {},
+      "impact": "Change an FTP account password.",
+      "name": "ftp.set-password",
+      "parameters": {
+        "domain": {
+          "name": "domain",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        },
+        "password": {
+          "name": "password",
+          "required": true,
+          "secret": true,
+          "sensitive_output": true,
+          "sources": [
+            "stdin"
+          ],
+          "uapi_name": "pass",
+          "validator": "secret"
+        },
+        "user": {
+          "name": "user",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "user",
+          "validator": "email_local"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the ftp capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed FTP account administration operation",
+      "recovery": "Set a new password for the FTP account.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "Ftp/server_name": {
       "audit_fields": [],
       "capability": "ftp",
-      "command": [],
+      "command": [
+        "ftp",
+        "server-name"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Ftp/server_name",
+      "impact": "Read the FTP daemon family.",
+      "name": "ftp.server-name",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the ftp capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed FTP account administration read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Ftp/set_anonymous_ftp": {
@@ -5238,7 +5530,7 @@
       "name": "Ftp/set_anonymous_ftp",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the ftp capability review",
+      "reason": "anonymous FTP access changes are too broad for default automation",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -5254,58 +5546,164 @@
       "name": "Ftp/set_anonymous_ftp_incoming",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the ftp capability review",
+      "reason": "anonymous incoming FTP transfer changes are too broad for default automation",
       "recovery": "",
       "risk": null,
       "status": "excluded",
       "verification": null
     },
     "Ftp/set_homedir": {
-      "audit_fields": [],
+      "audit_fields": [
+        "user",
+        "homedir"
+      ],
       "capability": "ftp",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "ftp",
+        "set-home"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "Ftp/set_homedir",
-      "parameters": {},
+      "impact": "Change an FTP account home directory.",
+      "name": "ftp.set-home",
+      "parameters": {
+        "domain": {
+          "name": "domain",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        },
+        "homedir": {
+          "name": "homedir",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "homedir",
+          "validator": "path"
+        },
+        "user": {
+          "name": "user",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "user",
+          "validator": "email_local"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the ftp capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed FTP account administration operation",
+      "recovery": "Set the FTP account home directory back to the previous path.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "Ftp/set_quota": {
-      "audit_fields": [],
+      "audit_fields": [
+        "user",
+        "quota"
+      ],
       "capability": "ftp",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "ftp",
+        "set-quota"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "Ftp/set_quota",
-      "parameters": {},
+      "impact": "Change an FTP account quota and optionally disconnect active sessions.",
+      "name": "ftp.set-quota",
+      "parameters": {
+        "domain": {
+          "name": "domain",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        },
+        "kill": {
+          "name": "kill",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "kill",
+          "validator": "integer"
+        },
+        "quota": {
+          "name": "quota",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "quota",
+          "validator": "integer"
+        },
+        "user": {
+          "name": "user",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "user",
+          "validator": "email_local"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the ftp capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed FTP account administration operation",
+      "recovery": "Set the prior quota again.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "Ftp/set_welcome_message": {
       "audit_fields": [],
       "capability": "ftp",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "ftp",
+        "set-welcome"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "Ftp/set_welcome_message",
-      "parameters": {},
+      "impact": "Change the FTP welcome message shown by the server.",
+      "name": "ftp.set-welcome",
+      "parameters": {
+        "message": {
+          "name": "message",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "message",
+          "validator": "bounded_text"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the ftp capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed FTP account administration operation",
+      "recovery": "Set the previous welcome message again.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "KnownHosts/create": {

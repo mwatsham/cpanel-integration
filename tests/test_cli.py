@@ -606,6 +606,55 @@ def test_email_password_verification_uses_protected_password_stdin(cli_env) -> N
     assert "mail-secret-marker" not in serialized
 
 
+def test_ftp_account_creation_uses_protected_password_stdin(cli_env) -> None:
+    env, key = cli_env
+    add_profile(env, key)
+    parser = build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(
+            [
+                "--profile",
+                "test",
+                "ftp",
+                "create",
+                "--user",
+                "deploy",
+                "--domain",
+                "example.com",
+                "--password",
+                "plain-secret",
+            ]
+        )
+
+    transport = FakeTransport()
+    code, payload, stderr = invoke(
+        [
+            "--profile",
+            "test",
+            "ftp",
+            "create",
+            "--user",
+            "deploy",
+            "--domain",
+            "example.com",
+            "--password-stdin",
+            "--dry-run",
+        ],
+        env=env,
+        stdin="ftp-secret-marker\n",
+        transport=transport,
+    )
+
+    serialized = json.dumps(payload)
+    assert code == 0
+    assert stderr == ""
+    assert payload["operation"] == "ftp.create"
+    assert payload["parameters"]["user"] == "deploy"
+    assert payload["parameters"]["domain"] == "example.com"
+    assert "ftp-secret-marker" not in serialized
+    assert transport.calls == []
+
+
 def test_email_domain_forwarder_dry_run_binds_routing_target(cli_env) -> None:
     env, key = cli_env
     add_profile(env, key)

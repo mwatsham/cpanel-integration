@@ -59,6 +59,16 @@ PROTECTED_MVP_INPUTS = {
         (InputSource.STDIN,),
         "secret",
     ),
+    ("Ftp/add_ftp", "password"): (
+        "pass",
+        (InputSource.STDIN,),
+        "secret",
+    ),
+    ("Ftp/passwd", "password"): (
+        "pass",
+        (InputSource.STDIN,),
+        "secret",
+    ),
     ("EmailAuth/install_dkim_private_keys", "key"): (
         "key",
         (InputSource.PROTECTED_FILE,),
@@ -76,6 +86,8 @@ PROTECTED_ALTERNATE_UAPI_NAMES = {
     "Email/add_pop": "email",
     "Email/passwd_pop": "email",
     "Email/verify_password": "email",
+    "Ftp/add_ftp": "user",
+    "Ftp/passwd": "user",
     "EmailAuth/install_dkim_private_keys": "domain",
     "SSL/install_ssl": "cert",
 }

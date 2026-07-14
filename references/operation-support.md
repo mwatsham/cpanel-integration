@@ -4,8 +4,8 @@
 
 - Source UAPI version: `11.136.0.25`
 - Source SHA-256: `3d9ec80cd8d774312c4bb6b0dfdbc17e6e6ffc92a8f0c2cd88f01e32864fa2c6`
-- Included operations: 112
-- Excluded operations: 281
+- Included operations: 130
+- Excluded operations: 263
 
 The local allowlist is an application safeguard, not a substitute for cPanel account permissions. This catalog does not provide arbitrary UAPI passthrough.
 
@@ -210,26 +210,26 @@ The local allowlist is an application safeguard, not a substitute for cPanel acc
 | `Fileman/save_file_content` | included | files | destructive | supported by the existing MVP operation set |
 | `Fileman/transcode` | excluded | files | - | not enabled until the file capability review |
 | `Fileman/upload_files` | included | files | destructive | supported by the existing MVP operation set |
-| `Ftp/add_ftp` | excluded | ftp | - | not enabled until the ftp capability review |
-| `Ftp/allows_anonymous_ftp` | excluded | ftp | - | not enabled until the ftp capability review |
-| `Ftp/allows_anonymous_ftp_incoming` | excluded | ftp | - | not enabled until the ftp capability review |
-| `Ftp/delete_ftp` | excluded | ftp | - | not enabled until the ftp capability review |
-| `Ftp/ftp_exists` | excluded | ftp | - | not enabled until the ftp capability review |
-| `Ftp/get_ftp_daemon_info` | excluded | ftp | - | not enabled until the ftp capability review |
-| `Ftp/get_port` | excluded | ftp | - | not enabled until the ftp capability review |
-| `Ftp/get_quota` | excluded | ftp | - | not enabled until the ftp capability review |
-| `Ftp/get_welcome_message` | excluded | ftp | - | not enabled until the ftp capability review |
-| `Ftp/kill_session` | excluded | ftp | - | not enabled until the ftp capability review |
-| `Ftp/list_ftp` | excluded | ftp | - | not enabled until the ftp capability review |
-| `Ftp/list_ftp_with_disk` | excluded | ftp | - | not enabled until the ftp capability review |
-| `Ftp/list_sessions` | excluded | ftp | - | not enabled until the ftp capability review |
-| `Ftp/passwd` | excluded | ftp | - | not enabled until the ftp capability review |
-| `Ftp/server_name` | excluded | ftp | - | not enabled until the ftp capability review |
-| `Ftp/set_anonymous_ftp` | excluded | ftp | - | not enabled until the ftp capability review |
-| `Ftp/set_anonymous_ftp_incoming` | excluded | ftp | - | not enabled until the ftp capability review |
-| `Ftp/set_homedir` | excluded | ftp | - | not enabled until the ftp capability review |
-| `Ftp/set_quota` | excluded | ftp | - | not enabled until the ftp capability review |
-| `Ftp/set_welcome_message` | excluded | ftp | - | not enabled until the ftp capability review |
+| `Ftp/add_ftp` | included | ftp | mutate | reviewed FTP account administration operation |
+| `Ftp/allows_anonymous_ftp` | included | ftp | read | reviewed FTP account administration read operation |
+| `Ftp/allows_anonymous_ftp_incoming` | included | ftp | read | reviewed FTP account administration read operation |
+| `Ftp/delete_ftp` | included | ftp | destructive | reviewed FTP account administration operation |
+| `Ftp/ftp_exists` | included | ftp | read | reviewed FTP account administration read operation |
+| `Ftp/get_ftp_daemon_info` | included | ftp | read | reviewed FTP account administration read operation |
+| `Ftp/get_port` | included | ftp | read | reviewed FTP account administration read operation |
+| `Ftp/get_quota` | included | ftp | read | reviewed FTP account administration read operation |
+| `Ftp/get_welcome_message` | included | ftp | read | reviewed FTP account administration read operation |
+| `Ftp/kill_session` | included | ftp | mutate | reviewed FTP account administration operation |
+| `Ftp/list_ftp` | included | ftp | read | reviewed FTP account administration read operation |
+| `Ftp/list_ftp_with_disk` | included | ftp | read | reviewed FTP account administration read operation |
+| `Ftp/list_sessions` | included | ftp | read | reviewed FTP account administration read operation |
+| `Ftp/passwd` | included | ftp | mutate | reviewed FTP account administration operation |
+| `Ftp/server_name` | included | ftp | read | reviewed FTP account administration read operation |
+| `Ftp/set_anonymous_ftp` | excluded | ftp | - | anonymous FTP access changes are too broad for default automation |
+| `Ftp/set_anonymous_ftp_incoming` | excluded | ftp | - | anonymous incoming FTP transfer changes are too broad for default automation |
+| `Ftp/set_homedir` | included | ftp | mutate | reviewed FTP account administration operation |
+| `Ftp/set_quota` | included | ftp | mutate | reviewed FTP account administration operation |
+| `Ftp/set_welcome_message` | included | ftp | mutate | reviewed FTP account administration operation |
 | `KnownHosts/create` | excluded | security | - | not enabled until the security capability review |
 | `KnownHosts/delete` | excluded | security | - | not enabled until the security capability review |
 | `KnownHosts/update` | excluded | security | - | not enabled until the security capability review |

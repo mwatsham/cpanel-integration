@@ -1,12 +1,12 @@
 ---
 name: cpanel-integration
-description: Safely administer individual cPanel accounts through documented UAPI operations for domains, files, SSL certificates, MySQL or MariaDB databases, and email administration. Use when Codex needs to inspect or change website resources, mailboxes, quotas, passwords, forwarders, autoresponders, filters, spam controls, MX routing, SPF, or DKIM in cPanel. Do not use for WHM, root, reseller, account provisioning, server-wide administration, browser automation, or arbitrary UAPI calls.
+description: Safely administer individual cPanel accounts through documented UAPI operations for domains, files, SSL certificates, MySQL or MariaDB databases, email administration, and FTP account administration. Use when Codex needs to inspect or change website resources, mailboxes, FTP users, quotas, passwords, routing, SPF, or DKIM in cPanel. Do not use for WHM, root, reseller, account provisioning, server-wide administration, browser automation, anonymous FTP changes, or arbitrary UAPI calls.
 ---
 
 # Administer an individual cPanel account
 
 Use the `cpanel-admin` CLI as the execution and safety boundary. Do not construct direct cPanel
-requests or substitute deprecated API 2, WHM, shell, FTP, or browser automation.
+requests or substitute deprecated API 2, WHM, shell, raw FTP clients, or browser automation.
 
 ## Prepare
 
@@ -30,8 +30,8 @@ requests or substitute deprecated API 2, WHM, shell, FTP, or browser automation.
 - Treat any nonzero exit as failure. Report its concise error and exit-code category without
   exposing environment values or request headers.
 - Verify mutations with the corresponding read command when the API offers one.
-- For mailbox passwords, database passwords, private keys, certificate material, and other secrets,
-  use only the approved `--*-stdin`, `--*-file`, or protected profile mechanisms.
+- For mailbox passwords, FTP passwords, database passwords, private keys, certificate material, and
+  other secrets, use only the approved `--*-stdin`, `--*-file`, or protected profile mechanisms.
 
 ## Guardrails
 

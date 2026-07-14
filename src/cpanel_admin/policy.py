@@ -69,7 +69,7 @@ EXPECTED_CANDIDATE_OPERATIONS = 393
 EXPECTED_CANDIDATE_IDENTITY_SHA256 = (
     "834c8bd9c048d93e9089fd22a7c569d4923cc8a5c9ecbc4172123ec2276a6ecb"
 )
-EXPECTED_POLICY_SHA256 = "87b994f1329f245a1dd2c058cc1c7faa867d2eb12ec643b46db544a5c2aca62e"
+EXPECTED_POLICY_SHA256 = "7a8ab37229520c21486333d6f569ba4c434892916d449249398388f8c9cefbf0"
 
 _PROTECTED_SECRET_SOURCES = frozenset(
     {
@@ -238,6 +238,24 @@ _PROTECTED_INPUT_CONTRACTS = MappingProxyType(
             ("Email/verify_password", "password"): PolicyParameter(
                 name="password",
                 uapi_name="password",
+                sources=(InputSource.STDIN,),
+                validator="secret",
+                required=True,
+                secret=True,
+                sensitive_output=True,
+            ),
+            ("Ftp/add_ftp", "password"): PolicyParameter(
+                name="password",
+                uapi_name="pass",
+                sources=(InputSource.STDIN,),
+                validator="secret",
+                required=True,
+                secret=True,
+                sensitive_output=True,
+            ),
+            ("Ftp/passwd", "password"): PolicyParameter(
+                name="password",
+                uapi_name="pass",
                 sources=(InputSource.STDIN,),
                 validator="secret",
                 required=True,

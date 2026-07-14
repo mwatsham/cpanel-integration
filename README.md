@@ -6,11 +6,13 @@ named profiles, structured JSON, and operation-bound confirmation for destructiv
 
 ## Scope
 
-The skill supports domains, account files, SSL certificates, MySQL/MariaDB databases, and reviewed
-email administration for mailbox accounts, quotas, passwords, forwarders, autoresponders, filter
-state, spam controls, MX routing, SPF, and DKIM. It does not support WHM, root or reseller
-administration, account provisioning, server settings, browser automation, deprecated API 2, or
-arbitrary UAPI calls.
+The skill supports domains, account files, SSL certificates, MySQL/MariaDB databases, reviewed
+email administration, and reviewed FTP account administration. Email support covers mailbox
+accounts, quotas, passwords, forwarders, autoresponders, filter state, spam controls, MX routing,
+SPF, and DKIM. FTP support covers account listing, creation, deletion, passwords, quotas, home
+directories, sessions, server information, and welcome messages. It does not support WHM, root or
+reseller administration, account provisioning, server settings, browser automation, deprecated API
+2, anonymous FTP configuration changes, or arbitrary UAPI calls.
 
 ## Install
 
@@ -93,6 +95,9 @@ Global options precede the capability group:
 .venv/bin/cpanel-admin --profile production email mailbox-status --account admin@example.com
 .venv/bin/cpanel-admin --profile production email validate-dmarc --domain example.com
 .venv/bin/cpanel-admin --profile production email greylisting-domains
+.venv/bin/cpanel-admin --profile production ftp accounts
+.venv/bin/cpanel-admin --profile production ftp sessions
+.venv/bin/cpanel-admin --profile production ftp quota --account deploy --domain example.com
 ```
 
 Non-destructive mutations support a review step:
@@ -115,6 +120,13 @@ Password verification also uses standard input and does not echo the password in
 ```bash
 printf '%s' "$MAILBOX_PASSWORD" | .venv/bin/cpanel-admin --profile staging email verify-password \
   --email admin@example.com --password-stdin
+```
+
+FTP account passwords are also protected inputs:
+
+```bash
+printf '%s' "$FTP_PASSWORD" | .venv/bin/cpanel-admin --profile staging ftp create \
+  --user deploy --domain example.com --password-stdin --dry-run
 ```
 
 DKIM private-key imports must use a protected `0600` file:
