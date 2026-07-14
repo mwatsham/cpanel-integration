@@ -1,22 +1,33 @@
 #!/usr/bin/env python3
-"""Normalize the pinned cPanel OpenAPI document into deterministic JSON."""
+"""Generate deterministic packaged metadata from the pinned cPanel API and policy."""
 
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
-import sys
 from pathlib import Path
 
 from cpanel_admin.catalog import Catalog, CatalogError, normalize_document
-from cpanel_admin.policy import SELECTED_MODULES
+from cpanel_admin.policy import (
+    SELECTED_MODULES,
+    PolicyError,
+    PolicyOperation,
+    PolicyParameter,
+    PolicyRegistry,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_SOURCE = ROOT / "specifications/cpanel.openapi.json"
+DEFAULT_LOCK = ROOT / "specifications/cpanel.openapi.lock.json"
+DEFAULT_POLICY = ROOT / "policy/operations.json"
+DEFAULT_OUTPUT = ROOT / "src/cpanel_admin/data/operation_catalog.json"
+DEFAULT_SUPPORT_OUTPUT = ROOT / "references/operation-support.md"
 EXPECTED_SHA256 = "3d9ec80cd8d774312c4bb6b0dfdbc17e6e6ffc92a8f0c2cd88f01e32864fa2c6"
 EXPECTED_OPENAPI_VERSION = "3.0.2"
 EXPECTED_UAPI_VERSION = "11.136.0.25"
 EXPECTED_NONCANONICAL_PATHS = frozenset({"/get_php_recommendations", "/get_recommendations"})
+GENERATED_NOTICE = "Generated from pinned cPanel metadata; must not be edited manually."
 
 
 def policy_candidate_identities(catalog: Catalog) -> tuple[str, ...]:
@@ -29,7 +40,7 @@ def policy_candidate_identities(catalog: Catalog) -> tuple[str, ...]:
     )
 
 
-def generate(source: Path, lock_path: Path) -> str:
+def _load_catalog(source: Path, lock_path: Path) -> Catalog:
     source_bytes = source.read_bytes()
     lock = json.loads(lock_path.read_text(encoding="utf-8"))
     document = json.loads(source_bytes)
@@ -38,6 +49,8 @@ def generate(source: Path, lock_path: Path) -> str:
     info = document.get("info")
     if not isinstance(info, dict) or info.get("version") != EXPECTED_UAPI_VERSION:
         raise CatalogError(f"pinned UAPI version must be {EXPECTED_UAPI_VERSION}")
+    if lock.get("generator_schema") != 1:
+        raise CatalogError("lock generator_schema must be 1")
     if lock.get("openapi") != EXPECTED_OPENAPI_VERSION:
         raise CatalogError(f"lock OpenAPI version must be {EXPECTED_OPENAPI_VERSION}")
     if lock.get("uapi_version") != EXPECTED_UAPI_VERSION:
@@ -54,29 +67,141 @@ def generate(source: Path, lock_path: Path) -> str:
     excluded_paths = frozenset(raw_excluded_paths)
     if excluded_paths != EXPECTED_NONCANONICAL_PATHS or len(raw_excluded_paths) != 2:
         raise CatalogError("lock file must list exactly the two approved noncanonical paths")
-    catalog = normalize_document(
+    return normalize_document(
         document,
         source_sha256=actual_sha256,
         excluded_noncanonical_paths=excluded_paths,
     )
-    return catalog.to_json()
+
+
+def _parameter_metadata(parameter: PolicyParameter) -> dict[str, object]:
+    return {
+        "name": parameter.name,
+        "uapi_name": parameter.uapi_name,
+        "sources": [source.value for source in parameter.sources],
+        "validator": parameter.validator,
+        "required": parameter.required,
+        "secret": parameter.secret,
+        "sensitive_output": parameter.sensitive_output,
+    }
+
+
+def _policy_metadata(operation: PolicyOperation) -> dict[str, object]:
+    return {
+        "name": operation.name,
+        "identity": operation.identity,
+        "command": list(operation.command),
+        "capability": operation.capability,
+        "status": operation.status.value,
+        "reason": operation.reason,
+        "risk": operation.risk.value if operation.risk is not None else None,
+        "elevated_impact": operation.elevated_impact,
+        "parameters": {
+            name: _parameter_metadata(operation.parameters[name])
+            for name in sorted(operation.parameters)
+        },
+        "impact": operation.impact,
+        "recovery": operation.recovery,
+        "preflight": operation.preflight,
+        "verification": operation.verification,
+        "feature": operation.feature,
+        "audit_fields": list(operation.audit_fields),
+    }
+
+
+def _generate_artifacts(
+    source: Path,
+    policy_path: Path,
+    lock_path: Path,
+) -> tuple[str, str]:
+    catalog = _load_catalog(source, lock_path)
+    registry = PolicyRegistry.load(catalog, policy_path)
+    value = json.loads(catalog.to_json())
+    value["generator_schema"] = 1
+    value["generated_notice"] = GENERATED_NOTICE
+    for operation in registry.all():
+        value["operations"][operation.identity]["policy"] = _policy_metadata(operation)
+    generated = json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n"
+    return generated, _support_matrix(catalog, registry)
+
+
+def generate(
+    source: Path,
+    policy_path: Path,
+    *,
+    lock_path: Path = DEFAULT_LOCK,
+) -> str:
+    """Return the deterministic merged runtime catalog."""
+
+    generated, _support = _generate_artifacts(source, policy_path, lock_path)
+    return generated
+
+
+def _markdown_cell(value: str) -> str:
+    return value.replace("|", "\\|").replace("\r", " ").replace("\n", " ")
+
+
+def _support_matrix(catalog: Catalog, registry: PolicyRegistry) -> str:
+    lines = [
+        "# cPanel Operation Support Matrix",
+        "",
+        "> Generated from the pinned cPanel OpenAPI document and reviewed policy. "
+        "Do not edit manually.",
+        "",
+        f"- Source UAPI version: `{catalog.source_version}`",
+        f"- Source SHA-256: `{catalog.source_sha256}`",
+        f"- Included operations: {len(registry.included())}",
+        f"- Excluded operations: {len(registry.excluded())}",
+        "",
+        "The local allowlist is an application safeguard, not a substitute for cPanel account "
+        "permissions. This catalog does not provide arbitrary UAPI passthrough.",
+        "",
+        "| Canonical operation | Status | Capability | Risk | Reason |",
+        "| --- | --- | --- | --- | --- |",
+    ]
+    for operation in registry.all():
+        risk = operation.risk.value if operation.risk is not None else "-"
+        lines.append(
+            f"| `{_markdown_cell(operation.identity)}` | {operation.status.value} | "
+            f"{_markdown_cell(operation.capability)} | {risk} | "
+            f"{_markdown_cell(operation.reason)} |"
+        )
+    return "\n".join(lines) + "\n"
+
+
+def _write(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+
+
+def _check_current(path: Path, expected: str, label: str) -> None:
+    try:
+        actual = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise CatalogError(f"stale generated output: {label} is unavailable: {path}") from exc
+    if actual != expected:
+        raise CatalogError(f"stale generated output: {label}: {path}")
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--source", type=Path, default=ROOT / "specifications/cpanel.openapi.json")
-    parser.add_argument(
-        "--lock", type=Path, default=ROOT / "specifications/cpanel.openapi.lock.json"
-    )
-    parser.add_argument("--output", type=Path)
+    parser.add_argument("--source", type=Path, default=DEFAULT_SOURCE)
+    parser.add_argument("--lock", type=Path, default=DEFAULT_LOCK)
+    parser.add_argument("--policy", type=Path, default=DEFAULT_POLICY)
+    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument("--support-output", type=Path, default=DEFAULT_SUPPORT_OUTPUT)
+    parser.add_argument("--check", action="store_true")
     args = parser.parse_args(argv)
     try:
-        generated = generate(args.source, args.lock)
-        if args.output is None:
-            sys.stdout.write(generated)
+        generated, support = _generate_artifacts(args.source, args.policy, args.lock)
+        if args.check:
+            _check_current(args.output, generated, "runtime catalog")
+            _check_current(args.support_output, support, "support matrix")
+            print("generated catalog is current")
         else:
-            args.output.write_text(generated, encoding="utf-8")
-    except (CatalogError, OSError, json.JSONDecodeError) as exc:
+            _write(args.output, generated)
+            _write(args.support_output, support)
+    except (CatalogError, PolicyError, OSError, json.JSONDecodeError) as exc:
         parser.exit(1, f"catalog generation failed: {exc}\n")
     return 0
 

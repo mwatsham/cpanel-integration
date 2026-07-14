@@ -24,6 +24,9 @@ cpanel-admin = "cpanel_admin.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+"cpanel_admin.data" = ["*.json"]
+
 [tool.pytest.ini_options]
 addopts = "--strict-markers --strict-config"
 testpaths = ["tests"]

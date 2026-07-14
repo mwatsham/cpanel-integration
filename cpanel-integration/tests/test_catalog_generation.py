@@ -1,7 +1,10 @@
 import copy
 import hashlib
 import json
+import subprocess
+import sys
 from collections.abc import Callable
+from importlib import resources
 from pathlib import Path
 
 import pytest
@@ -11,6 +14,10 @@ from scripts.generate_catalog import generate
 
 ROOT = Path(__file__).parents[1]
 FIXTURE = ROOT / "tests" / "fixtures" / "openapi-minimal.json"
+PINNED_SOURCE = ROOT / "specifications" / "cpanel.openapi.json"
+PINNED_LOCK = ROOT / "specifications" / "cpanel.openapi.lock.json"
+POLICY = ROOT / "policy" / "operations.json"
+GENERATED_CATALOG = ROOT / "src" / "cpanel_admin" / "data" / "operation_catalog.json"
 
 
 def test_pinned_openapi_matches_lock() -> None:
@@ -101,7 +108,7 @@ def test_generator_rejects_source_and_lock_digest_drift(tmp_path: Path) -> None:
     lock["sha256"] = hashlib.sha256(source.read_bytes()).hexdigest()
     lock_path.write_text(json.dumps(lock))
     with pytest.raises(CatalogError, match="approved SHA-256"):
-        generate(source, lock_path)
+        generate(source, POLICY, lock_path=lock_path)
 
 
 @pytest.mark.parametrize(
@@ -120,7 +127,7 @@ def test_generator_rejects_version_drift(
         document["info"]["version"] = version
     source.write_text(json.dumps(document))
     with pytest.raises(CatalogError, match=message):
-        generate(source, lock_path)
+        generate(source, POLICY, lock_path=lock_path)
 
 
 @pytest.mark.parametrize(
@@ -239,3 +246,133 @@ def test_catalog_load_rejects_invalid_json(tmp_path: Path) -> None:
     path.write_text("not-json")
     with pytest.raises(CatalogError, match="unable to load catalog"):
         Catalog.load(path)
+
+
+def test_committed_catalog_matches_generator() -> None:
+    generated = generate(PINNED_SOURCE, POLICY, lock_path=PINNED_LOCK)
+    assert generated == GENERATED_CATALOG.read_text(encoding="utf-8")
+
+
+def test_catalog_is_available_from_installed_package() -> None:
+    packaged = resources.files("cpanel_admin.data").joinpath("operation_catalog.json")
+    assert packaged.is_file()
+    catalog = Catalog.load()
+    assert catalog.source_sha256 == (
+        "3d9ec80cd8d774312c4bb6b0dfdbc17e6e6ffc92a8f0c2cd88f01e32864fa2c6"
+    )
+    assert catalog.get("DomainInfo/list_domains").function == "list_domains"
+
+
+def test_generated_catalog_preserves_reviewed_policy_safety_fields() -> None:
+    generated = json.loads(generate(PINNED_SOURCE, POLICY, lock_path=PINNED_LOCK))
+    policy = json.loads(POLICY.read_text(encoding="utf-8"))
+    for identity in ("DomainInfo/list_domains", "Email/add_pop", "Mysql/create_user"):
+        assert generated["operations"][identity]["policy"] == {
+            "identity": identity,
+            **policy["operations"][identity],
+        }
+    assert generated["generator_schema"] == 1
+    assert "must not be edited manually" in generated["generated_notice"]
+
+
+def test_generator_emits_deterministic_safe_support_matrix(tmp_path: Path) -> None:
+    outputs = []
+    for suffix in ("one", "two"):
+        output = tmp_path / f"catalog-{suffix}.json"
+        support_output = tmp_path / f"support-{suffix}.md"
+        completed = subprocess.run(
+            [
+                sys.executable,
+                "scripts/generate_catalog.py",
+                "--output",
+                str(output),
+                "--support-output",
+                str(support_output),
+            ],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert completed.returncode == 0, completed.stderr
+        outputs.append((output.read_bytes(), support_output.read_text(encoding="utf-8")))
+    assert outputs[0] == outputs[1]
+    support = outputs[0][1]
+    assert "| `DomainInfo/list_domains` | included | domains | read |" in support
+    assert (
+        "| `Email/add_pop` | excluded | email | - | "
+        "not enabled until the email capability review |" in support
+    )
+    assert "protected_file" not in support
+    assert "sensitive_output" not in support
+
+
+def test_check_mode_is_write_free_when_outputs_are_stale(tmp_path: Path) -> None:
+    output = tmp_path / "operation_catalog.json"
+    support_output = tmp_path / "operation-support.md"
+    generate_command = [
+        sys.executable,
+        "scripts/generate_catalog.py",
+        "--source",
+        str(PINNED_SOURCE),
+        "--lock",
+        str(PINNED_LOCK),
+        "--policy",
+        str(POLICY),
+        "--output",
+        str(output),
+        "--support-output",
+        str(support_output),
+    ]
+    assert subprocess.run(generate_command, cwd=ROOT, check=False).returncode == 0
+    output.write_text("stale\n", encoding="utf-8")
+    before = {
+        path: (path.read_bytes(), path.stat().st_mtime_ns) for path in (output, support_output)
+    }
+
+    completed = subprocess.run(
+        [*generate_command, "--check"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert completed.returncode != 0
+    assert "stale generated output" in completed.stderr
+    assert before == {
+        path: (path.read_bytes(), path.stat().st_mtime_ns) for path in (output, support_output)
+    }
+
+
+def test_check_mode_is_write_free_when_policy_is_invalid(tmp_path: Path) -> None:
+    policy = tmp_path / "operations.json"
+    policy.write_text("{}\n", encoding="utf-8")
+    output = tmp_path / "missing" / "operation_catalog.json"
+    support_output = tmp_path / "missing" / "operation-support.md"
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "scripts/generate_catalog.py",
+            "--source",
+            str(PINNED_SOURCE),
+            "--lock",
+            str(PINNED_LOCK),
+            "--policy",
+            str(policy),
+            "--output",
+            str(output),
+            "--support-output",
+            str(support_output),
+            "--check",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert completed.returncode != 0
+    assert "policy schema_version must be 1" in completed.stderr
+    assert not output.parent.exists()
