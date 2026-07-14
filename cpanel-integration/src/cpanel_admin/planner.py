@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
+from math import isfinite
+from os.path import isabs
 from types import MappingProxyType
 from typing import NoReturn, Protocol, TypeVar, cast
 
@@ -52,20 +54,62 @@ class _FrozenList(list[_ValueT]):
     __imul__ = _reject_mutation
 
 
-def _safe_mapping(value: Mapping[str, JsonValue]) -> dict[str, JsonValue]:
-    """Copy a JSON mapping so plans cannot retain mutable caller state."""
+def _safe_mapping(
+    value: Mapping[str, object], *, secrets: tuple[str, ...] = ()
+) -> dict[str, JsonValue]:
+    """Redact, validate, and freeze public JSON mappings."""
 
+    if not all(isinstance(key, str) for key in value):
+        raise PolicyError("public evidence must be a JSON object with string keys")
     return _FrozenDict(
-        {key: cast(JsonValue, _safe_value(item)) for key, item in sorted(value.items())}
+        {
+            key: cast(JsonValue, _safe_value(item, secrets=secrets))
+            for key, item in sorted(value.items())
+        }
     )
 
 
-def _safe_value(value: JsonValue) -> JsonValue:
-    if isinstance(value, dict):
-        return _safe_mapping(value)
+def _safe_value(value: object, *, secrets: tuple[str, ...] = ()) -> JsonValue:
+    """Create immutable, redacted JSON evidence without retaining caller state."""
+
+    value = redact(value, secrets=secrets)
+    if value is None or isinstance(value, (bool, int)):
+        return cast(JsonValue, value)
+    if isinstance(value, float):
+        if not isfinite(value):
+            raise PolicyError("public evidence must use finite JSON numbers")
+        return cast(JsonValue, value)
+    if isinstance(value, str):
+        return "[REDACTED]" if isabs(value) else value
+    if isinstance(value, Mapping):
+        return _safe_mapping(value, secrets=secrets)
     if isinstance(value, list):
-        return _FrozenList(_safe_value(item) for item in value)
-    return value
+        return _FrozenList(_safe_value(item, secrets=secrets) for item in value)
+    raise PolicyError("public evidence must be JSON-safe")
+
+
+def _validate_resolved_inputs(operation: PolicyOperation, inputs: ResolvedInputs) -> None:
+    """Reject externally-constructed inputs unless they exactly match reviewed policy."""
+
+    declared = set(operation.parameters)
+    supplied = set(inputs.values)
+    safe_supplied = set(inputs.safe_values)
+    required = {name for name, parameter in operation.parameters.items() if parameter.required}
+    if supplied != safe_supplied or supplied - declared or required - supplied:
+        raise PolicyError("resolved inputs must exactly match reviewed operation parameters")
+    for name in sorted(supplied):
+        parameter = operation.parameters[name]
+        value = inputs.values[name]
+        if value is None:
+            raise PolicyError(f"resolved inputs contain unnormalized optional parameter: {name}")
+        try:
+            from .operations import validate_value
+
+            normalized = validate_value(parameter.validator, value)
+        except Exception as exc:
+            raise PolicyError(f"resolved input is invalid for reviewed parameter: {name}") from exc
+        if normalized != value:
+            raise PolicyError(f"resolved input is not normalized for reviewed parameter: {name}")
 
 
 @dataclass(frozen=True)
@@ -83,6 +127,10 @@ class BoundParameters:
     policy_digest: str
     policy_version: str
     expires_at: str | None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "parameters", _safe_mapping(self.parameters))
+        object.__setattr__(self, "preflight", _safe_value(self.preflight))
 
 
 @dataclass(frozen=True)
@@ -103,12 +151,21 @@ class ExecutionPlan:
     confirmation: str | None
     bound_parameters: BoundParameters
 
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "parameters", _safe_mapping(self.parameters))
+        object.__setattr__(self, "preflight", _safe_value(self.preflight))
+
 
 @dataclass(frozen=True)
 class VerificationResult:
     ok: bool
     category: str
     evidence: JsonValue
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.ok, bool) or not isinstance(self.category, str):
+            raise PolicyError("verification result must have a boolean status and string category")
+        object.__setattr__(self, "evidence", _safe_value(self.evidence))
 
 
 class OperationAdapter(Protocol):
@@ -134,6 +191,8 @@ class OperationAdapter(Protocol):
 class DefaultOperationAdapter:
     """Declarative catalog mapping for operations with no bespoke adapter."""
 
+    preflight_selector: None = None
+
     def preflight(
         self, context: object, operation: PolicyOperation, inputs: ResolvedInputs
     ) -> JsonValue:
@@ -144,10 +203,10 @@ class DefaultOperationAdapter:
         self, operation: PolicyOperation, inputs: ResolvedInputs, preflight: JsonValue
     ) -> dict[str, object]:
         del preflight
+        _validate_resolved_inputs(operation, inputs)
         result: dict[str, object] = {}
         for name, parameter in operation.parameters.items():
-            if name in inputs.values:
-                result[parameter.uapi_name] = inputs.values[name]
+            result[parameter.uapi_name] = inputs.values[name]
         return result
 
     def verify(
@@ -216,7 +275,23 @@ class OperationPlanner:
         except KeyError as exc:
             raise PolicyError(f"missing reviewed operation adapter: {name}") from exc
 
-    def _validate_operation(self, operation: PolicyOperation, inputs: ResolvedInputs) -> None:
+    def _preflight_adapter(self, operation: PolicyOperation) -> OperationAdapter:
+        if operation.preflight is None:
+            return self._adapter(operation)
+        if not operation.feature:
+            raise PolicyError("reviewed preflight requires a non-default adapter feature")
+        try:
+            adapter = self._adapter(operation)
+        except PolicyError as exc:
+            raise PolicyError("reviewed preflight requires a bound non-default adapter") from exc
+        selector = getattr(adapter, "preflight_selector", None)
+        if not isinstance(selector, str) or selector != operation.preflight:
+            raise PolicyError("reviewed preflight adapter does not support its declared selector")
+        return adapter
+
+    def _validate_operation(
+        self, operation: PolicyOperation, inputs: ResolvedInputs | None = None
+    ) -> None:
         if operation.status is not SupportStatus.INCLUDED or operation.risk is None:
             raise PolicyError(f"operation is not included: {operation.identity}")
         try:
@@ -225,9 +300,8 @@ class OperationPlanner:
             raise PolicyError("operation is not from the reviewed policy registry") from exc
         if reviewed is not operation:
             raise PolicyError("operation is not from the reviewed policy registry")
-        unknown = set(inputs.values) - set(operation.parameters)
-        if unknown:
-            raise PolicyError("resolved inputs are outside the reviewed operation policy")
+        if inputs is not None:
+            _validate_resolved_inputs(operation, inputs)
 
     def dry_run(
         self, context: object, operation: PolicyOperation, inputs: ResolvedInputs
@@ -236,9 +310,11 @@ class OperationPlanner:
         profile, account = self._context_identity(context)
         preflight: JsonValue = None
         if operation.preflight is not None:
-            adapter = self._adapter(operation)
-            preflight = _safe_value(adapter.preflight(context, operation, inputs))
-        values = _safe_mapping(inputs.safe_values)
+            adapter = self._preflight_adapter(operation)
+            preflight = _safe_value(
+                adapter.preflight(context, operation, inputs), secrets=inputs.secrets
+            )
+        values = _safe_mapping(inputs.safe_values, secrets=inputs.secrets)
         bound = BoundParameters(
             profile,
             account,
@@ -277,8 +353,8 @@ class OperationPlanner:
             operation.identity,
             operation.risk,
             operation.elevated_impact,
-            _safe_mapping(values),
-            _safe_value(preflight),
+            _safe_mapping(values, secrets=inputs.secrets),
+            _safe_value(preflight, secrets=inputs.secrets),
             operation.impact,
             operation.recovery,
             operation.verification is not None,
@@ -298,7 +374,7 @@ class OperationPlanner:
     ) -> None:
         """Verify a confirmation against a registry-owned v2 operation plan."""
 
-        self._validate_operation(operation, ResolvedInputs({}, {}, {}, ()))
+        self._validate_operation(operation)
         if not isinstance(values, BoundParameters):
             raise PolicyError("confirmation must use a reviewed operation plan")
         profile, account = self._context_identity(context)
@@ -337,8 +413,13 @@ class OperationPlanner:
         self._validate_operation(operation, inputs)
         self._context_identity(context)
         result = self._adapter(operation).verify(context, operation, inputs, response)
+        if not isinstance(result, VerificationResult):
+            try:
+                result = VerificationResult(result.ok, result.category, result.evidence)
+            except (AttributeError, PolicyError) as exc:
+                raise PolicyError("adapter returned malformed verification evidence") from exc
         return VerificationResult(
             bool(result.ok),
             str(result.category),
-            _safe_value(redact(result.evidence, secrets=inputs.secrets)),
+            _safe_value(result.evidence, secrets=inputs.secrets),
         )

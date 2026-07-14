@@ -8,7 +8,12 @@ from cryptography.fernet import Fernet
 
 from cpanel_admin.confirmation import ConfirmationError, ConfirmationService
 from cpanel_admin.inputs import ResolvedInputs, fingerprint
-from cpanel_admin.planner import OperationPlanner
+from cpanel_admin.planner import (
+    DefaultOperationAdapter,
+    ExecutionPlan,
+    OperationPlanner,
+    VerificationResult,
+)
 from cpanel_admin.policy import (
     InputSource,
     PolicyError,
@@ -130,6 +135,8 @@ def test_planner_rejects_caller_constructed_operation_before_adapter_resolution(
 
 
 class ContradictionAdapter:
+    preflight_selector = "check"
+
     def __init__(self) -> None:
         self.preflight_calls = 0
 
@@ -186,3 +193,144 @@ def test_preflight_runs_only_when_policy_declares_it_and_adapter_detects_contrad
     assert plan.preflight == {"etag": "stable"}
     assert result.ok is False
     assert result.category == "verification"
+
+
+@pytest.mark.parametrize(
+    "resolved",
+    (
+        ResolvedInputs({"name": "acct"}, {"name": "acct"}, {}, ()),
+        ResolvedInputs(
+            {"name": "acct", "source": "/tmp/source", "extra": "no"},
+            {"name": "acct", "source": {"name": "source"}, "extra": "no"},
+            {},
+            (),
+        ),
+    ),
+)
+def test_adapter_and_planner_reject_missing_or_extra_declared_inputs(
+    resolved: ResolvedInputs,
+) -> None:
+    policy = operation()
+    with pytest.raises(PolicyError, match="resolved inputs"):
+        DefaultOperationAdapter().to_uapi(policy, resolved, None)
+    with pytest.raises(PolicyError, match="resolved inputs"):
+        planner(policy).dry_run(context(), policy, resolved)
+
+
+def test_preflight_requires_bound_reviewed_adapter_with_exact_selector() -> None:
+    policy = replace(operation(), preflight="check", feature=None)
+    with pytest.raises(PolicyError, match="preflight"):
+        planner(policy).dry_run(context(), policy, inputs())
+
+    policy = replace(policy, feature="test-adapter")
+    with pytest.raises(PolicyError, match="preflight"):
+        planner(policy).dry_run(context(), policy, inputs())
+
+    wrong_selector = ContradictionAdapter()
+    wrong_selector.preflight_selector = "other"
+    subject = OperationPlanner(
+        ConfirmationService(Fernet.generate_key()),
+        registry=PolicyRegistry((policy,), (), ()),
+        policy_digest="reviewed-policy",
+        adapters={"test-adapter": wrong_selector},
+    )
+    with pytest.raises(PolicyError, match="preflight"):
+        subject.dry_run(context(), policy, inputs())
+
+
+def test_public_plan_and_verification_evidence_are_redacted_copied_and_json_safe() -> None:
+    raw_safe = {
+        "name": "acct_user",
+        "password": "open-sesame",
+        "source": {"nested": [{"path": "/private/tmp/token.txt", "note": "open-sesame"}]},
+    }
+    resolved = ResolvedInputs(
+        {"name": "acct_user", "password": "open-sesame", "source": "/private/source"},
+        raw_safe,
+        {},
+        ("open-sesame",),
+    )
+    policy = operation(
+        parameters={
+            "name": PolicyParameter("name", "name", (InputSource.ARGUMENT,), "database", True),
+            "password": PolicyParameter(
+                "password", "password", (InputSource.STDIN,), "secret", True, secret=True
+            ),
+            "source": PolicyParameter(
+                "source", "source", (InputSource.LOCAL_FILE,), "local_file", True
+            ),
+        }
+    )
+    subject = planner(policy)
+    plan = subject.dry_run(context(), policy, resolved)
+    raw_safe["source"]["nested"][0]["path"] = "/changed"
+
+    assert "open-sesame" not in repr(plan)
+    assert "/private/tmp/token.txt" not in repr(plan)
+    assert plan.parameters["password"] == "[REDACTED]"
+    assert plan.parameters["source"]["nested"][0]["path"] == "[REDACTED]"
+    with pytest.raises(TypeError):
+        plan.parameters["source"]["nested"][0]["path"] = "changed"
+
+    evidence = {"password": "open-sesame", "nested": ["/private/evidence"]}
+    result = VerificationResult(True, "verified", evidence)
+    evidence["nested"][0] = "changed"
+    assert result.evidence == {"password": "[REDACTED]", "nested": ["[REDACTED]"]}
+    with pytest.raises(PolicyError, match="JSON"):
+        VerificationResult(True, "verified", {"bad": object()})
+
+    with pytest.raises(PolicyError, match="JSON"):
+        ExecutionPlan(
+            "profile",
+            "account",
+            "operation",
+            "identity",
+            Risk.READ,
+            False,
+            {},
+            object(),
+            "",
+            "",
+            False,
+            False,
+            None,
+            None,
+            subject.dry_run(context(), policy, resolved).bound_parameters,
+        )
+
+
+def test_planner_redacts_and_copies_untrusted_adapter_evidence() -> None:
+    evidence = {"password": "open-sesame", "details": [{"path": "/private/adapter"}]}
+
+    class MaliciousAdapter:
+        def preflight(self, context, operation, inputs):
+            del context, operation, inputs
+            return None
+
+        def to_uapi(self, operation, inputs, preflight):
+            del operation, inputs, preflight
+            return {}
+
+        def verify(self, context, operation, inputs, response):
+            del context, operation, inputs, response
+            return type(
+                "UntrustedResult", (), {"ok": True, "category": "verified", "evidence": evidence}
+            )()
+
+    policy = replace(operation(), feature="malicious")
+    subject = OperationPlanner(
+        ConfirmationService(Fernet.generate_key()),
+        registry=PolicyRegistry((policy,), (), ()),
+        policy_digest="reviewed-policy",
+        adapters={"malicious": MaliciousAdapter()},
+    )
+
+    result = subject.verify(context(), policy, inputs(), {})
+    evidence["details"][0]["path"] = "/changed"
+
+    assert result.evidence == {
+        "password": "[REDACTED]",
+        "details": [{"path": "[REDACTED]"}],
+    }
+    with pytest.raises(TypeError):
+        result.evidence["details"][0]["path"] = "changed"
