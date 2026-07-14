@@ -19,6 +19,12 @@ class ConfigError(CPanelAdminError):
     exit_code = 3
 
 
+class AuditError(CPanelAdminError):
+    """A protected local audit record could not be written safely."""
+
+    exit_code = 3
+
+
 class ConfirmationError(CPanelAdminError):
     """Missing, expired, or mismatched destructive confirmation."""
 
@@ -41,3 +47,15 @@ class CapabilityError(CPanelAdminError):
     """Requested functionality is outside the supported UAPI surface."""
 
     exit_code = 7
+
+
+class PartialFailure(CPanelAdminError):
+    """A multi-item UAPI operation completed only partially."""
+
+    exit_code = 8
+
+
+class VerificationError(CPanelAdminError):
+    """A completed mutation did not produce the expected state."""
+
+    exit_code = 9
