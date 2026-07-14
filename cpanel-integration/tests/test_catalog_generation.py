@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from cpanel_admin.catalog import Catalog, CatalogError, CatalogExcludedPath, normalize_document
+from cpanel_admin.policy import PolicyOperation, Risk, SupportStatus
 from scripts.generate_catalog import generate
 
 ROOT = Path(__file__).parents[1]
@@ -260,7 +261,10 @@ def test_catalog_is_available_from_installed_package() -> None:
     assert catalog.source_sha256 == (
         "3d9ec80cd8d774312c4bb6b0dfdbc17e6e6ffc92a8f0c2cd88f01e32864fa2c6"
     )
-    assert catalog.get("DomainInfo/list_domains").function == "list_domains"
+    operation = catalog.get("DomainInfo/list_domains")
+    assert operation.function == "list_domains"
+    assert isinstance(operation.policy, PolicyOperation)
+    assert operation.policy.status is SupportStatus.INCLUDED
 
 
 def test_generated_catalog_preserves_reviewed_policy_safety_fields() -> None:
@@ -376,3 +380,92 @@ def test_check_mode_is_write_free_when_policy_is_invalid(tmp_path: Path) -> None
     assert completed.returncode != 0
     assert "policy schema_version must be 1" in completed.stderr
     assert not output.parent.exists()
+
+
+def test_packaged_catalog_exposes_complete_typed_immutable_policy() -> None:
+    catalog = Catalog.load()
+    policies = tuple(
+        operation.policy
+        for operation in catalog.operations.values()
+        if operation.policy is not None
+    )
+    assert len(policies) == 393
+    included = catalog.get("DomainInfo/list_domains").policy
+    excluded = catalog.get("Email/add_pop").policy
+    assert isinstance(included, PolicyOperation)
+    assert included.status is SupportStatus.INCLUDED
+    assert included.risk is Risk.READ
+    assert isinstance(excluded, PolicyOperation)
+    assert excluded.status is SupportStatus.EXCLUDED
+    protected = catalog.get("Fileman/save_file_content").policy
+    assert isinstance(protected, PolicyOperation)
+    with pytest.raises(TypeError, match="immutable"):
+        protected.parameters["unsafe"] = protected.parameters["content"]
+
+
+def test_packaged_catalog_round_trip_preserves_merged_metadata() -> None:
+    assert Catalog.load().to_json() == GENERATED_CATALOG.read_text(encoding="utf-8")
+
+
+def _load_tampered_catalog(tmp_path: Path, mutate: Callable[[dict[str, object]], object]) -> None:
+    value = json.loads(GENERATED_CATALOG.read_text(encoding="utf-8"))
+    mutate(value)
+    path = tmp_path / "operation_catalog.json"
+    path.write_text(json.dumps(value), encoding="utf-8")
+    Catalog.load(path)
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        lambda value: value.__setitem__("generator_schema", 2),
+        lambda value: value.pop("generator_schema"),
+        lambda value: value.__setitem__("generated_notice", "unreviewed metadata"),
+        lambda value: value.pop("generated_notice"),
+    ],
+    ids=["schema", "missing-schema", "notice", "missing-notice"],
+)
+def test_generated_catalog_rejects_invalid_or_partial_generation_metadata(
+    tmp_path: Path, mutate: Callable[[dict[str, object]], object]
+) -> None:
+    with pytest.raises(CatalogError, match="generated runtime metadata"):
+        _load_tampered_catalog(tmp_path, mutate)
+
+
+def test_generated_catalog_rejects_missing_embedded_policy(tmp_path: Path) -> None:
+    def remove_policy(value: dict[str, object]) -> None:
+        del value["operations"]["DomainInfo/list_domains"]["policy"]
+
+    with pytest.raises(CatalogError, match="generated runtime policy metadata"):
+        _load_tampered_catalog(tmp_path, remove_policy)
+
+
+def test_generated_catalog_rejects_extra_embedded_policy(tmp_path: Path) -> None:
+    def add_policy(value: dict[str, object]) -> None:
+        operations = value["operations"]
+        extra_identity = next(
+            identity for identity, operation in operations.items() if "policy" not in operation
+        )
+        extra = copy.deepcopy(operations["Email/add_pop"]["policy"])
+        extra["identity"] = extra_identity
+        extra["name"] = extra_identity
+        operations[extra_identity]["policy"] = extra
+
+    with pytest.raises(CatalogError, match="generated runtime policy metadata"):
+        _load_tampered_catalog(tmp_path, add_policy)
+
+
+def test_generated_catalog_rejects_policy_identity_mismatch(tmp_path: Path) -> None:
+    def change_identity(value: dict[str, object]) -> None:
+        value["operations"]["Email/add_pop"]["policy"]["identity"] = "Email/delete_pop"
+
+    with pytest.raises(CatalogError, match="generated runtime policy metadata"):
+        _load_tampered_catalog(tmp_path, change_identity)
+
+
+def test_generated_catalog_rejects_fabricated_destructive_policy(tmp_path: Path) -> None:
+    def fabricate_destructive(value: dict[str, object]) -> None:
+        value["operations"]["Email/add_pop"]["policy"]["risk"] = "destructive"
+
+    with pytest.raises(CatalogError, match="generated runtime policy metadata"):
+        _load_tampered_catalog(tmp_path, fabricate_destructive)

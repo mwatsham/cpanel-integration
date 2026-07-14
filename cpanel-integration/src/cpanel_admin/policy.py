@@ -261,6 +261,39 @@ class PolicyCoverage:
     pending_review: tuple[str, ...]
 
 
+def policy_operation_to_dict(operation: PolicyOperation) -> dict[str, object]:
+    """Serialize validated policy metadata without exposing runtime values."""
+
+    return {
+        "name": operation.name,
+        "identity": operation.identity,
+        "command": list(operation.command),
+        "capability": operation.capability,
+        "status": operation.status.value,
+        "reason": operation.reason,
+        "risk": operation.risk.value if operation.risk is not None else None,
+        "elevated_impact": operation.elevated_impact,
+        "parameters": {
+            name: {
+                "name": parameter.name,
+                "uapi_name": parameter.uapi_name,
+                "sources": [source.value for source in parameter.sources],
+                "validator": parameter.validator,
+                "required": parameter.required,
+                "secret": parameter.secret,
+                "sensitive_output": parameter.sensitive_output,
+            }
+            for name, parameter in sorted(operation.parameters.items())
+        },
+        "impact": operation.impact,
+        "recovery": operation.recovery,
+        "preflight": operation.preflight,
+        "verification": operation.verification,
+        "feature": operation.feature,
+        "audit_fields": list(operation.audit_fields),
+    }
+
+
 class PolicyRegistry:
     """Validated, immutable lookup boundary around explicit operation policy."""
 

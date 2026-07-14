@@ -8,13 +8,18 @@ import hashlib
 import json
 from pathlib import Path
 
-from cpanel_admin.catalog import Catalog, CatalogError, normalize_document
+from cpanel_admin.catalog import (
+    GENERATED_NOTICE,
+    GENERATOR_SCHEMA,
+    Catalog,
+    CatalogError,
+    normalize_document,
+)
 from cpanel_admin.policy import (
     SELECTED_MODULES,
     PolicyError,
-    PolicyOperation,
-    PolicyParameter,
     PolicyRegistry,
+    policy_operation_to_dict,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -27,7 +32,6 @@ EXPECTED_SHA256 = "3d9ec80cd8d774312c4bb6b0dfdbc17e6e6ffc92a8f0c2cd88f01e32864fa
 EXPECTED_OPENAPI_VERSION = "3.0.2"
 EXPECTED_UAPI_VERSION = "11.136.0.25"
 EXPECTED_NONCANONICAL_PATHS = frozenset({"/get_php_recommendations", "/get_recommendations"})
-GENERATED_NOTICE = "Generated from pinned cPanel metadata; must not be edited manually."
 
 
 def policy_candidate_identities(catalog: Catalog) -> tuple[str, ...]:
@@ -49,8 +53,8 @@ def _load_catalog(source: Path, lock_path: Path) -> Catalog:
     info = document.get("info")
     if not isinstance(info, dict) or info.get("version") != EXPECTED_UAPI_VERSION:
         raise CatalogError(f"pinned UAPI version must be {EXPECTED_UAPI_VERSION}")
-    if lock.get("generator_schema") != 1:
-        raise CatalogError("lock generator_schema must be 1")
+    if lock.get("generator_schema") != GENERATOR_SCHEMA:
+        raise CatalogError(f"lock generator_schema must be {GENERATOR_SCHEMA}")
     if lock.get("openapi") != EXPECTED_OPENAPI_VERSION:
         raise CatalogError(f"lock OpenAPI version must be {EXPECTED_OPENAPI_VERSION}")
     if lock.get("uapi_version") != EXPECTED_UAPI_VERSION:
@@ -74,41 +78,6 @@ def _load_catalog(source: Path, lock_path: Path) -> Catalog:
     )
 
 
-def _parameter_metadata(parameter: PolicyParameter) -> dict[str, object]:
-    return {
-        "name": parameter.name,
-        "uapi_name": parameter.uapi_name,
-        "sources": [source.value for source in parameter.sources],
-        "validator": parameter.validator,
-        "required": parameter.required,
-        "secret": parameter.secret,
-        "sensitive_output": parameter.sensitive_output,
-    }
-
-
-def _policy_metadata(operation: PolicyOperation) -> dict[str, object]:
-    return {
-        "name": operation.name,
-        "identity": operation.identity,
-        "command": list(operation.command),
-        "capability": operation.capability,
-        "status": operation.status.value,
-        "reason": operation.reason,
-        "risk": operation.risk.value if operation.risk is not None else None,
-        "elevated_impact": operation.elevated_impact,
-        "parameters": {
-            name: _parameter_metadata(operation.parameters[name])
-            for name in sorted(operation.parameters)
-        },
-        "impact": operation.impact,
-        "recovery": operation.recovery,
-        "preflight": operation.preflight,
-        "verification": operation.verification,
-        "feature": operation.feature,
-        "audit_fields": list(operation.audit_fields),
-    }
-
-
 def _generate_artifacts(
     source: Path,
     policy_path: Path,
@@ -117,10 +86,10 @@ def _generate_artifacts(
     catalog = _load_catalog(source, lock_path)
     registry = PolicyRegistry.load(catalog, policy_path)
     value = json.loads(catalog.to_json())
-    value["generator_schema"] = 1
+    value["generator_schema"] = GENERATOR_SCHEMA
     value["generated_notice"] = GENERATED_NOTICE
     for operation in registry.all():
-        value["operations"][operation.identity]["policy"] = _policy_metadata(operation)
+        value["operations"][operation.identity]["policy"] = policy_operation_to_dict(operation)
     generated = json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n"
     return generated, _support_matrix(catalog, registry)
 

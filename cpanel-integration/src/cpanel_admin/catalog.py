@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping, Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass, replace
 from importlib import resources
 from pathlib import Path
-from typing import TypeAlias, cast
+from typing import TYPE_CHECKING, TypeAlias, cast
 
 from .errors import CPanelAdminError
+
+if TYPE_CHECKING:
+    from .policy import PolicyOperation
 
 JsonScalar: TypeAlias = str | int | float | bool | None
 JsonValue: TypeAlias = JsonScalar | list["JsonValue"] | dict[str, "JsonValue"]
@@ -18,6 +21,8 @@ _HTTP_METHODS = frozenset({"delete", "get", "head", "options", "patch", "post", 
 _PARAMETER_LOCATIONS = frozenset({"query"})
 _SCHEMA_TYPES = frozenset({"array", "boolean", "integer", "number", "object", "string"})
 _NONCANONICAL_REASON = "path has no canonical Module/function identity"
+GENERATOR_SCHEMA = 1
+GENERATED_NOTICE = "Generated from pinned cPanel metadata; must not be edited manually."
 
 
 class CatalogError(CPanelAdminError):
@@ -44,6 +49,7 @@ class CatalogOperation:
     deprecated: bool
     parameters: dict[str, CatalogParameter]
     request_media_types: tuple[str, ...] = ()
+    policy: PolicyOperation | None = None
 
 
 @dataclass(frozen=True)
@@ -59,6 +65,8 @@ class Catalog:
     source_sha256: str
     operations: dict[str, CatalogOperation]
     excluded_paths: tuple[CatalogExcludedPath, ...]
+    generator_schema: int | None = None
+    generated_notice: str | None = None
 
     def get(self, identity: str) -> CatalogOperation:
         try:
@@ -67,7 +75,23 @@ class Catalog:
             raise CatalogError(f"unknown catalog operation: {identity}") from exc
 
     def to_json(self) -> str:
-        return json.dumps(asdict(self), sort_keys=True, separators=(",", ":")) + "\n"
+        value: dict[str, object] = {
+            "schema_version": self.schema_version,
+            "source_version": self.source_version,
+            "source_sha256": self.source_sha256,
+            "operations": {
+                identity: _operation_to_dict(self.operations[identity])
+                for identity in sorted(self.operations)
+            },
+            "excluded_paths": [
+                {"path": item.path, "reason": item.reason} for item in self.excluded_paths
+            ],
+        }
+        if self.generator_schema is not None:
+            value["generator_schema"] = self.generator_schema
+        if self.generated_notice is not None:
+            value["generated_notice"] = self.generated_notice
+        return json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n"
 
     @classmethod
     def from_dict(cls, value: Mapping[str, object]) -> Catalog:
@@ -93,7 +117,8 @@ class Catalog:
             operation = _operation_from_dict(identity, operations_value[identity])
             operations[identity] = operation
         excluded_paths = _excluded_paths_from_value(raw_excluded_paths)
-        return cls(schema_version, source_version, source_sha256, operations, excluded_paths)
+        catalog = cls(schema_version, source_version, source_sha256, operations, excluded_paths)
+        return _attach_generated_policy(catalog, value, operations_value)
 
     @classmethod
     def load(cls, path: Path | None = None) -> Catalog:
@@ -372,6 +397,82 @@ def _operation_from_dict(identity: str, value: object) -> CatalogOperation:
         deprecated,
         parameters,
         tuple(sorted(cast(Sequence[str], raw_media_types))),
+    )
+
+
+def _operation_to_dict(operation: CatalogOperation) -> dict[str, object]:
+    value: dict[str, object] = {
+        "identity": operation.identity,
+        "module": operation.module,
+        "function": operation.function,
+        "method": operation.method,
+        "summary": operation.summary,
+        "deprecated": operation.deprecated,
+        "parameters": {
+            name: {
+                "name": parameter.name,
+                "location": parameter.location,
+                "required": parameter.required,
+                "schema_type": parameter.schema_type,
+                "enum": list(parameter.enum),
+                "default": parameter.default,
+            }
+            for name, parameter in sorted(operation.parameters.items())
+        },
+        "request_media_types": list(operation.request_media_types),
+    }
+    if operation.policy is not None:
+        from .policy import policy_operation_to_dict
+
+        value["policy"] = policy_operation_to_dict(operation.policy)
+    return value
+
+
+def _attach_generated_policy(
+    catalog: Catalog,
+    value: Mapping[str, object],
+    raw_operations: Mapping[str, object],
+) -> Catalog:
+    has_schema = "generator_schema" in value
+    has_notice = "generated_notice" in value
+    has_policy = any(
+        isinstance(raw_operation, Mapping) and "policy" in raw_operation
+        for raw_operation in raw_operations.values()
+    )
+    if not (has_schema or has_notice or has_policy):
+        return catalog
+    if (
+        value.get("generator_schema") != GENERATOR_SCHEMA
+        or value.get("generated_notice") != GENERATED_NOTICE
+    ):
+        raise CatalogError("catalog has invalid or partial generated runtime metadata")
+
+    from .policy import SELECTED_MODULES, PolicyError, PolicyRegistry
+
+    embedded: dict[str, object] = {}
+    for identity, raw_operation in raw_operations.items():
+        raw = _mapping(raw_operation, f"catalog operation {identity}")
+        if "policy" in raw:
+            embedded[identity] = raw["policy"]
+    manifest = {
+        "schema_version": 1,
+        "selected_modules": list(SELECTED_MODULES),
+        "operations": embedded,
+    }
+    try:
+        registry = PolicyRegistry.from_dict(catalog, manifest)
+    except PolicyError as exc:
+        raise CatalogError("catalog has invalid generated runtime policy metadata") from exc
+    by_identity = {operation.identity: operation for operation in registry.all()}
+    operations = {
+        identity: replace(operation, policy=by_identity.get(identity))
+        for identity, operation in catalog.operations.items()
+    }
+    return replace(
+        catalog,
+        operations=operations,
+        generator_schema=GENERATOR_SCHEMA,
+        generated_notice=GENERATED_NOTICE,
     )
 
 
