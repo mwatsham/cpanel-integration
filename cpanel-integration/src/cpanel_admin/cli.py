@@ -10,6 +10,7 @@ import os
 import sys
 from collections.abc import Mapping, Sequence
 from contextlib import redirect_stderr, redirect_stdout
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, TextIO
 
@@ -358,17 +359,20 @@ def _run_operation(
 
     if args.dry_run:
         if operation.risk is Risk.DESTRUCTIVE:
-            plan = (
-                ConfirmationService(codec.key)
-                .plan(
-                    profile.name,
-                    operation.name,
-                    safe_parameters,
-                    operation.impact,
-                    operation.recovery,
-                )
-                .to_dict()
-            )
+            plan = replace(
+                ConfirmationService(codec.key).plan_v2(
+                    profile=profile.name,
+                    account=profile.username,
+                    identity=f"{operation.module}/{operation.function}",
+                    operation=operation.name,
+                    parameters=safe_parameters,
+                    preflight=safe_parameters.get("preflight"),
+                    policy_digest="legacy-mvp",
+                    risk=operation.risk.value,
+                ),
+                impact=operation.impact,
+                recovery=operation.recovery,
+            ).to_dict()
             return {"ok": True, "dry_run": True, "risk": operation.risk, **plan}
         return {
             "ok": True,
@@ -381,12 +385,17 @@ def _run_operation(
             "recovery": operation.recovery,
         }
     if operation.risk is Risk.DESTRUCTIVE:
-        ConfirmationService(codec.key).verify(
+        ConfirmationService(codec.key).verify_v2(
             args.confirm,
-            profile.name,
-            operation.name,
-            safe_parameters,
-            args.expires_at,
+            profile=profile.name,
+            account=profile.username,
+            identity=f"{operation.module}/{operation.function}",
+            operation=operation.name,
+            parameters=safe_parameters,
+            preflight=safe_parameters.get("preflight"),
+            policy_digest="legacy-mvp",
+            risk=operation.risk.value,
+            expires_at=args.expires_at,
         )
 
     parameters = operation.to_uapi(values)

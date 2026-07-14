@@ -17,6 +17,7 @@ from .errors import ConfigError, ConfirmationError
 JsonScalar: TypeAlias = str | int | bool | None
 JsonValue: TypeAlias = JsonScalar | list["JsonValue"] | dict[str, "JsonValue"]
 CONFIRMATION_RE = re.compile(r"^[0-9a-f]{12}$")
+_V1_PROFILE_REMOVAL_FIELDS = frozenset({"name", "host", "port", "username"})
 
 
 @dataclass(frozen=True)
@@ -46,6 +47,22 @@ def _normalize(value: object) -> JsonValue:
             normalized[key] = _normalize(value[key])
         return normalized
     raise ConfirmationError("Confirmation parameters must be JSON-compatible")
+
+
+def _validate_v1_profile_removal(
+    profile: str, operation: str, parameters: Mapping[str, object]
+) -> None:
+    """Keep the pre-planner confirmation format only for local profile deletion."""
+
+    if operation != "profiles.remove":
+        raise ConfirmationError("Version-1 confirmation only supports profiles.remove")
+    normalized = _normalize(parameters)
+    if not isinstance(normalized, dict) or set(normalized) != _V1_PROFILE_REMOVAL_FIELDS:
+        raise ConfirmationError("Version-1 profile removal confirmation has invalid parameters")
+    if normalized["name"] != profile or not isinstance(normalized["host"], str):
+        raise ConfirmationError("Version-1 profile removal confirmation has invalid parameters")
+    if not isinstance(normalized["port"], int) or not isinstance(normalized["username"], str):
+        raise ConfirmationError("Version-1 profile removal confirmation has invalid parameters")
 
 
 class ConfirmationService:
@@ -242,6 +259,7 @@ class ConfirmationService:
         impact: str,
         recovery: str,
     ) -> ConfirmationPlan:
+        _validate_v1_profile_removal(profile, operation, parameters)
         now = self.clock()
         if now.tzinfo is None:
             raise ConfigError("Confirmation clock must return a timezone-aware time")
@@ -268,6 +286,7 @@ class ConfirmationService:
         parameters: Mapping[str, object],
         expires_at: str | None,
     ) -> None:
+        _validate_v1_profile_removal(profile, operation, parameters)
         if not confirmation or not expires_at:
             raise ConfirmationError("Confirmation digest and expiry are required")
         if not CONFIRMATION_RE.fullmatch(confirmation):
