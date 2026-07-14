@@ -3,14 +3,11 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
-import mimetypes
 import os
 import sys
 from collections.abc import Mapping, Sequence
 from contextlib import redirect_stderr, redirect_stdout
-from dataclasses import replace
 from pathlib import Path
 from typing import Any, TextIO
 
@@ -18,13 +15,13 @@ from .audit import AuditWriter
 from .capabilities import CapabilityService
 from .catalog import Catalog
 from .confirmation import ConfirmationService
-from .errors import ConfigError, ConfirmationError, CPanelAdminError, TransportError, UsageError
+from .errors import ConfigError, ConfirmationError, CPanelAdminError, UsageError
 from .executor import ExecutionContext, ExecutionResult, OperationExecutor
 from .inputs import InputResolver
-from .operations import Kind, Operation, Risk, get_operation, validate_parameters
 from .planner import ExecutionPlan, OperationPlanner
 from .policy import (
     InputSource,
+    PolicyError,
     PolicyOperation,
     PolicyRegistry,
     SupportStatus,
@@ -34,12 +31,10 @@ from .policy import (
 from .policy import (
     Risk as PolicyRisk,
 )
-from .profiles import Profile, ProfileStore, default_profile_path
+from .profiles import ProfileStore, default_profile_path
 from .redaction import redact
 from .secrets import SecretCodec
-from .transport import UAPIResponse, UAPITransport, Upload
-
-MAX_LOCAL_FILE_BYTES = 10 * 1024 * 1024
+from .transport import UAPIResponse, UAPITransport
 
 
 def _confirmation_options(parser: argparse.ArgumentParser) -> None:
@@ -95,7 +90,7 @@ def _add_policy_parameter(parser: argparse.ArgumentParser, parameter: object) ->
         parser.add_argument(f"{flag}-stdin", action="store_true", **kwargs)
         return
     if source is InputSource.PROTECTED_FILE:
-        parser.add_argument(f"{flag}-file", **kwargs)
+        parser.add_argument(f"{flag}-file", flag, **kwargs)
         return
     if source is InputSource.LOCAL_FILE:
         parser.add_argument(flag, **kwargs)
@@ -115,7 +110,7 @@ def _add_policy_operation(
     operation: PolicyOperation,
 ) -> None:
     if len(operation.command) != 2:
-        return
+        raise PolicyError(f"included operation has invalid command path: {operation.identity}")
     group_name, action = operation.command
     group = groups_by_name.get(group_name)
     if group is None:
@@ -199,35 +194,6 @@ def _read_secret(stdin: TextIO, label: str) -> str:
     return value
 
 
-def _read_text_file(path: str, label: str) -> str:
-    try:
-        size = Path(path).stat().st_size
-        if size > MAX_LOCAL_FILE_BYTES:
-            raise UsageError(f"{label} exceeds the 10 MiB local file limit")
-        return Path(path).read_text(encoding="utf-8")
-    except UsageError:
-        raise
-    except (OSError, UnicodeError) as exc:
-        raise UsageError(f"Unable to read {label.lower()} file") from exc
-
-
-def _read_binary_file(path: str) -> bytes:
-    try:
-        file_path = Path(path)
-        if file_path.stat().st_size > MAX_LOCAL_FILE_BYTES:
-            raise UsageError("Upload source exceeds the 10 MiB local file limit")
-        return file_path.read_bytes()
-    except UsageError:
-        raise
-    except OSError as exc:
-        raise UsageError("Unable to read upload source file") from exc
-
-
-def _fingerprint(value: str | bytes) -> dict[str, object]:
-    content = value.encode("utf-8") if isinstance(value, str) else value
-    return {"sha256": hashlib.sha256(content).hexdigest(), "bytes": len(content)}
-
-
 def _json_safe(value: object) -> object:
     if value is None or isinstance(value, str | int | bool):
         return value
@@ -238,83 +204,6 @@ def _json_safe(value: object) -> object:
     if isinstance(value, list | tuple):
         return [_json_safe(item) for item in value]
     return str(value)
-
-
-def _safe_parameters(
-    operation: Operation, values: dict[str, object], upload_content: bytes | None
-) -> dict[str, object]:
-    safe: dict[str, object] = {}
-    secret_kinds = {Kind.SECRET, Kind.CONTENT, Kind.CERTIFICATE, Kind.PRIVATE_KEY}
-    for name, value in values.items():
-        parameter = operation.parameters[name]
-        if parameter.kind in secret_kinds:
-            safe[name] = _fingerprint(str(value))
-        elif parameter.kind is Kind.LOCAL_FILE:
-            content = upload_content or b""
-            safe[name] = {"name": Path(str(value)).name, **_fingerprint(content)}
-        else:
-            safe[name] = value
-    return safe
-
-
-def _submitted_secrets(operation: Operation, values: Mapping[str, object]) -> tuple[str, ...]:
-    secret_kinds = {Kind.SECRET, Kind.CONTENT, Kind.CERTIFICATE, Kind.PRIVATE_KEY}
-    return tuple(
-        str(value)
-        for name, value in values.items()
-        if operation.parameters[name].kind in secret_kinds and value
-    )
-
-
-def _operation_values(args: argparse.Namespace, stdin: TextIO) -> dict[str, object]:
-    operation = get_operation(args.operation)
-    values: dict[str, object] = {}
-    for name in operation.parameters:
-        if hasattr(args, name):
-            values[name] = getattr(args, name)
-    if operation.name == "files.write":
-        values["content"] = stdin.read()
-    elif operation.name == "databases.create-user":
-        values["password"] = _read_secret(stdin, "Database password")
-    elif operation.name == "ssl.install":
-        values["certificate"] = _read_text_file(args.certificate, "Certificate")
-        values["private_key"] = _read_text_file(args.private_key, "Private key")
-        if args.cabundle:
-            values["cabundle"] = _read_text_file(args.cabundle, "CA bundle")
-    return validate_parameters(operation, values)
-
-
-def _preflight(
-    operation: Operation,
-    values: dict[str, object],
-    profile: Profile,
-    token: str,
-    timeout: int,
-    transport: UAPITransport,
-) -> object | None:
-    if operation.name not in {"files.write", "files.upload"}:
-        return None
-    if operation.name == "files.write":
-        directory = str(values["directory"])
-        filename = str(values["filename"])
-    else:
-        directory = str(values["directory"])
-        filename = Path(str(values["source"])).name
-    response = transport.call(
-        profile,
-        token,
-        "Fileman",
-        "list_files",
-        {"dir": directory},
-        timeout,
-    )
-    if not isinstance(response.data, list):
-        raise TransportError("cPanel returned an invalid file preflight listing")
-    for item in response.data:
-        if isinstance(item, Mapping) and item.get("file") == filename:
-            metadata = _json_safe(redact(item, secrets=(token,)))
-            return {"exists": True, "metadata": metadata}
-    return {"exists": False}
 
 
 def _success(profile: str, operation: str, response: UAPIResponse) -> dict[str, object]:
@@ -338,86 +227,14 @@ def _run_operation(
 ) -> dict[str, object]:
     if not args.profile:
         raise UsageError("--profile is required for cPanel operations")
-    if args.operation not in {"files.write", "files.upload"}:
-        return _run_policy_operation(args, env, stdin, store, transport)
-    operation = get_operation(args.operation)
-    values = _operation_values(args, stdin)
-    profile = store.get(args.profile)
-    codec = SecretCodec.from_environment(env)
-    token = codec.decrypt(profile.encrypted_token)
-    upload_content = _read_binary_file(str(values["source"])) if "source" in values else None
-    safe_parameters = _safe_parameters(operation, values, upload_content)
-    preflight = _preflight(operation, values, profile, token, args.timeout, transport)
-    if preflight is not None:
-        safe_parameters["preflight"] = preflight
-
-    if args.dry_run:
-        if operation.risk is Risk.DESTRUCTIVE:
-            plan = replace(
-                ConfirmationService(codec.key).plan_v2(
-                    profile=profile.name,
-                    account=profile.username,
-                    identity=f"{operation.module}/{operation.function}",
-                    operation=operation.name,
-                    parameters=safe_parameters,
-                    preflight=safe_parameters.get("preflight"),
-                    policy_digest="legacy-mvp",
-                    risk=operation.risk.value,
-                ),
-                impact=operation.impact,
-                recovery=operation.recovery,
-            ).to_dict()
-            return {"ok": True, "dry_run": True, "risk": operation.risk, **plan}
-        return {
-            "ok": True,
-            "dry_run": True,
-            "profile": profile.name,
-            "operation": operation.name,
-            "risk": operation.risk,
-            "parameters": safe_parameters,
-            "impact": operation.impact,
-            "recovery": operation.recovery,
-        }
-    if operation.risk is Risk.DESTRUCTIVE:
-        ConfirmationService(codec.key).verify_v2(
-            args.confirm,
-            profile=profile.name,
-            account=profile.username,
-            identity=f"{operation.module}/{operation.function}",
-            operation=operation.name,
-            parameters=safe_parameters,
-            preflight=safe_parameters.get("preflight"),
-            policy_digest="legacy-mvp",
-            risk=operation.risk.value,
-            expires_at=args.expires_at,
-        )
-
-    parameters = operation.to_uapi(values)
-    files: dict[str, Upload] | None = None
-    if operation.name == "files.upload":
-        source = Path(str(values["source"]))
-        files = {
-            "file-1": Upload(
-                source.name,
-                upload_content or b"",
-                mimetypes.guess_type(source.name)[0] or "application/octet-stream",
-            )
-        }
-    response = transport.call(
-        profile,
-        token,
-        operation.module,
-        operation.function,
-        parameters,
-        args.timeout,
-        method=operation.method,
-        **({"files": files} if files else {}),
-    )
-    result = _success(profile.name, operation.name, response)
-    return redact(result, secrets=(token, *_submitted_secrets(operation, values)))
+    return _run_policy_operation(args, env, stdin, store, transport)
 
 
 def _plan_result(plan: ExecutionPlan) -> dict[str, object]:
+    parameters = _json_safe(plan.parameters)
+    if plan.operation in {"files.write", "files.upload"} and plan.preflight is not None:
+        parameters = dict(parameters)
+        parameters["preflight"] = _json_safe(plan.preflight)
     return {
         "ok": True,
         "dry_run": True,
@@ -426,7 +243,7 @@ def _plan_result(plan: ExecutionPlan) -> dict[str, object]:
         "identity": plan.identity,
         "risk": plan.risk.value,
         "elevated_impact": plan.elevated_impact,
-        "parameters": _json_safe(plan.parameters),
+        "parameters": parameters,
         "preflight": _json_safe(plan.preflight),
         "impact": plan.impact,
         "recovery": plan.recovery,

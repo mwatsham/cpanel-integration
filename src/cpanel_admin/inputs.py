@@ -115,6 +115,8 @@ def _initial_metadata(path: Path, label: str) -> os.stat_result:
     with suppress(OSError):
         metadata = path.lstat()
     if metadata is None:
+        if label == "upload source":
+            raise UsageError("Unable to read upload source file")
         raise UsageError(f"Unable to inspect {label}")
     if stat.S_ISLNK(metadata.st_mode):
         raise UsageError(f"{label.capitalize()} must not be a symbolic link")

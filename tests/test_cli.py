@@ -9,6 +9,7 @@ import pytest
 from cryptography.fernet import Fernet
 
 from cpanel_admin.cli import build_parser, main
+from cpanel_admin.policy import PolicyError, PolicyOperation, PolicyRegistry, Risk, SupportStatus
 from cpanel_admin.profiles import ProfileStore
 from cpanel_admin.secrets import SecretCodec
 from cpanel_admin.transport import UAPIResponse, Upload
@@ -156,22 +157,6 @@ def test_secret_parameters_have_source_selectors_not_value_options() -> None:
     )
     assert args.operation == "databases.create-user"
 
-    with pytest.raises(SystemExit):
-        parser.parse_args(
-            [
-                "--profile",
-                "test",
-                "ssl",
-                "install",
-                "--domain",
-                "example.com",
-                "--certificate-file",
-                "cert.pem",
-                "--private-key",
-                "secret-value",
-            ]
-        )
-
     args = parser.parse_args(
         [
             "--profile",
@@ -187,6 +172,24 @@ def test_secret_parameters_have_source_selectors_not_value_options() -> None:
         ]
     )
     assert args.operation == "ssl.install"
+
+    args = parser.parse_args(
+        [
+            "--profile",
+            "test",
+            "ssl",
+            "install",
+            "--domain",
+            "example.com",
+            "--certificate",
+            "cert.pem",
+            "--private-key",
+            "key.pem",
+        ]
+    )
+    assert args.operation == "ssl.install"
+    assert args.certificate == "cert.pem"
+    assert args.private_key == "key.pem"
 
 
 def test_operations_list_discovers_included_policy_commands(cli_env) -> None:
@@ -328,6 +331,7 @@ def test_destructive_operation_without_confirmation_fails_before_network(cli_env
 def test_upload_uses_multipart_and_binds_file_hash_not_contents(cli_env, tmp_path: Path) -> None:
     env, key = cli_env
     add_profile(env, key)
+    audit_file = tmp_path / "audit.jsonl"
     source = tmp_path / "index.html"
     source.write_text("private-upload-content")
     transport = FakeTransport([UAPIResponse([{"file": "home.html"}], [], [])])
@@ -336,6 +340,8 @@ def test_upload_uses_multipart_and_binds_file_hash_not_contents(cli_env, tmp_pat
         [
             "--profile",
             "test",
+            "--audit-file",
+            str(audit_file),
             "files",
             "upload",
             "--directory",
@@ -360,6 +366,8 @@ def test_upload_uses_multipart_and_binds_file_hash_not_contents(cli_env, tmp_pat
         [
             "--profile",
             "test",
+            "--audit-file",
+            str(audit_file),
             "files",
             "upload",
             "--directory",
@@ -379,6 +387,9 @@ def test_upload_uses_multipart_and_binds_file_hash_not_contents(cli_env, tmp_pat
     assert upload_call["method"] == "POST"
     assert isinstance(upload_call["files"]["file-1"], Upload)
     assert upload_call["files"]["file-1"].content == b"private-upload-content"
+    records = [json.loads(line) for line in audit_file.read_text().splitlines()]
+    assert [record["outcome"] for record in records] == ["intent", "success"]
+    assert all(record["operation"] == "files.upload" for record in records)
 
 
 def test_database_password_and_private_key_never_appear_in_output(cli_env, tmp_path: Path) -> None:
@@ -461,6 +472,76 @@ def test_database_password_and_private_key_never_appear_in_output(cli_env, tmp_p
     assert code == 0
     assert key_marker not in serialized
     assert certificate_marker not in serialized
+
+
+def test_legacy_ssl_install_path_selectors_remain_supported(cli_env, tmp_path: Path) -> None:
+    env, key = cli_env
+    add_profile(env, key)
+    certificate = tmp_path / "legacy-cert.pem"
+    key_file = tmp_path / "legacy-key.pem"
+    certificate_marker = "legacy-certificate-runtime-marker"
+    key_marker = "legacy-private-key-runtime-marker"
+    certificate.write_text(
+        "-----BEGIN CERTIFICATE-----\n"
+        f"{base64.b64encode(certificate_marker.encode()).decode()}\n"
+        "-----END CERTIFICATE-----\n"
+    )
+    key_file.write_text(
+        "-----BEGIN PRIVATE KEY-----\n"
+        f"{base64.b64encode(key_marker.encode()).decode()}\n"
+        "-----END PRIVATE KEY-----\n"
+    )
+    certificate.chmod(0o600)
+    key_file.chmod(0o600)
+
+    code, plan, stderr = invoke(
+        [
+            "--profile",
+            "test",
+            "ssl",
+            "install",
+            "--domain",
+            "example.com",
+            "--certificate",
+            str(certificate),
+            "--private-key",
+            str(key_file),
+            "--dry-run",
+        ],
+        env=env,
+        transport=FakeTransport(),
+    )
+
+    serialized = json.dumps(plan)
+    assert code == 0
+    assert stderr == ""
+    assert str(certificate) not in serialized
+    assert str(key_file) not in serialized
+    assert certificate_marker not in serialized
+    assert key_marker not in serialized
+
+
+def test_dynamic_policy_parser_fails_closed_for_malformed_command_path() -> None:
+    malformed = PolicyOperation(
+        name="bad.command",
+        identity="DomainInfo/list_domains",
+        command=("domains", "list", "extra"),
+        capability="domains",
+        status=SupportStatus.INCLUDED,
+        reason="unit test malformed command path",
+        risk=Risk.READ,
+        elevated_impact=False,
+        parameters={},
+        impact="",
+        recovery="",
+        preflight=None,
+        verification=None,
+        feature=None,
+        audit_fields=(),
+    )
+
+    with pytest.raises(PolicyError, match="command path"):
+        build_parser(PolicyRegistry((malformed,), (), ()))
 
 
 def test_uapi_response_cannot_echo_submitted_database_password(cli_env) -> None:
@@ -682,11 +763,14 @@ def test_mutation_dry_run_and_execution(cli_env) -> None:
 def test_file_write_preflight_binds_content_and_target(cli_env) -> None:
     env, key = cli_env
     add_profile(env, key)
+    audit_file = Path(env["CPANEL_ADMIN_CONFIG"]).with_name("file-write-audit.jsonl")
     metadata = {"file": "index.html", "size": 12, "mtime": 10.5, "tags": ["file"]}
     transport = FakeTransport([UAPIResponse([metadata], [], [])])
     args = [
         "--profile",
         "test",
+        "--audit-file",
+        str(audit_file),
         "files",
         "write",
         "--directory",
@@ -721,6 +805,9 @@ def test_file_write_preflight_binds_content_and_target(cli_env) -> None:
     assert code == 0
     assert transport.calls[-1]["method"] == "POST"
     assert transport.calls[-1]["parameters"]["content"] == "new"
+    records = [json.loads(line) for line in audit_file.read_text().splitlines()]
+    assert [record["outcome"] for record in records] == ["intent", "success"]
+    assert all(record["operation"] == "files.write" for record in records)
 
 
 @pytest.mark.parametrize(

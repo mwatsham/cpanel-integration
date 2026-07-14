@@ -6,7 +6,7 @@ import pytest
 from cryptography.fernet import Fernet
 
 from cpanel_admin.confirmation import ConfirmationService
-from cpanel_admin.errors import ConfirmationError
+from cpanel_admin.errors import AuditError, ConfirmationError, TransportError
 from cpanel_admin.executor import ExecutionContext, OperationExecutor
 from cpanel_admin.inputs import ResolvedInputs
 from cpanel_admin.planner import OperationPlanner
@@ -105,6 +105,7 @@ class AuditRecord:
     operation: str
     identity: str
     outcome: str
+    error_category: str | None
 
 
 class FakeAudit:
@@ -113,7 +114,9 @@ class FakeAudit:
 
     def write(self, event, *, fail_closed):
         del fail_closed
-        self.events.append(AuditRecord(event.operation, event.identity, event.outcome))
+        self.events.append(
+            AuditRecord(event.operation, event.identity, event.outcome, event.error_category)
+        )
         return True
 
 
@@ -190,3 +193,72 @@ def test_confirmed_execution_uses_original_confirmation_expiry() -> None:
             confirmation=plan.confirmation,
             expires_at=plan.expires_at,
         )
+
+
+def test_mutation_transport_failure_writes_failure_audit_and_reraises() -> None:
+    subject = mutation()
+    runtime = context(subject)
+
+    class FailingTransport(FakeTransport):
+        def call(self, *args, **kwargs):
+            raise TransportError("remote API rejected safe message")
+
+    runtime = ExecutionContext(
+        profile=runtime.profile,
+        token=runtime.token,
+        timeout=runtime.timeout,
+        transport=FailingTransport(),
+        audit=runtime.audit,
+        policy=runtime.policy,
+    )
+
+    with pytest.raises(TransportError, match="remote API rejected safe message"):
+        executor(subject).execute(
+            runtime,
+            subject,
+            inputs({"name": "acct_demo"}),
+            confirmation=None,
+        )
+
+    assert [(event.outcome, event.error_category) for event in runtime.audit.events] == [
+        ("intent", None),
+        ("failure", "transport"),
+    ]
+
+
+def test_mutation_failure_audit_is_fail_closed() -> None:
+    subject = mutation()
+    runtime = context(subject)
+
+    class FailingTransport(FakeTransport):
+        def call(self, *args, **kwargs):
+            raise TransportError("remote API rejected safe message")
+
+    class FailingFailureAudit(FakeAudit):
+        def write(self, event, *, fail_closed):
+            super().write(event, fail_closed=fail_closed)
+            if event.outcome == "failure":
+                raise AuditError("Unable to write protected audit record")
+            return True
+
+    runtime = ExecutionContext(
+        profile=runtime.profile,
+        token=runtime.token,
+        timeout=runtime.timeout,
+        transport=FailingTransport(),
+        audit=FailingFailureAudit(),
+        policy=runtime.policy,
+    )
+
+    with pytest.raises(AuditError, match="Unable to write protected audit record"):
+        executor(subject).execute(
+            runtime,
+            subject,
+            inputs({"name": "acct_demo"}),
+            confirmation=None,
+        )
+
+    assert [(event.outcome, event.error_category) for event in runtime.audit.events] == [
+        ("intent", None),
+        ("failure", "transport"),
+    ]

@@ -12,9 +12,11 @@ from typing import Protocol, cast
 
 from .catalog import JsonValue
 from .confirmation import ConfirmationService
+from .errors import TransportError
 from .inputs import ResolvedInputs, fingerprint
 from .policy import InputSource, PolicyError, PolicyOperation, PolicyRegistry, Risk, SupportStatus
 from .redaction import redact
+from .transport import UAPIResponse
 
 _ABSOLUTE_PATH = re.compile(r"(?<![A-Za-z0-9_.-])/(?:[^\s/]+(?:/[^\s/]+)*)")
 
@@ -252,6 +254,8 @@ class DefaultOperationAdapter:
         _validate_resolved_inputs(operation, inputs)
         result: dict[str, object] = {}
         for name, parameter in operation.parameters.items():
+            if parameter.sources[0] is InputSource.LOCAL_FILE:
+                continue
             result[parameter.uapi_name] = inputs.values[name]
         return result
 
@@ -356,7 +360,9 @@ class OperationPlanner:
         profile, account = self._context_identity(context)
         values, secrets = _canonical_public_inputs(operation, inputs)
         preflight: JsonValue = None
-        if operation.preflight is not None:
+        if operation.name in {"files.write", "files.upload"}:
+            preflight = _safe_value(_file_preflight(context, operation, inputs), secrets=secrets)
+        elif operation.preflight is not None:
             adapter = self._preflight_adapter(operation)
             preflight = _safe_value(adapter.preflight(context, operation, inputs), secrets=secrets)
         bound = BoundParameters(
@@ -468,3 +474,56 @@ class OperationPlanner:
             str(result.category),
             _safe_value(result.evidence, secrets=secrets),
         )
+
+
+def _file_preflight(
+    context: object, operation: PolicyOperation, inputs: ResolvedInputs
+) -> JsonValue:
+    profile = getattr(context, "profile", None)
+    token = getattr(context, "token", None)
+    transport = getattr(context, "transport", None)
+    timeout = getattr(context, "timeout", 30)
+    if profile is None or not isinstance(token, str) or transport is None:
+        raise PolicyError("file preflight requires a validated execution context")
+    directory = str(inputs.values["directory"])
+    filename = _file_preflight_filename(operation, inputs)
+    response = transport.call(
+        profile,
+        token,
+        "Fileman",
+        "list_files",
+        {"dir": directory},
+        timeout,
+    )
+    if not isinstance(response, UAPIResponse) or not isinstance(response.data, list):
+        raise TransportError("cPanel returned an invalid file preflight listing")
+    for item in response.data:
+        if isinstance(item, Mapping) and item.get("file") == filename:
+            metadata = _json_compatible(_safe_value(item, secrets=(token, *inputs.secrets)))
+            return {"exists": True, "metadata": metadata}
+    return {"exists": False}
+
+
+def _file_preflight_filename(operation: PolicyOperation, inputs: ResolvedInputs) -> str:
+    if operation.name == "files.write":
+        return str(inputs.values["filename"])
+    if operation.name == "files.upload":
+        uploads = tuple(inputs.uploads.values())
+        if len(uploads) != 1:
+            raise PolicyError("file upload preflight requires exactly one upload")
+        return uploads[0].filename
+    raise PolicyError("operation does not support file preflight")
+
+
+def _json_compatible(value: object) -> JsonValue:
+    if value is None or isinstance(value, str | int | bool):
+        return cast(JsonValue, value)
+    if isinstance(value, float):
+        if not isfinite(value):
+            raise PolicyError("public evidence must use finite JSON numbers")
+        return str(value)
+    if isinstance(value, Mapping):
+        return {str(key): _json_compatible(item) for key, item in value.items()}
+    if isinstance(value, list | tuple):
+        return [_json_compatible(item) for item in value]
+    raise PolicyError("public evidence must be JSON-safe")

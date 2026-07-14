@@ -288,7 +288,7 @@ def _copy_safe_value(value: JsonValue) -> JsonValue:
     _validate_json_value(value)
     if isinstance(value, list):
         return [_copy_safe_value(item) for item in value]
-    if isinstance(value, dict):
+    if isinstance(value, Mapping):
         return {key: _copy_safe_value(item) for key, item in value.items()}
     return value
 
@@ -296,7 +296,7 @@ def _copy_safe_value(value: JsonValue) -> JsonValue:
 def _freeze_safe_value(value: JsonValue) -> JsonValue:
     if isinstance(value, list):
         return _FrozenList(_freeze_safe_value(item) for item in value)
-    if isinstance(value, dict):
+    if isinstance(value, Mapping):
         return _FrozenDict({key: _freeze_safe_value(item) for key, item in value.items()})
     return value
 
@@ -312,7 +312,7 @@ def _validate_json_value(value: object) -> None:
         for item in value:
             _validate_json_value(item)
         return
-    if isinstance(value, dict) and all(isinstance(key, str) for key in value):
+    if isinstance(value, Mapping) and all(isinstance(key, str) for key in value):
         for key, item in value.items():
             if _is_sensitive_target_key(key):
                 raise AuditError("Audit values must not contain sensitive target keys")

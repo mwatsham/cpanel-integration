@@ -11,7 +11,13 @@ from typing import Protocol, cast
 from .audit import AuditEvent
 from .capabilities import CapabilityService
 from .catalog import JsonValue
-from .errors import TransportError, VerificationError
+from .errors import (
+    CapabilityError,
+    PartialFailure,
+    TransportError,
+    UAPIError,
+    VerificationError,
+)
 from .inputs import ResolvedInputs
 from .operations import OPERATIONS
 from .planner import DefaultOperationAdapter, ExecutionPlan, OperationPlanner, VerificationResult
@@ -108,14 +114,21 @@ class OperationExecutor:
         is_mutation = reviewed.risk is not Risk.READ
         if is_mutation:
             self._write_audit(context, reviewed, plan, outcome="intent", fail_closed=True)
-        response = self._call_transport(context, reviewed, inputs, plan.preflight)
-        if not isinstance(response, UAPIResponse):
-            raise TransportError("cPanel transport returned an invalid response")
         verification: VerificationResult | None = None
-        if reviewed.verification is not None:
-            verification = self._planner.verify(pipeline_context, reviewed, inputs, response.data)
-            if not verification.ok:
-                raise VerificationError("cPanel operation verification failed")
+        try:
+            response = self._call_transport(context, reviewed, inputs, plan.preflight)
+            if not isinstance(response, UAPIResponse):
+                raise TransportError("cPanel transport returned an invalid response")
+            if reviewed.verification is not None:
+                verification = self._planner.verify(
+                    pipeline_context, reviewed, inputs, response.data
+                )
+                if not verification.ok:
+                    raise VerificationError("cPanel operation verification failed")
+        except Exception as exc:
+            if is_mutation:
+                self._write_failure_audit(context, reviewed, plan, exc)
+            raise
         fail_closed = is_mutation
         audit_ok = self._write_audit(
             context,
@@ -197,6 +210,7 @@ class OperationExecutor:
         *,
         outcome: str,
         fail_closed: bool,
+        error_category: str | None = None,
         verification: VerificationResult | None = None,
     ) -> bool:
         event = AuditEvent.from_policy(
@@ -209,10 +223,26 @@ class OperationExecutor:
             safe_values=plan.parameters,
             audit_fields=operation.audit_fields,
             outcome=outcome,
-            error_category=None,
+            error_category=error_category,
             verification=verification.category if verification is not None else None,
         )
         return context.audit.write(event, fail_closed=fail_closed)
+
+    def _write_failure_audit(
+        self,
+        context: ExecutionContext,
+        operation: PolicyOperation,
+        plan: ExecutionPlan,
+        exc: BaseException,
+    ) -> None:
+        self._write_audit(
+            context,
+            operation,
+            plan,
+            outcome="failure",
+            fail_closed=True,
+            error_category=_error_category(exc),
+        )
 
 
 def _identity_parts(operation: PolicyOperation) -> tuple[str, str]:
@@ -223,3 +253,13 @@ def _identity_parts(operation: PolicyOperation) -> tuple[str, str]:
     if not module or not function:
         raise PolicyError("reviewed operation identity is invalid")
     return module, function
+
+
+def _error_category(exc: BaseException) -> str:
+    if isinstance(exc, (TransportError, UAPIError, PartialFailure)):
+        return "transport"
+    if isinstance(exc, VerificationError):
+        return "verification"
+    if isinstance(exc, (PolicyError, CapabilityError)):
+        return "policy"
+    return "internal"
