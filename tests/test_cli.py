@@ -719,6 +719,28 @@ def test_runtime_php_installed_versions_uses_fixed_readonly_uapi(cli_env) -> Non
     assert transport.calls[0]["parameters"] == {}
 
 
+def test_backup_list_uses_fixed_readonly_uapi(cli_env) -> None:
+    env, key = cli_env
+    add_profile(env, key)
+    transport = FakeTransport([UAPIResponse(["backup-2026.tar.gz"], [], [])])
+
+    code, payload, stderr = invoke(
+        ["--profile", "test", "backups", "list"],
+        env=env,
+        transport=transport,
+    )
+
+    assert code == 0
+    assert stderr == ""
+    assert payload["operation"] == "backups.list"
+    assert payload["data"] == ["backup-2026.tar.gz"]
+    assert (transport.calls[0]["module"], transport.calls[0]["function"]) == (
+        "Backup",
+        "list_backups",
+    )
+    assert transport.calls[0]["parameters"] == {}
+
+
 def test_email_domain_forwarder_dry_run_binds_routing_target(cli_env) -> None:
     env, key = cli_env
     add_profile(env, key)

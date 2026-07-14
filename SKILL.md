@@ -1,6 +1,6 @@
 ---
 name: cpanel-integration
-description: Safely administer individual cPanel accounts through documented UAPI operations for domains, files, SSL certificates, MySQL or MariaDB databases, email, FTP accounts, diagnostics, security controls, and runtime/site operations. Use when Codex needs to inspect or change website resources, mailboxes, FTP users, quotas, resource usage, IP blocks, ModSecurity, PHP runtime, NGINX cache, passwords, routing, SPF, or DKIM in cPanel. Do not use for WHM, root, reseller, account provisioning, server-wide administration, browser automation, anonymous FTP changes, or arbitrary UAPI calls.
+description: Safely administer individual cPanel accounts through documented UAPI operations for domains, files, SSL certificates, MySQL or MariaDB databases, email, FTP accounts, diagnostics, security controls, runtime/site operations, and guarded backups. Use when Codex needs to inspect or change website resources, mailboxes, FTP users, quotas, resource usage, IP blocks, ModSecurity, PHP runtime, NGINX cache, backups, passwords, routing, SPF, or DKIM in cPanel. Do not use for WHM, root, reseller, account provisioning, server-wide administration, browser automation, anonymous FTP changes, restore execution, or arbitrary UAPI calls.
 ---
 
 # Administer an individual cPanel account
@@ -26,6 +26,8 @@ requests or substitute deprecated API 2, WHM, shell, raw FTP clients, or browser
   notification preference reads, known-host verification, SSH port reads, and task queue reads.
 - Use runtime commands only for reviewed PHP/runtime reads, NGINX cache controls, Passenger app
   listing, Git repository listing, and deployment status reads.
+- Use backup commands only for reviewed backup listing, home-directory full-backup initiation, and
+  backup metadata reads. Do not execute restores or remote-destination backups.
 - Run `--dry-run` before every mutation so the target, normalized parameters, impact, and recovery
   guidance can be reviewed.
 - For non-destructive mutations, present the dry-run and execute only within the user's authority.

@@ -4,8 +4,8 @@
 
 - Source UAPI version: `11.136.0.25`
 - Source SHA-256: `3d9ec80cd8d774312c4bb6b0dfdbc17e6e6ffc92a8f0c2cd88f01e32864fa2c6`
-- Included operations: 190
-- Excluded operations: 203
+- Included operations: 195
+- Excluded operations: 198
 
 The local allowlist is an application safeguard, not a substitute for cPanel account permissions. This catalog does not provide arbitrary UAPI passthrough.
 
@@ -13,15 +13,15 @@ The local allowlist is an application safeguard, not a substitute for cPanel acc
 | --- | --- | --- | --- | --- |
 | `AccountEnhancements/has_enhancement` | included | diagnostics | read | reviewed account diagnostics read operation |
 | `AccountEnhancements/list` | included | diagnostics | read | reviewed account diagnostics read operation |
-| `Backup/fullbackup_to_ftp` | excluded | backups | - | not enabled until the backup capability review |
-| `Backup/fullbackup_to_homedir` | excluded | backups | - | not enabled until the backup capability review |
-| `Backup/fullbackup_to_scp_with_key` | excluded | backups | - | not enabled until the backup capability review |
-| `Backup/fullbackup_to_scp_with_password` | excluded | backups | - | not enabled until the backup capability review |
-| `Backup/list_backups` | excluded | backups | - | not enabled until the backup capability review |
-| `Backup/restore_databases` | excluded | backups | - | not enabled until the backup capability review |
-| `Backup/restore_email_filters` | excluded | backups | - | not enabled until the backup capability review |
-| `Backup/restore_email_forwarders` | excluded | backups | - | not enabled until the backup capability review |
-| `Backup/restore_files` | excluded | backups | - | not enabled until the backup capability review |
+| `Backup/fullbackup_to_ftp` | excluded | backups | - | remote FTP backup requires protected destination secret handling |
+| `Backup/fullbackup_to_homedir` | included | backups | mutate | reviewed backup operation |
+| `Backup/fullbackup_to_scp_with_key` | excluded | backups | - | remote SCP key backup requires key and passphrase handling |
+| `Backup/fullbackup_to_scp_with_password` | excluded | backups | - | remote SCP password backup requires protected destination secret handling |
+| `Backup/list_backups` | included | backups | read | reviewed backup read operation |
+| `Backup/restore_databases` | excluded | backups | - | database restore is destructive and needs archive preflight |
+| `Backup/restore_email_filters` | excluded | backups | - | email filter restore is destructive and needs archive preflight |
+| `Backup/restore_email_forwarders` | excluded | backups | - | email forwarder restore is destructive and needs archive preflight |
+| `Backup/restore_files` | excluded | backups | - | file restore is destructive and needs archive and overwrite preflight |
 | `Bandwidth/get_enabled_protocols` | included | diagnostics | read | reviewed account diagnostics read operation |
 | `Bandwidth/get_retention_periods` | included | diagnostics | read | reviewed account diagnostics read operation |
 | `Bandwidth/query` | included | diagnostics | read | reviewed account diagnostics read operation |
@@ -314,10 +314,10 @@ The local allowlist is an application safeguard, not a substitute for cPanel acc
 | `Quota/get_local_quota_info` | included | diagnostics | read | reviewed account diagnostics read operation |
 | `Quota/get_quota_info` | included | diagnostics | read | reviewed account diagnostics read operation |
 | `ResourceUsage/get_usages` | included | diagnostics | read | reviewed account diagnostics read operation |
-| `Restore/directory_listing` | excluded | backups | - | not enabled until the backup capability review |
-| `Restore/get_users` | excluded | backups | - | not enabled until the backup capability review |
-| `Restore/query_file_info` | excluded | backups | - | not enabled until the backup capability review |
-| `Restore/restore_file` | excluded | backups | - | not enabled until the backup capability review |
+| `Restore/directory_listing` | included | backups | read | reviewed backup read operation |
+| `Restore/get_users` | included | backups | read | reviewed backup read operation |
+| `Restore/query_file_info` | included | backups | read | reviewed backup read operation |
+| `Restore/restore_file` | excluded | backups | - | file restore is destructive and needs archive and overwrite preflight |
 | `SSH/get_port` | included | security | read | reviewed account security read operation |
 | `SSL/add_autossl_excluded_domains` | excluded | ssl | - | not enabled until the ssl capability review |
 | `SSL/can_ssl_redirect` | excluded | ssl | - | not enabled until the ssl capability review |

@@ -241,7 +241,7 @@ def minimal_policy(**operation_overrides: object) -> dict[str, object]:
 def excluded_policy(**operation_overrides: object) -> dict[str, object]:
     policy = minimal_policy()
     for index, operation in enumerate(policy["operations"]):
-        if operation["identity"] == "Backup/list_backups":
+        if operation["identity"] == "Backup/fullbackup_to_ftp":
             operation.update(operation_overrides)
             policy["operations"].insert(0, policy["operations"].pop(index))
             break
@@ -645,7 +645,7 @@ def _files_write_from_surface(registry: PolicyRegistry, surface: str):
     ("index_name", "key"),
     [
         ("_by_name", "files.write"),
-        ("_by_identity", "Backup/list_backups"),
+        ("_by_identity", "Backup/fullbackup_to_ftp"),
         ("_by_command", ("files", "write")),
     ],
 )
@@ -667,7 +667,7 @@ def test_registry_indexes_are_immutable_copies(
     registry = PolicyRegistry.load(pinned_catalog(), POLICY_PATH)
     index = getattr(registry, index_name)
     files_write = registry.get("files.write")
-    excluded = registry.exclusion("Backup/list_backups")
+    excluded = registry.exclusion("Backup/fullbackup_to_ftp")
     replacement = registry.get("domains.list")
 
     with pytest.raises((TypeError, AttributeError)):
@@ -675,7 +675,7 @@ def test_registry_indexes_are_immutable_copies(
 
     assert registry.get("files.write") is files_write
     assert registry.by_command(("files", "write")) is files_write
-    assert registry.exclusion("Backup/list_backups") is excluded
+    assert registry.exclusion("Backup/fullbackup_to_ftp") is excluded
 
 
 @pytest.mark.parametrize("surface", ["get", "by_command", "all", "included"])
@@ -744,14 +744,14 @@ def test_excluded_operation_parameters_keep_dict_shape_and_are_immutable(
     mutation: Callable[[dict[str, PolicyParameter], PolicyParameter], object],
 ) -> None:
     registry = PolicyRegistry.load(pinned_catalog(), POLICY_PATH)
-    parameters = registry.exclusion("Backup/list_backups").parameters
+    parameters = registry.exclusion("Backup/fullbackup_to_ftp").parameters
     value = registry.get("files.write").parameters["filename"]
 
     assert isinstance(parameters, dict)
     with pytest.raises(TypeError):
         mutation(parameters, value)
     assert parameters == {}
-    assert registry.exclusion("Backup/list_backups").parameters is parameters
+    assert registry.exclusion("Backup/fullbackup_to_ftp").parameters is parameters
 
 
 @pytest.mark.parametrize(
@@ -858,7 +858,7 @@ def test_excluded_and_unknown_lookups_never_resolve() -> None:
 
     excluded = PolicyRegistry.from_dict(minimal_catalog(), excluded_policy())
     with pytest.raises(PolicyError, match="operation is excluded"):
-        excluded.get("Backup/list_backups")
+        excluded.get("Backup/fullbackup_to_ftp")
     with pytest.raises(PolicyError, match="unknown policy operation identity"):
         excluded.exclusion("Missing/function")
 

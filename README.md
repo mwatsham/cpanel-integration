@@ -8,19 +8,21 @@ named profiles, structured JSON, and operation-bound confirmation for destructiv
 
 The skill supports domains, account files, SSL certificates, MySQL/MariaDB databases, reviewed
 email administration, reviewed FTP account administration, read-only account diagnostics, reviewed
-cPanel account security controls, and reviewed runtime/site operations. Email support covers mailbox accounts, quotas,
-passwords, forwarders, autoresponders, filter state, spam controls, MX routing, SPF, and DKIM. FTP
-support covers account listing, creation, deletion, passwords, quotas, home directories, sessions,
-server information, and welcome messages. Diagnostics support covers quota, resource usage,
-bandwidth, stats, features, login IP, log settings, and account/server variables exposed to the
-cPanel account. Security support covers IP blocking, ModSecurity status/toggles, ClamAV status
-reads, notification preference reads, known-host verification, SSH port reads, and task queue reads.
-Runtime support covers PHP version/config reads, NGINX cache controls, Passenger app listing, Git
-repository listing, and deployment status reads. It does not support WHM, root or reseller
+cPanel account security controls, reviewed runtime/site operations, and guarded backup operations.
+Email support covers mailbox accounts, quotas, passwords, forwarders, autoresponders, filter state,
+spam controls, MX routing, SPF, and DKIM. FTP support covers account listing, creation, deletion,
+passwords, quotas, home directories, sessions, server information, and welcome messages.
+Diagnostics support covers quota, resource usage, bandwidth, stats, features, login IP, log
+settings, and account/server variables exposed to the cPanel account. Security support covers IP
+blocking, ModSecurity status/toggles, ClamAV status reads, notification preference reads,
+known-host verification, SSH port reads, and task queue reads. Runtime support covers PHP
+version/config reads, NGINX cache controls, Passenger app listing, Git repository listing, and
+deployment status reads. Backup support covers backup listing, home-directory full-backup
+initiation, and backup file metadata reads. It does not support WHM, root or reseller
 administration, account provisioning, server settings, browser automation, deprecated API 2,
 anonymous FTP configuration changes, diagnostics setting changes, malware disinfection, secret
-token export, PHP config writes, Passenger app lifecycle changes, Git repository mutation, or
-arbitrary UAPI calls.
+token export, PHP config writes, Passenger app lifecycle changes, Git repository mutation, remote
+backup destinations, restore execution, or arbitrary UAPI calls.
 
 ## Install
 
@@ -115,6 +117,9 @@ Global options precede the capability group:
 .venv/bin/cpanel-admin --profile production runtime php-installed
 .venv/bin/cpanel-admin --profile production runtime passenger-apps
 .venv/bin/cpanel-admin --profile production runtime nginx-clear-cache --dry-run
+.venv/bin/cpanel-admin --profile production backups list
+.venv/bin/cpanel-admin --profile production backups full-to-home --dry-run
+.venv/bin/cpanel-admin --profile production backups file-info --path public_html/index.html
 ```
 
 Non-destructive mutations support a review step:

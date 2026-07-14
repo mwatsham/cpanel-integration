@@ -60,7 +60,7 @@
       "name": "Backup/fullbackup_to_ftp",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the backup capability review",
+      "reason": "remote FTP backup requires protected destination secret handling",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -69,17 +69,43 @@
     "Backup/fullbackup_to_homedir": {
       "audit_fields": [],
       "capability": "backups",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "backups",
+        "full-to-home"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "Backup/fullbackup_to_homedir",
-      "parameters": {},
+      "impact": "Start a full cPanel account backup written to the account home directory.",
+      "name": "backups.full-to-home",
+      "parameters": {
+        "email": {
+          "name": "email",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "email",
+          "validator": "email"
+        },
+        "homedir": {
+          "name": "homedir",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "homedir",
+          "validator": "enum"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the backup capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed backup operation",
+      "recovery": "Delete unwanted backup archive after confirming it is not needed.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "Backup/fullbackup_to_scp_with_key": {
@@ -92,7 +118,7 @@
       "name": "Backup/fullbackup_to_scp_with_key",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the backup capability review",
+      "reason": "remote SCP key backup requires key and passphrase handling",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -108,7 +134,7 @@
       "name": "Backup/fullbackup_to_scp_with_password",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the backup capability review",
+      "reason": "remote SCP password backup requires protected destination secret handling",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -117,17 +143,20 @@
     "Backup/list_backups": {
       "audit_fields": [],
       "capability": "backups",
-      "command": [],
+      "command": [
+        "backups",
+        "list"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Backup/list_backups",
+      "impact": "List backup archive files available to the account.",
+      "name": "backups.list",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the backup capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed backup read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Backup/restore_databases": {
@@ -140,7 +169,7 @@
       "name": "Backup/restore_databases",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the backup capability review",
+      "reason": "database restore is destructive and needs archive preflight",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -156,7 +185,7 @@
       "name": "Backup/restore_email_filters",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the backup capability review",
+      "reason": "email filter restore is destructive and needs archive preflight",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -172,7 +201,7 @@
       "name": "Backup/restore_email_forwarders",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the backup capability review",
+      "reason": "email forwarder restore is destructive and needs archive preflight",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -188,7 +217,7 @@
       "name": "Backup/restore_files",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the backup capability review",
+      "reason": "file restore is destructive and needs archive and overwrite preflight",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -7704,49 +7733,93 @@
     "Restore/directory_listing": {
       "audit_fields": [],
       "capability": "backups",
-      "command": [],
+      "command": [
+        "backups",
+        "directory"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Restore/directory_listing",
-      "parameters": {},
+      "impact": "List backup files under a home-directory path.",
+      "name": "backups.directory",
+      "parameters": {
+        "path": {
+          "name": "path",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "path",
+          "validator": "path"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the backup capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed backup read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Restore/get_users": {
       "audit_fields": [],
       "capability": "backups",
-      "command": [],
+      "command": [
+        "backups",
+        "users"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Restore/get_users",
+      "impact": "List account backup metadata visible to the user.",
+      "name": "backups.users",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the backup capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed backup read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Restore/query_file_info": {
       "audit_fields": [],
       "capability": "backups",
-      "command": [],
+      "command": [
+        "backups",
+        "file-info"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Restore/query_file_info",
-      "parameters": {},
+      "impact": "Read backup storage information for a file or directory path.",
+      "name": "backups.file-info",
+      "parameters": {
+        "exists": {
+          "name": "exists",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "exists",
+          "validator": "integer"
+        },
+        "path": {
+          "name": "path",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "path",
+          "validator": "path"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the backup capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed backup read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Restore/restore_file": {
@@ -7759,7 +7832,7 @@
       "name": "Restore/restore_file",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the backup capability review",
+      "reason": "file restore is destructive and needs archive and overwrite preflight",
       "recovery": "",
       "risk": null,
       "status": "excluded",
