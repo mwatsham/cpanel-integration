@@ -638,6 +638,45 @@ def test_email_domain_forwarder_dry_run_binds_routing_target(cli_env) -> None:
     }
 
 
+def test_dkim_private_key_import_uses_protected_file_selector(cli_env, tmp_path: Path) -> None:
+    env, key = cli_env
+    add_profile(env, key)
+    dkim_key = tmp_path / "dkim-private.pem"
+    marker = "dkim-private-key-marker"
+    dkim_key.write_text(
+        "-----BEGIN PRIVATE KEY-----\n"
+        f"{base64.b64encode(marker.encode()).decode()}\n"
+        "-----END PRIVATE KEY-----\n"
+    )
+    dkim_key.chmod(0o600)
+
+    code, payload, stderr = invoke(
+        [
+            "--profile",
+            "test",
+            "email",
+            "install-dkim-key",
+            "--domain",
+            "example.com",
+            "--key-file",
+            str(dkim_key),
+            "--dry-run",
+        ],
+        env=env,
+        transport=FakeTransport(),
+    )
+
+    serialized = json.dumps(payload)
+    assert code == 0
+    assert stderr == ""
+    assert payload["operation"] == "email.install-dkim-key"
+    assert payload["requires_confirmation"] is True
+    assert payload["parameters"]["domain"] == "example.com"
+    assert payload["parameters"]["key"]["bytes"] > 0
+    assert str(dkim_key) not in serialized
+    assert marker not in serialized
+
+
 def test_dynamic_policy_parser_fails_closed_for_malformed_command_path() -> None:
     malformed = PolicyOperation(
         name="bad.command",

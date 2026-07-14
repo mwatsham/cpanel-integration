@@ -59,6 +59,11 @@ PROTECTED_MVP_INPUTS = {
         (InputSource.STDIN,),
         "secret",
     ),
+    ("EmailAuth/install_dkim_private_keys", "key"): (
+        "key",
+        (InputSource.PROTECTED_FILE,),
+        "private_key",
+    ),
     ("SSL/install_ssl", "private_key"): (
         "key",
         (InputSource.PROTECTED_FILE,),
@@ -71,6 +76,7 @@ PROTECTED_ALTERNATE_UAPI_NAMES = {
     "Email/add_pop": "email",
     "Email/passwd_pop": "email",
     "Email/verify_password": "email",
+    "EmailAuth/install_dkim_private_keys": "domain",
     "SSL/install_ssl": "cert",
 }
 EMAIL_ADMIN_OPERATION_CONTRACTS = {

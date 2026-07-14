@@ -63,6 +63,31 @@ EMAIL_ROUTING_DEFERRED = {
     "Email/store_filter": "requires a structured adapter for wildcard filter rule inputs",
     "Email/trace_filter": "requires a safe synthetic message adapter and no mailbox body exposure",
 }
+EMAIL_SECURITY_INCLUDED = {
+    "Email/add_spam_filter",
+    "Email/disable_spam_autodelete",
+    "EmailAuth/apply_dmarc",
+    "EmailAuth/disable_dkim",
+    "EmailAuth/enable_dkim",
+    "EmailAuth/ensure_dkim_keys_exist",
+    "EmailAuth/install_dkim_private_keys",
+    "EmailAuth/install_spf_records",
+    "EmailAuth/remove_dmarc",
+    "EmailAuth/validate_current_dkims",
+    "EmailAuth/validate_current_dmarcs",
+    "EmailAuth/validate_current_ptrs",
+    "EmailAuth/validate_current_spfs",
+    "SpamAssassin/clear_spam_box",
+    "SpamAssassin/get_symbolic_test_names",
+    "SpamAssassin/get_user_preferences",
+    "SpamAssassin/update_user_preference",
+    "cPGreyList/disable_all_domains",
+    "cPGreyList/disable_domains",
+    "cPGreyList/enable_all_domains",
+    "cPGreyList/enable_domains",
+    "cPGreyList/has_greylisting_enabled",
+    "cPGreyList/list_domains",
+}
 
 
 def registry() -> PolicyRegistry:
@@ -88,3 +113,16 @@ def test_email_routing_admin_policy_matches_review() -> None:
     assert subject.get("email.routing-mode").elevated_impact is True
     for identity, reason in EMAIL_ROUTING_DEFERRED.items():
         assert subject.exclusion(identity).reason == reason
+
+
+def test_email_security_policy_matches_review() -> None:
+    subject = registry()
+
+    assert subject.included_identities("email") >= EMAIL_SECURITY_INCLUDED
+    assert (
+        subject.exclusion("EmailAuth/fetch_dkim_private_keys").reason
+        == "exports stored DKIM private key material"
+    )
+    assert subject.get("email.install-dkim-key").parameters["key"].secret is True
+    assert subject.get("email.clear-spam-box").risk is Risk.DESTRUCTIVE
+    assert subject.get("email.disable-greylisting-all").elevated_impact is True

@@ -1714,19 +1714,48 @@
       "verification": null
     },
     "Email/add_spam_filter": {
-      "audit_fields": [],
+      "audit_fields": [
+        "account",
+        "required_score"
+      ],
       "capability": "email",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "email",
+        "spam-threshold-set"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "Email/add_spam_filter",
-      "parameters": {},
+      "impact": "Change the SpamAssassin score threshold.",
+      "name": "email.spam-threshold-set",
+      "parameters": {
+        "account": {
+          "name": "account",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "account",
+          "validator": "email"
+        },
+        "required_score": {
+          "name": "required_score",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "required_score",
+          "validator": "bounded_text"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email security administration operation",
+      "recovery": "Restore the previous threshold.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "Email/browse_mailbox": {
@@ -2322,17 +2351,20 @@
     "Email/disable_spam_autodelete": {
       "audit_fields": [],
       "capability": "email",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "email",
+        "disable-spam-autodelete"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "Email/disable_spam_autodelete",
+      "impact": "Disable automatic spam deletion for the account.",
+      "name": "email.disable-spam-autodelete",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email security administration operation",
+      "recovery": "Reconfigure automatic spam deletion if needed.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "Email/disable_spam_box": {
@@ -4197,19 +4229,48 @@
       "verification": null
     },
     "EmailAuth/apply_dmarc": {
-      "audit_fields": [],
+      "audit_fields": [
+        "domain",
+        "policy"
+      ],
       "capability": "email",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "email",
+        "apply-dmarc"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "EmailAuth/apply_dmarc",
-      "parameters": {},
+      "impact": "Apply or update DMARC DNS policy.",
+      "name": "email.apply-dmarc",
+      "parameters": {
+        "domain": {
+          "name": "domain",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        },
+        "policy": {
+          "name": "policy",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "policy",
+          "validator": "enum"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email security administration operation",
+      "recovery": "Remove or change the DMARC policy.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "EmailAuth/disable_dkim": {
@@ -4281,17 +4342,32 @@
     "EmailAuth/ensure_dkim_keys_exist": {
       "audit_fields": [],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "ensure-dkim-keys"
+      ],
       "elevated_impact": false,
       "feature": null,
       "impact": "",
-      "name": "EmailAuth/ensure_dkim_keys_exist",
-      "parameters": {},
+      "name": "email.ensure-dkim-keys",
+      "parameters": {
+        "domain": {
+          "name": "domain",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
+      "reason": "reviewed email security administration operation",
       "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "EmailAuth/fetch_dkim_private_keys": {
@@ -4304,26 +4380,54 @@
       "name": "EmailAuth/fetch_dkim_private_keys",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the email capability review",
+      "reason": "exports stored DKIM private key material",
       "recovery": "",
       "risk": null,
       "status": "excluded",
       "verification": null
     },
     "EmailAuth/install_dkim_private_keys": {
-      "audit_fields": [],
+      "audit_fields": [
+        "domain"
+      ],
       "capability": "email",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "email",
+        "install-dkim-key"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "EmailAuth/install_dkim_private_keys",
-      "parameters": {},
+      "impact": "Import DKIM private key material for a domain.",
+      "name": "email.install-dkim-key",
+      "parameters": {
+        "domain": {
+          "name": "domain",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        },
+        "key": {
+          "name": "key",
+          "required": true,
+          "secret": true,
+          "sensitive_output": true,
+          "sources": [
+            "protected_file"
+          ],
+          "uapi_name": "key",
+          "validator": "private_key"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email security administration operation",
+      "recovery": "Replace with the prior DKIM key if available or regenerate DKIM.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "EmailAuth/install_spf_records": {
@@ -4371,19 +4475,36 @@
       "verification": null
     },
     "EmailAuth/remove_dmarc": {
-      "audit_fields": [],
+      "audit_fields": [
+        "domain"
+      ],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "remove-dmarc"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "EmailAuth/remove_dmarc",
-      "parameters": {},
+      "impact": "Remove DMARC records and may reduce email authentication.",
+      "name": "email.remove-dmarc",
+      "parameters": {
+        "domain": {
+          "name": "domain",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email security administration operation",
+      "recovery": "Apply the previous DMARC policy again.",
+      "risk": "destructive",
+      "status": "included",
       "verification": null
     },
     "EmailAuth/validate_current_dkims": {
@@ -4420,33 +4541,63 @@
     "EmailAuth/validate_current_dmarcs": {
       "audit_fields": [],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "validate-dmarc"
+      ],
       "elevated_impact": false,
       "feature": null,
       "impact": "",
-      "name": "EmailAuth/validate_current_dmarcs",
-      "parameters": {},
+      "name": "email.validate-dmarc",
+      "parameters": {
+        "domain": {
+          "name": "domain",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
+      "reason": "reviewed email security administration operation",
       "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "EmailAuth/validate_current_ptrs": {
       "audit_fields": [],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "validate-ptr"
+      ],
       "elevated_impact": false,
       "feature": null,
       "impact": "",
-      "name": "EmailAuth/validate_current_ptrs",
-      "parameters": {},
+      "name": "email.validate-ptr",
+      "parameters": {
+        "domain": {
+          "name": "domain",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
+      "reason": "reviewed email security administration operation",
       "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "EmailAuth/validate_current_spfs": {
@@ -7648,65 +7799,103 @@
     "SpamAssassin/clear_spam_box": {
       "audit_fields": [],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "clear-spam-box"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "SpamAssassin/clear_spam_box",
+      "impact": "Delete spam box contents.",
+      "name": "email.clear-spam-box",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email security administration operation",
+      "recovery": "Restore messages only from backups if available.",
+      "risk": "destructive",
+      "status": "included",
       "verification": null
     },
     "SpamAssassin/get_symbolic_test_names": {
       "audit_fields": [],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "spam-symbols"
+      ],
       "elevated_impact": false,
       "feature": null,
       "impact": "",
-      "name": "SpamAssassin/get_symbolic_test_names",
+      "name": "email.spam-symbols",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the email capability review",
+      "reason": "reviewed email security administration operation",
       "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "SpamAssassin/get_user_preferences": {
       "audit_fields": [],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "spam-preferences"
+      ],
       "elevated_impact": false,
       "feature": null,
       "impact": "",
-      "name": "SpamAssassin/get_user_preferences",
+      "name": "email.spam-preferences",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the email capability review",
+      "reason": "reviewed email security administration operation",
       "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "SpamAssassin/update_user_preference": {
-      "audit_fields": [],
+      "audit_fields": [
+        "preference",
+        "value"
+      ],
       "capability": "email",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "email",
+        "spam-preference-set"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "SpamAssassin/update_user_preference",
-      "parameters": {},
+      "impact": "Update a SpamAssassin preference.",
+      "name": "email.spam-preference-set",
+      "parameters": {
+        "preference": {
+          "name": "preference",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "preference",
+          "validator": "bounded_text"
+        },
+        "value": {
+          "name": "value",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "value",
+          "validator": "bounded_text"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email security administration operation",
+      "recovery": "Restore the previous preference value.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "Stats/get_bandwidth": {
@@ -8140,97 +8329,143 @@
     "cPGreyList/disable_all_domains": {
       "audit_fields": [],
       "capability": "email",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "email",
+        "disable-greylisting-all"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "cPGreyList/disable_all_domains",
+      "impact": "Disable greylisting for all domains.",
+      "name": "email.disable-greylisting-all",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email security administration operation",
+      "recovery": "Enable greylisting for affected domains if needed.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "cPGreyList/disable_domains": {
-      "audit_fields": [],
+      "audit_fields": [
+        "domains"
+      ],
       "capability": "email",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "email",
+        "disable-greylisting"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "cPGreyList/disable_domains",
-      "parameters": {},
+      "impact": "Disable greylisting for specified domains.",
+      "name": "email.disable-greylisting",
+      "parameters": {
+        "domains": {
+          "name": "domains",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domains",
+          "validator": "bounded_text"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email security administration operation",
+      "recovery": "Enable greylisting for those domains if needed.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "cPGreyList/enable_all_domains": {
       "audit_fields": [],
       "capability": "email",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "email",
+        "enable-greylisting-all"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "cPGreyList/enable_all_domains",
+      "impact": "Enable greylisting for all domains.",
+      "name": "email.enable-greylisting-all",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email security administration operation",
+      "recovery": "Disable greylisting for affected domains if needed.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "cPGreyList/enable_domains": {
-      "audit_fields": [],
+      "audit_fields": [
+        "domains"
+      ],
       "capability": "email",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "email",
+        "enable-greylisting"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "cPGreyList/enable_domains",
-      "parameters": {},
+      "impact": "Enable greylisting for specified domains.",
+      "name": "email.enable-greylisting",
+      "parameters": {
+        "domains": {
+          "name": "domains",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domains",
+          "validator": "bounded_text"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the email capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed email security administration operation",
+      "recovery": "Disable greylisting for those domains if needed.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "cPGreyList/has_greylisting_enabled": {
       "audit_fields": [],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "greylisting-status"
+      ],
       "elevated_impact": false,
       "feature": null,
       "impact": "",
-      "name": "cPGreyList/has_greylisting_enabled",
+      "name": "email.greylisting-status",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the email capability review",
+      "reason": "reviewed email security administration operation",
       "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "cPGreyList/list_domains": {
       "audit_fields": [],
       "capability": "email",
-      "command": [],
+      "command": [
+        "email",
+        "greylisting-domains"
+      ],
       "elevated_impact": false,
       "feature": null,
       "impact": "",
-      "name": "cPGreyList/list_domains",
+      "name": "email.greylisting-domains",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the email capability review",
+      "reason": "reviewed email security administration operation",
       "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "risk": "read",
+      "status": "included",
       "verification": null
     }
   },

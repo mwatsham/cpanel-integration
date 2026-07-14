@@ -91,6 +91,8 @@ Global options precede the capability group:
 .venv/bin/cpanel-admin --profile production email mx-list --domain example.com
 .venv/bin/cpanel-admin --profile production email routing-mode --domain example.com --mxcheck auto --dry-run
 .venv/bin/cpanel-admin --profile production email mailbox-status --account admin@example.com
+.venv/bin/cpanel-admin --profile production email validate-dmarc --domain example.com
+.venv/bin/cpanel-admin --profile production email greylisting-domains
 ```
 
 Non-destructive mutations support a review step:
@@ -113,6 +115,13 @@ Password verification also uses standard input and does not echo the password in
 ```bash
 printf '%s' "$MAILBOX_PASSWORD" | .venv/bin/cpanel-admin --profile staging email verify-password \
   --email admin@example.com --password-stdin
+```
+
+DKIM private-key imports must use a protected `0600` file:
+
+```bash
+.venv/bin/cpanel-admin --profile staging email install-dkim-key \
+  --domain example.com --key-file ./dkim-private.pem --dry-run
 ```
 
 Destructive actions require two commands. First request a five-minute plan:

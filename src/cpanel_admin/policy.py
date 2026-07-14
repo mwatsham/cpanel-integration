@@ -69,7 +69,7 @@ EXPECTED_CANDIDATE_OPERATIONS = 393
 EXPECTED_CANDIDATE_IDENTITY_SHA256 = (
     "834c8bd9c048d93e9089fd22a7c569d4923cc8a5c9ecbc4172123ec2276a6ecb"
 )
-EXPECTED_POLICY_SHA256 = "ee5013834aa2c1bf03a55c040b950f34dad83f668a2c105b21c86d3fd5182616"
+EXPECTED_POLICY_SHA256 = "87b994f1329f245a1dd2c058cc1c7faa867d2eb12ec643b46db544a5c2aca62e"
 
 _PROTECTED_SECRET_SOURCES = frozenset(
     {
@@ -240,6 +240,15 @@ _PROTECTED_INPUT_CONTRACTS = MappingProxyType(
                 uapi_name="password",
                 sources=(InputSource.STDIN,),
                 validator="secret",
+                required=True,
+                secret=True,
+                sensitive_output=True,
+            ),
+            ("EmailAuth/install_dkim_private_keys", "key"): PolicyParameter(
+                name="key",
+                uapi_name="key",
+                sources=(InputSource.PROTECTED_FILE,),
+                validator="private_key",
                 required=True,
                 secret=True,
                 sensitive_output=True,

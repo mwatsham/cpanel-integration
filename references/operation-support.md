@@ -4,8 +4,8 @@
 
 - Source UAPI version: `11.136.0.25`
 - Source SHA-256: `3d9ec80cd8d774312c4bb6b0dfdbc17e6e6ffc92a8f0c2cd88f01e32864fa2c6`
-- Included operations: 94
-- Excluded operations: 299
+- Included operations: 112
+- Excluded operations: 281
 
 The local allowlist is an application safeguard, not a substitute for cPanel account permissions. This catalog does not provide arbitrary UAPI passthrough.
 
@@ -97,7 +97,7 @@ The local allowlist is an application safeguard, not a substitute for cPanel acc
 | `Email/add_mailman_delegates` | excluded | email | - | not enabled until the email capability review |
 | `Email/add_mx` | included | email | mutate | reviewed email administration operation |
 | `Email/add_pop` | included | email | mutate | reviewed email administration operation |
-| `Email/add_spam_filter` | excluded | email | - | not enabled until the email capability review |
+| `Email/add_spam_filter` | included | email | mutate | reviewed email security administration operation |
 | `Email/browse_mailbox` | excluded | email | - | not enabled until the email capability review |
 | `Email/change_mx` | included | email | mutate | reviewed email administration operation |
 | `Email/check_fastmail` | excluded | email | - | not enabled until the email capability review |
@@ -117,7 +117,7 @@ The local allowlist is an application safeguard, not a substitute for cPanel acc
 | `Email/disable_filter` | included | email | mutate | reviewed email administration operation |
 | `Email/disable_mailbox_autocreate` | included | email | mutate | reviewed email account administration operation |
 | `Email/disable_spam_assassin` | included | email | mutate | reviewed email administration operation |
-| `Email/disable_spam_autodelete` | excluded | email | - | not enabled until the email capability review |
+| `Email/disable_spam_autodelete` | included | email | mutate | reviewed email security administration operation |
 | `Email/disable_spam_box` | included | email | mutate | reviewed email administration operation |
 | `Email/dispatch_client_settings` | excluded | email | - | not enabled until the email capability review |
 | `Email/edit_pop_quota` | included | email | mutate | reviewed email administration operation |
@@ -185,17 +185,17 @@ The local allowlist is an application safeguard, not a substitute for cPanel acc
 | `Email/unsuspend_login` | included | email | mutate | reviewed email account administration operation |
 | `Email/unsuspend_outgoing` | included | email | mutate | reviewed email account administration operation |
 | `Email/verify_password` | included | email | read | reviewed email account administration operation |
-| `EmailAuth/apply_dmarc` | excluded | email | - | not enabled until the email capability review |
+| `EmailAuth/apply_dmarc` | included | email | mutate | reviewed email security administration operation |
 | `EmailAuth/disable_dkim` | included | email | destructive | reviewed email DNS administration operation |
 | `EmailAuth/enable_dkim` | included | email | mutate | reviewed email DNS administration operation |
-| `EmailAuth/ensure_dkim_keys_exist` | excluded | email | - | not enabled until the email capability review |
-| `EmailAuth/fetch_dkim_private_keys` | excluded | email | - | not enabled until the email capability review |
-| `EmailAuth/install_dkim_private_keys` | excluded | email | - | not enabled until the email capability review |
+| `EmailAuth/ensure_dkim_keys_exist` | included | email | read | reviewed email security administration operation |
+| `EmailAuth/fetch_dkim_private_keys` | excluded | email | - | exports stored DKIM private key material |
+| `EmailAuth/install_dkim_private_keys` | included | email | mutate | reviewed email security administration operation |
 | `EmailAuth/install_spf_records` | included | email | mutate | reviewed email DNS administration operation |
-| `EmailAuth/remove_dmarc` | excluded | email | - | not enabled until the email capability review |
+| `EmailAuth/remove_dmarc` | included | email | destructive | reviewed email security administration operation |
 | `EmailAuth/validate_current_dkims` | included | email | read | reviewed email DNS administration operation |
-| `EmailAuth/validate_current_dmarcs` | excluded | email | - | not enabled until the email capability review |
-| `EmailAuth/validate_current_ptrs` | excluded | email | - | not enabled until the email capability review |
+| `EmailAuth/validate_current_dmarcs` | included | email | read | reviewed email security administration operation |
+| `EmailAuth/validate_current_ptrs` | included | email | read | reviewed email security administration operation |
 | `EmailAuth/validate_current_spfs` | included | email | read | reviewed email DNS administration operation |
 | `Features/get_feature_metadata` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
 | `Features/has_feature` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
@@ -370,10 +370,10 @@ The local allowlist is an application safeguard, not a substitute for cPanel acc
 | `SSL/upload_cert` | excluded | ssl | - | not enabled until the ssl capability review |
 | `SSL/upload_key` | excluded | ssl | - | not enabled until the ssl capability review |
 | `ServerInformation/get_information` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
-| `SpamAssassin/clear_spam_box` | excluded | email | - | not enabled until the email capability review |
-| `SpamAssassin/get_symbolic_test_names` | excluded | email | - | not enabled until the email capability review |
-| `SpamAssassin/get_user_preferences` | excluded | email | - | not enabled until the email capability review |
-| `SpamAssassin/update_user_preference` | excluded | email | - | not enabled until the email capability review |
+| `SpamAssassin/clear_spam_box` | included | email | destructive | reviewed email security administration operation |
+| `SpamAssassin/get_symbolic_test_names` | included | email | read | reviewed email security administration operation |
+| `SpamAssassin/get_user_preferences` | included | email | read | reviewed email security administration operation |
+| `SpamAssassin/update_user_preference` | included | email | mutate | reviewed email security administration operation |
 | `Stats/get_bandwidth` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
 | `Stats/get_site_errors` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
 | `Stats/get_stats_daily` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
@@ -398,9 +398,9 @@ The local allowlist is an application safeguard, not a substitute for cPanel acc
 | `VersionControlDeployment/retrieve` | excluded | runtime | - | not enabled until the runtime capability review |
 | `WebVhosts/list_domains` | excluded | domains | - | not enabled until the domain capability review |
 | `WebVhosts/list_ssl_capable_domains` | included | domains | read | supported by the existing MVP operation set |
-| `cPGreyList/disable_all_domains` | excluded | email | - | not enabled until the email capability review |
-| `cPGreyList/disable_domains` | excluded | email | - | not enabled until the email capability review |
-| `cPGreyList/enable_all_domains` | excluded | email | - | not enabled until the email capability review |
-| `cPGreyList/enable_domains` | excluded | email | - | not enabled until the email capability review |
-| `cPGreyList/has_greylisting_enabled` | excluded | email | - | not enabled until the email capability review |
-| `cPGreyList/list_domains` | excluded | email | - | not enabled until the email capability review |
+| `cPGreyList/disable_all_domains` | included | email | mutate | reviewed email security administration operation |
+| `cPGreyList/disable_domains` | included | email | mutate | reviewed email security administration operation |
+| `cPGreyList/enable_all_domains` | included | email | mutate | reviewed email security administration operation |
+| `cPGreyList/enable_domains` | included | email | mutate | reviewed email security administration operation |
+| `cPGreyList/has_greylisting_enabled` | included | email | read | reviewed email security administration operation |
+| `cPGreyList/list_domains` | included | email | read | reviewed email security administration operation |
