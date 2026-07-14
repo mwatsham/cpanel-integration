@@ -1,6 +1,7 @@
 import copy
 import hashlib
 import json
+import os
 import subprocess
 import sys
 from collections.abc import Callable
@@ -310,6 +311,20 @@ def test_generator_emits_deterministic_safe_support_matrix(tmp_path: Path) -> No
     )
     assert "protected_file" not in support
     assert "sensitive_output" not in support
+
+
+def test_check_script_runs_from_source_tree_without_editable_install() -> None:
+    environment = {key: value for key, value in os.environ.items() if key != "PYTHONPATH"}
+    completed = subprocess.run(
+        [sys.executable, "scripts/check_generated.py"],
+        cwd=ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout.strip() == "generated catalog is current"
 
 
 def test_check_mode_is_write_free_when_outputs_are_stale(tmp_path: Path) -> None:

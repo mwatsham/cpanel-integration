@@ -6,16 +6,22 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import sys
 from pathlib import Path
 
-from cpanel_admin.catalog import (
+ROOT = Path(__file__).resolve().parents[1]
+SOURCE_ROOT = ROOT / "src"
+if str(SOURCE_ROOT) not in sys.path:
+    sys.path.insert(0, str(SOURCE_ROOT))
+
+from cpanel_admin.catalog import (  # noqa: E402
     GENERATED_NOTICE,
     GENERATOR_SCHEMA,
     Catalog,
     CatalogError,
     normalize_document,
 )
-from cpanel_admin.policy import (
+from cpanel_admin.policy import (  # noqa: E402
     EXPECTED_POLICY_SHA256,
     SELECTED_MODULES,
     PolicyError,
@@ -24,7 +30,6 @@ from cpanel_admin.policy import (
     policy_operation_to_dict,
 )
 
-ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SOURCE = ROOT / "specifications/cpanel.openapi.json"
 DEFAULT_LOCK = ROOT / "specifications/cpanel.openapi.lock.json"
 DEFAULT_POLICY = ROOT / "policy/operations.json"
