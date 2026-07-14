@@ -17,7 +17,7 @@ before the production expansion can be called complete.
 | Unit, mocked integration, CLI, redaction, and documentation tests pass. | Proven by default suite | `tests/` includes audit, capabilities, catalog generation, CLI, confirmation, executor, inputs, operations, planner, policy, profiles, redaction, secrets, transport, live-harness, OpenAPI-reference, capability-reference, and release-audit tests. |
 | Coverage remains at or above 90%. | Proven when coverage gate is run | Required command: `pytest --cov=cpanel_admin --cov-report=term-missing --cov-fail-under=90`. Recent evidence: total coverage `90.10%`. |
 | Ruff lint and formatting checks pass. | Proven when Ruff gates are run | Required commands: `ruff check .` and `ruff format --check .`. |
-| Both project skill validators pass. | Gap | `agentskills validate "$PWD"` passes. The current project environment exposes `agentskills`, but no second validator command is configured or discoverable in `.venv/bin`. |
+| Both project skill validators pass. | Proven when validation gates are run | `agentskills validate "$PWD"` validates the Agent Skills standard. `scripts/validate_skill_bundle.py "$PWD"` validates project-specific bundle, link, capability-reference, and guardrail invariants. |
 | `README.md`, `AGENTS.md`, `SKILL.md`, capability references, and support matrix match behavior. | Mostly proven | `README.md`, `SKILL.md`, `references/capabilities.md`, `references/capabilities/*.md`, `references/openapi-maintenance.md`, `references/live-testing.md`, and `references/operation-support.md` are present. Documentation contract tests cover the key references. A final manual consistency pass should still be done before release. |
 | Disposable-account verification passes for every available capability pack, and all created resources are removed or explicitly reported. | Gap | Current live harness verifies representative read-only commands for available packs and has an isolated database lifecycle test. It does not yet exercise a live create/read/update/delete lifecycle for every supported capability pack. |
 | A final requirement-by-requirement completion audit finds no missing or indirect evidence. | Gap | This audit records remaining gaps, so the completion condition is not yet satisfied. |
@@ -39,7 +39,7 @@ following areas:
 | Unit tests for type coercion, enums, required parameters, arrays, bodies, files, protected input, confirmation binding, profiles, transport, audit, redaction, and structured errors. | Covered across `tests/test_inputs.py`, `tests/test_confirmation.py`, `tests/test_profiles.py`, `tests/test_transport.py`, `tests/test_audit.py`, `tests/test_errors.py`, and related files. |
 | Mocked integration tests for GET, POST, multipart upload, timeouts, TLS failures, malformed responses, UAPI failures, partial failures, capability absence, and contradictory verification. | Covered across `tests/test_transport.py`, `tests/test_executor.py`, `tests/test_capabilities.py`, and planner/executor tests. |
 | CLI tests covering every capability pack and stable exit-code category. | `tests/test_cli.py` plus capability-pack tests and `tests/test_live_harness.py`. |
-| Documentation-generation checks and Agent Skills validation. | `scripts/check_generated.py`, documentation contract tests, and `agentskills validate "$PWD"`. |
+| Documentation-generation checks and Agent Skills validation. | `scripts/check_generated.py`, documentation contract tests, `scripts/validate_skill_bundle.py "$PWD"`, and `agentskills validate "$PWD"`. |
 | Secret-leak regression tests over stdout, stderr, exceptions, audit output, and generated plans. | `tests/test_redaction.py`, `tests/test_secrets.py`, `tests/test_audit.py`, `tests/test_cli.py`, and planner/confirmation tests. |
 
 ## Disposable-account verification
@@ -74,11 +74,10 @@ Remaining live verification gaps:
 
 The production goal should remain open until these are resolved:
 
-1. Implement or explicitly scope the second project skill validator required by the approved design.
-2. Extend disposable live tests beyond read-only/database lifecycle to the required live
+1. Extend disposable live tests beyond read-only/database lifecycle to the required live
    create/read/update/delete lifecycle for each supported capability pack.
-3. Run the full live destructive/elevated-impact gate on a disposable account and record redacted
+2. Run the full live destructive/elevated-impact gate on a disposable account and record redacted
    evidence.
-4. Perform a final manual documentation consistency pass across `README.md`, `AGENTS.md`,
+3. Perform a final manual documentation consistency pass across `README.md`, `AGENTS.md`,
    `SKILL.md`, capability references, and generated support matrix after the live lifecycle work.
-5. Re-run the full verification set and update this audit so every criterion is `Proven`.
+4. Re-run the full verification set and update this audit so every criterion is `Proven`.

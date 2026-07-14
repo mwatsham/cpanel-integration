@@ -202,6 +202,7 @@ The default suite uses mocked transports and never accesses cPanel:
 .venv/bin/ruff check .
 .venv/bin/ruff format --check .
 .venv/bin/python scripts/check_generated.py
+.venv/bin/python scripts/validate_skill_bundle.py "$PWD"
 .venv/bin/agentskills validate "$PWD"
 ```
 
