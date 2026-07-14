@@ -61,13 +61,11 @@ Current evidence:
 
 Remaining live verification gaps:
 
-1. Add a second explicit live gate for destructive and elevated-impact cases.
-2. Generate a unique resource prefix for the full live run, not only the database lifecycle test.
-3. Expand from read-only coverage to a safe live create/read/update/delete lifecycle for every
+1. Expand from read-only coverage to a safe live create/read/update/delete lifecycle for every
    supported capability pack that the disposable account actually supports.
-4. Verify each mutation through an independent read where possible.
-5. Attempt cleanup in dependency-aware order for all created resources.
-6. Persist a redacted evidence report that distinguishes unsupported capabilities from failures and
+2. Verify each mutation through an independent read where possible.
+3. Attempt cleanup in dependency-aware order for all created resources.
+4. Persist a redacted evidence report that distinguishes unsupported capabilities from failures and
    explicitly reports cleanup failures.
 
 ## Remaining gaps

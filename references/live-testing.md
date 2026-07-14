@@ -17,6 +17,16 @@ The named profile must already exist in the encrypted profile store. The Fernet 
 available from `CPANEL_ADMIN_FERNET_KEY` or the protected key file documented in the README.
 Never print the Fernet key, API token, encrypted profile store, or environment.
 
+Destructive and elevated-impact lifecycle tests require a second explicit gate:
+
+```bash
+export CPANEL_ADMIN_LIVE_ENABLE_DESTRUCTIVE=I_ACCEPT_LIVE_RESOURCE_MUTATION
+```
+
+Use `CPANEL_ADMIN_LIVE_RUN_PREFIX` to make all created resources easy to identify and clean up. It
+must match `codex_live_<2-8 lowercase letters/digits>_`; otherwise the test fails before touching
+cPanel.
+
 ## Read-only coverage
 
 Run the representative read-only matrix with:
@@ -57,12 +67,16 @@ Do not commit `.live/` reports unless every line has been reviewed for sensitive
 ## Disposable mutation coverage
 
 The database lifecycle test creates and removes a uniquely prefixed database. Enable it only on a
-disposable account:
+disposable account with the second destructive gate:
 
 ```bash
-export CPANEL_ADMIN_LIVE_DATABASE_PREFIX=codex_mvp_probe_
+export CPANEL_ADMIN_LIVE_ENABLE_DESTRUCTIVE=I_ACCEPT_LIVE_RESOURCE_MUTATION
+export CPANEL_ADMIN_LIVE_RUN_PREFIX=codex_live_a1_
 .venv/bin/python -m pytest tests/test_live_cpanel.py::test_live_isolated_database_lifecycle -m live -v
 ```
 
 If cleanup fails, the test output names the leftover database. Remove that resource manually from
 cPanel before reusing the account.
+
+Lifecycle tests append redacted events to `CPANEL_ADMIN_LIVE_REPORT` when it is set. Reports include
+capability, phase, status, resource name, and non-secret details only.

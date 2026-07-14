@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import json
 import os
+import re
 import secrets
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,6 +15,9 @@ import pytest
 from cpanel_admin.cli import main
 
 pytestmark = pytest.mark.live
+
+DESTRUCTIVE_LIVE_ACK = "I_ACCEPT_LIVE_RESOURCE_MUTATION"
+PREFIX_PATTERN = re.compile(r"^codex_live_[a-z0-9]{2,8}_?$")
 
 
 @dataclass(frozen=True)
@@ -40,6 +44,10 @@ LIVE_COMMANDS: tuple[LiveCommand, ...] = (
 
 def _live_environment() -> tuple[dict[str, str], str]:
     env = dict(os.environ)
+    return _live_environment_from(env)
+
+
+def _live_environment_from(env: dict[str, str]) -> tuple[dict[str, str], str]:
     if env.get("CPANEL_ADMIN_RUN_LIVE_TESTS") != "1":
         pytest.skip("set CPANEL_ADMIN_RUN_LIVE_TESTS=1 to run disposable-account tests")
     if env.get("CPANEL_ADMIN_LIVE_DISPOSABLE") != "I_UNDERSTAND_THIS_ACCOUNT_IS_DISPOSABLE":
@@ -48,6 +56,29 @@ def _live_environment() -> tuple[dict[str, str], str]:
     if not profile:
         pytest.skip("set CPANEL_ADMIN_LIVE_PROFILE to an explicitly disposable named profile")
     return env, profile
+
+
+def _destructive_live_environment(
+    env: dict[str, str] | None = None,
+) -> tuple[dict[str, str], str]:
+    values, profile = _live_environment_from(dict(os.environ) if env is None else env)
+    if values.get("CPANEL_ADMIN_LIVE_ENABLE_DESTRUCTIVE") != DESTRUCTIVE_LIVE_ACK:
+        pytest.skip(
+            "set CPANEL_ADMIN_LIVE_ENABLE_DESTRUCTIVE=I_ACCEPT_LIVE_RESOURCE_MUTATION "
+            "to run destructive disposable-account lifecycle tests"
+        )
+    return values, profile
+
+
+def _live_run_prefix(env: dict[str, str]) -> str:
+    value = env.get("CPANEL_ADMIN_LIVE_RUN_PREFIX")
+    if value:
+        if not PREFIX_PATTERN.fullmatch(value):
+            pytest.fail(
+                "CPANEL_ADMIN_LIVE_RUN_PREFIX must match codex_live_<2-8 lowercase letters/digits>_"
+            )
+        return value
+    return f"codex_live_{secrets.token_hex(3)}_"
 
 
 def _invoke(env: dict[str, str], arguments: list[str], stdin: str = "") -> dict[str, object]:
@@ -94,6 +125,40 @@ def _write_report(env: dict[str, str], command: LiveCommand, code: int, result: 
         handle.write("\n")
 
 
+def _write_lifecycle_report(
+    env: dict[str, str],
+    *,
+    capability: str,
+    phase: str,
+    status: str,
+    resource: str,
+    details: dict[str, object] | None = None,
+) -> None:
+    report_path = env.get("CPANEL_ADMIN_LIVE_REPORT")
+    if not report_path:
+        return
+    path = Path(report_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    safe_details = {
+        key: value
+        for key, value in (details or {}).items()
+        if key.lower() not in {"secret", "password", "token", "key", "authorization"}
+    }
+    with path.open("a", encoding="utf-8") as handle:
+        json.dump(
+            {
+                "capability": capability,
+                "phase": phase,
+                "status": status,
+                "resource": resource,
+                "details": safe_details,
+            },
+            handle,
+            sort_keys=True,
+        )
+        handle.write("\n")
+
+
 def _invoke_command(env: dict[str, str], profile: str, command: LiveCommand) -> dict[str, object]:
     stdout = io.StringIO()
     stderr = io.StringIO()
@@ -137,23 +202,42 @@ def test_live_representative_read_only_commands(command: LiveCommand) -> None:
 
 
 def test_live_isolated_database_lifecycle() -> None:
-    env, profile = _live_environment()
-    prefix = env.get("CPANEL_ADMIN_LIVE_DATABASE_PREFIX")
-    if not prefix or "codex_mvp_" not in prefix:
-        pytest.skip("set a cPanel-valid CPANEL_ADMIN_LIVE_DATABASE_PREFIX containing codex_mvp_")
+    env, profile = _destructive_live_environment()
+    prefix = env.get("CPANEL_ADMIN_LIVE_DATABASE_PREFIX") or _live_run_prefix(env)
     database = f"{prefix}{secrets.token_hex(4)}"
     if len(database) > 64:
         pytest.skip("live database test name exceeds cPanel's 64-character limit")
 
     created = False
     try:
+        _write_lifecycle_report(
+            env,
+            capability="databases",
+            phase="create",
+            status="attempt",
+            resource=database,
+        )
         _invoke(env, ["--profile", profile, "databases", "create", "--name", database])
         created = True
+        _write_lifecycle_report(
+            env,
+            capability="databases",
+            phase="create",
+            status="ok",
+            resource=database,
+        )
         listed = _invoke(env, ["--profile", profile, "databases", "list"])
         assert database in json.dumps(listed["data"])
     finally:
         if created:
             try:
+                _write_lifecycle_report(
+                    env,
+                    capability="databases",
+                    phase="cleanup",
+                    status="attempt",
+                    resource=database,
+                )
                 plan = _invoke(
                     env,
                     [
@@ -181,7 +265,22 @@ def test_live_isolated_database_lifecycle() -> None:
                         str(plan["expires_at"]),
                     ],
                 )
+                _write_lifecycle_report(
+                    env,
+                    capability="databases",
+                    phase="cleanup",
+                    status="ok",
+                    resource=database,
+                )
             except Exception as exc:
+                _write_lifecycle_report(
+                    env,
+                    capability="databases",
+                    phase="cleanup",
+                    status="failed",
+                    resource=database,
+                    details={"error": str(exc)},
+                )
                 pytest.fail(f"LIVE CLEANUP FAILED; remove leftover database {database}: {exc}")
     after = _invoke(env, ["--profile", profile, "databases", "list"])
     assert database not in json.dumps(after["data"])
