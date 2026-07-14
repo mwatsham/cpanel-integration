@@ -4,15 +4,15 @@
 
 - Source UAPI version: `11.136.0.25`
 - Source SHA-256: `3d9ec80cd8d774312c4bb6b0dfdbc17e6e6ffc92a8f0c2cd88f01e32864fa2c6`
-- Included operations: 130
-- Excluded operations: 263
+- Included operations: 159
+- Excluded operations: 234
 
 The local allowlist is an application safeguard, not a substitute for cPanel account permissions. This catalog does not provide arbitrary UAPI passthrough.
 
 | Canonical operation | Status | Capability | Risk | Reason |
 | --- | --- | --- | --- | --- |
-| `AccountEnhancements/has_enhancement` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
-| `AccountEnhancements/list` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
+| `AccountEnhancements/has_enhancement` | included | diagnostics | read | reviewed account diagnostics read operation |
+| `AccountEnhancements/list` | included | diagnostics | read | reviewed account diagnostics read operation |
 | `Backup/fullbackup_to_ftp` | excluded | backups | - | not enabled until the backup capability review |
 | `Backup/fullbackup_to_homedir` | excluded | backups | - | not enabled until the backup capability review |
 | `Backup/fullbackup_to_scp_with_key` | excluded | backups | - | not enabled until the backup capability review |
@@ -22,13 +22,13 @@ The local allowlist is an application safeguard, not a substitute for cPanel acc
 | `Backup/restore_email_filters` | excluded | backups | - | not enabled until the backup capability review |
 | `Backup/restore_email_forwarders` | excluded | backups | - | not enabled until the backup capability review |
 | `Backup/restore_files` | excluded | backups | - | not enabled until the backup capability review |
-| `Bandwidth/get_enabled_protocols` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
-| `Bandwidth/get_retention_periods` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
-| `Bandwidth/query` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
+| `Bandwidth/get_enabled_protocols` | included | diagnostics | read | reviewed account diagnostics read operation |
+| `Bandwidth/get_retention_periods` | included | diagnostics | read | reviewed account diagnostics read operation |
+| `Bandwidth/query` | included | diagnostics | read | reviewed account diagnostics read operation |
 | `BlockIP/add_ip` | excluded | security | - | not enabled until the security capability review |
 | `BlockIP/remove_ip` | excluded | security | - | not enabled until the security capability review |
-| `Chkservd/get_exim_ports` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
-| `Chkservd/get_exim_ports_ssl` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
+| `Chkservd/get_exim_ports` | included | diagnostics | read | reviewed account diagnostics read operation |
+| `Chkservd/get_exim_ports_ssl` | included | diagnostics | read | reviewed account diagnostics read operation |
 | `ClamScanner/check_disinfection_status` | excluded | security | - | not enabled until the security capability review |
 | `ClamScanner/disinfect_files` | excluded | security | - | not enabled until the security capability review |
 | `ClamScanner/get_scan_paths` | excluded | security | - | not enabled until the security capability review |
@@ -197,11 +197,11 @@ The local allowlist is an application safeguard, not a substitute for cPanel acc
 | `EmailAuth/validate_current_dmarcs` | included | email | read | reviewed email security administration operation |
 | `EmailAuth/validate_current_ptrs` | included | email | read | reviewed email security administration operation |
 | `EmailAuth/validate_current_spfs` | included | email | read | reviewed email DNS administration operation |
-| `Features/get_feature_metadata` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
-| `Features/has_feature` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
-| `Features/has_features_like` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
-| `Features/list_features` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
-| `Features/list_features_like` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
+| `Features/get_feature_metadata` | included | diagnostics | read | reviewed account diagnostics read operation |
+| `Features/has_feature` | included | diagnostics | read | reviewed account diagnostics read operation |
+| `Features/has_features_like` | included | diagnostics | read | reviewed account diagnostics read operation |
+| `Features/list_features` | included | diagnostics | read | reviewed account diagnostics read operation |
+| `Features/list_features_like` | included | diagnostics | read | reviewed account diagnostics read operation |
 | `Fileman/autocompletedir` | excluded | files | - | not enabled until the file capability review |
 | `Fileman/empty_trash` | included | files | destructive | supported by the existing MVP operation set |
 | `Fileman/get_file_content` | included | files | read | supported by the existing MVP operation set |
@@ -245,11 +245,11 @@ The local allowlist is an application safeguard, not a substitute for cPanel acc
 | `LangPHP/php_ini_set_user_basic_directives` | excluded | runtime | - | not enabled until the runtime capability review |
 | `LangPHP/php_ini_set_user_content` | excluded | runtime | - | not enabled until the runtime capability review |
 | `LangPHP/php_set_vhost_versions` | excluded | runtime | - | not enabled until the runtime capability review |
-| `LastLogin/get_last_or_current_logged_in_ip` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
-| `LogManager/delete_archive` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
-| `LogManager/get_settings` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
-| `LogManager/list_archives` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
-| `LogManager/set_settings` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
+| `LastLogin/get_last_or_current_logged_in_ip` | included | diagnostics | read | reviewed account diagnostics read operation |
+| `LogManager/delete_archive` | excluded | diagnostics | - | deletes archived logs and needs a destructive log-management review |
+| `LogManager/get_settings` | included | diagnostics | read | reviewed account diagnostics read operation |
+| `LogManager/list_archives` | included | diagnostics | read | reviewed account diagnostics read operation |
+| `LogManager/set_settings` | excluded | diagnostics | - | changes log retention settings and needs a log-management review |
 | `Mailboxes/expunge_mailbox_messages` | excluded | email | - | not enabled until the email capability review |
 | `Mailboxes/expunge_messages_for_mailbox_guid` | excluded | email | - | not enabled until the email capability review |
 | `Mailboxes/get_mailbox_status_list` | included | email | read | reviewed email account administration operation |
@@ -311,9 +311,9 @@ The local allowlist is an application safeguard, not a substitute for cPanel acc
 | `PassengerApps/list_applications` | excluded | runtime | - | not enabled until the runtime capability review |
 | `PassengerApps/register_application` | excluded | runtime | - | not enabled until the runtime capability review |
 | `PassengerApps/unregister_application` | excluded | runtime | - | not enabled until the runtime capability review |
-| `Quota/get_local_quota_info` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
-| `Quota/get_quota_info` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
-| `ResourceUsage/get_usages` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
+| `Quota/get_local_quota_info` | included | diagnostics | read | reviewed account diagnostics read operation |
+| `Quota/get_quota_info` | included | diagnostics | read | reviewed account diagnostics read operation |
+| `ResourceUsage/get_usages` | included | diagnostics | read | reviewed account diagnostics read operation |
 | `Restore/directory_listing` | excluded | backups | - | not enabled until the backup capability review |
 | `Restore/get_users` | excluded | backups | - | not enabled until the backup capability review |
 | `Restore/query_file_info` | excluded | backups | - | not enabled until the backup capability review |
@@ -369,26 +369,26 @@ The local allowlist is an application safeguard, not a substitute for cPanel acc
 | `SSL/toggle_ssl_redirect_for_domains` | excluded | ssl | - | not enabled until the ssl capability review |
 | `SSL/upload_cert` | excluded | ssl | - | not enabled until the ssl capability review |
 | `SSL/upload_key` | excluded | ssl | - | not enabled until the ssl capability review |
-| `ServerInformation/get_information` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
+| `ServerInformation/get_information` | included | diagnostics | read | reviewed account diagnostics read operation |
 | `SpamAssassin/clear_spam_box` | included | email | destructive | reviewed email security administration operation |
 | `SpamAssassin/get_symbolic_test_names` | included | email | read | reviewed email security administration operation |
 | `SpamAssassin/get_user_preferences` | included | email | read | reviewed email security administration operation |
 | `SpamAssassin/update_user_preference` | included | email | mutate | reviewed email security administration operation |
-| `Stats/get_bandwidth` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
-| `Stats/get_site_errors` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
-| `Stats/get_stats_daily` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
-| `Stats/list_sites` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
-| `Stats/list_stats_by_domain` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
-| `StatsBar/get_stats` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
-| `StatsManager/get_configuration` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
-| `StatsManager/save_configuration` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
+| `Stats/get_bandwidth` | included | diagnostics | read | reviewed account diagnostics read operation |
+| `Stats/get_site_errors` | included | diagnostics | read | reviewed account diagnostics read operation |
+| `Stats/get_stats_daily` | included | diagnostics | read | reviewed account diagnostics read operation |
+| `Stats/list_sites` | included | diagnostics | read | reviewed account diagnostics read operation |
+| `Stats/list_stats_by_domain` | included | diagnostics | read | reviewed account diagnostics read operation |
+| `StatsBar/get_stats` | included | diagnostics | read | reviewed account diagnostics read operation |
+| `StatsManager/get_configuration` | included | diagnostics | read | reviewed account diagnostics read operation |
+| `StatsManager/save_configuration` | excluded | diagnostics | - | changes weblog analyzer configuration and needs a diagnostics settings review |
 | `SubDomain/addsubdomain` | included | domains | mutate | supported by the existing MVP operation set |
 | `SubDomain/changedocroot` | excluded | domains | - | not enabled until the domain capability review |
 | `UserTasks/delete` | excluded | security | - | not enabled until the security capability review |
 | `UserTasks/retrieve` | excluded | security | - | not enabled until the security capability review |
-| `Variables/get_server_information` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
-| `Variables/get_session_information` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
-| `Variables/get_user_information` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
+| `Variables/get_server_information` | included | diagnostics | read | reviewed account diagnostics read operation |
+| `Variables/get_session_information` | included | diagnostics | read | reviewed account diagnostics read operation |
+| `Variables/get_user_information` | included | diagnostics | read | reviewed account diagnostics read operation |
 | `VersionControl/create` | excluded | runtime | - | not enabled until the runtime capability review |
 | `VersionControl/delete` | excluded | runtime | - | not enabled until the runtime capability review |
 | `VersionControl/retrieve` | excluded | runtime | - | not enabled until the runtime capability review |

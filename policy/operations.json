@@ -3,33 +3,51 @@
     "AccountEnhancements/has_enhancement": {
       "audit_fields": [],
       "capability": "diagnostics",
-      "command": [],
+      "command": [
+        "diagnostics",
+        "has-enhancement"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "AccountEnhancements/has_enhancement",
-      "parameters": {},
+      "impact": "Check whether an account enhancement is assigned.",
+      "name": "diagnostics.has-enhancement",
+      "parameters": {
+        "id": {
+          "name": "id",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "id",
+          "validator": "bounded_text"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the diagnostics capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account diagnostics read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "AccountEnhancements/list": {
       "audit_fields": [],
       "capability": "diagnostics",
-      "command": [],
+      "command": [
+        "diagnostics",
+        "enhancements"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "AccountEnhancements/list",
+      "impact": "List cPanel account enhancements.",
+      "name": "diagnostics.enhancements",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the diagnostics capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account diagnostics read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Backup/fullbackup_to_ftp": {
@@ -179,49 +197,136 @@
     "Bandwidth/get_enabled_protocols": {
       "audit_fields": [],
       "capability": "diagnostics",
-      "command": [],
+      "command": [
+        "diagnostics",
+        "bandwidth-protocols"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Bandwidth/get_enabled_protocols",
+      "impact": "Read bandwidth-monitored protocols.",
+      "name": "diagnostics.bandwidth-protocols",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the diagnostics capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account diagnostics read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Bandwidth/get_retention_periods": {
       "audit_fields": [],
       "capability": "diagnostics",
-      "command": [],
+      "command": [
+        "diagnostics",
+        "bandwidth-retention"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Bandwidth/get_retention_periods",
+      "impact": "Read bandwidth retention periods.",
+      "name": "diagnostics.bandwidth-retention",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the diagnostics capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account diagnostics read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Bandwidth/query": {
       "audit_fields": [],
       "capability": "diagnostics",
-      "command": [],
+      "command": [
+        "diagnostics",
+        "bandwidth-query"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Bandwidth/query",
-      "parameters": {},
+      "impact": "Query account bandwidth usage.",
+      "name": "diagnostics.bandwidth-query",
+      "parameters": {
+        "domains": {
+          "name": "domains",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domains",
+          "validator": "bounded_text"
+        },
+        "end": {
+          "name": "end",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "end",
+          "validator": "integer"
+        },
+        "grouping": {
+          "name": "grouping",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "grouping",
+          "validator": "enum"
+        },
+        "interval": {
+          "name": "interval",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "interval",
+          "validator": "enum"
+        },
+        "protocols": {
+          "name": "protocols",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "protocols",
+          "validator": "bounded_text"
+        },
+        "start": {
+          "name": "start",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "start",
+          "validator": "integer"
+        },
+        "timezone": {
+          "name": "timezone",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "timezone",
+          "validator": "bounded_text"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the diagnostics capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account diagnostics read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "BlockIP/add_ip": {
@@ -259,33 +364,39 @@
     "Chkservd/get_exim_ports": {
       "audit_fields": [],
       "capability": "diagnostics",
-      "command": [],
+      "command": [
+        "diagnostics",
+        "exim-ports"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Chkservd/get_exim_ports",
+      "impact": "Read outgoing SMTP ports.",
+      "name": "diagnostics.exim-ports",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the diagnostics capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account diagnostics read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Chkservd/get_exim_ports_ssl": {
       "audit_fields": [],
       "capability": "diagnostics",
-      "command": [],
+      "command": [
+        "diagnostics",
+        "exim-ssl-ports"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Chkservd/get_exim_ports_ssl",
+      "impact": "Read outgoing SMTP SSL ports.",
+      "name": "diagnostics.exim-ssl-ports",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the diagnostics capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account diagnostics read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "ClamScanner/check_disinfection_status": {
@@ -4634,81 +4745,154 @@
     "Features/get_feature_metadata": {
       "audit_fields": [],
       "capability": "diagnostics",
-      "command": [],
+      "command": [
+        "diagnostics",
+        "feature-metadata"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Features/get_feature_metadata",
+      "impact": "Read cPanel feature metadata.",
+      "name": "diagnostics.feature-metadata",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the diagnostics capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account diagnostics read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Features/has_feature": {
       "audit_fields": [],
       "capability": "diagnostics",
-      "command": [],
+      "command": [
+        "diagnostics",
+        "has-feature"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Features/has_feature",
-      "parameters": {},
+      "impact": "Check whether one cPanel feature is available.",
+      "name": "diagnostics.has-feature",
+      "parameters": {
+        "name": {
+          "name": "name",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "name",
+          "validator": "bounded_text"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the diagnostics capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account diagnostics read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Features/has_features_like": {
       "audit_fields": [],
       "capability": "diagnostics",
-      "command": [],
+      "command": [
+        "diagnostics",
+        "has-features-like"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Features/has_features_like",
-      "parameters": {},
+      "impact": "Check whether matching cPanel features are available.",
+      "name": "diagnostics.has-features-like",
+      "parameters": {
+        "is_regex": {
+          "name": "is_regex",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "is_regex",
+          "validator": "integer"
+        },
+        "pattern": {
+          "name": "pattern",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "pattern",
+          "validator": "bounded_text"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the diagnostics capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account diagnostics read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Features/list_features": {
       "audit_fields": [],
       "capability": "diagnostics",
-      "command": [],
+      "command": [
+        "diagnostics",
+        "features"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Features/list_features",
+      "impact": "List available cPanel features.",
+      "name": "diagnostics.features",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the diagnostics capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account diagnostics read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Features/list_features_like": {
       "audit_fields": [],
       "capability": "diagnostics",
-      "command": [],
+      "command": [
+        "diagnostics",
+        "features-like"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Features/list_features_like",
-      "parameters": {},
+      "impact": "List cPanel features matching a pattern.",
+      "name": "diagnostics.features-like",
+      "parameters": {
+        "is_regex": {
+          "name": "is_regex",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "is_regex",
+          "validator": "integer"
+        },
+        "pattern": {
+          "name": "pattern",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "pattern",
+          "validator": "bounded_text"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the diagnostics capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account diagnostics read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Fileman/autocompletedir": {
@@ -5949,17 +6133,20 @@
     "LastLogin/get_last_or_current_logged_in_ip": {
       "audit_fields": [],
       "capability": "diagnostics",
-      "command": [],
+      "command": [
+        "diagnostics",
+        "last-login-ip"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "LastLogin/get_last_or_current_logged_in_ip",
+      "impact": "Read the last or current authenticated login IP address.",
+      "name": "diagnostics.last-login-ip",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the diagnostics capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account diagnostics read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "LogManager/delete_archive": {
@@ -5972,7 +6159,7 @@
       "name": "LogManager/delete_archive",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the diagnostics capability review",
+      "reason": "deletes archived logs and needs a destructive log-management review",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -5981,33 +6168,39 @@
     "LogManager/get_settings": {
       "audit_fields": [],
       "capability": "diagnostics",
-      "command": [],
+      "command": [
+        "diagnostics",
+        "log-settings"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "LogManager/get_settings",
+      "impact": "Read log archival settings.",
+      "name": "diagnostics.log-settings",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the diagnostics capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account diagnostics read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "LogManager/list_archives": {
       "audit_fields": [],
       "capability": "diagnostics",
-      "command": [],
+      "command": [
+        "diagnostics",
+        "log-archives"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "LogManager/list_archives",
+      "impact": "List log archive files.",
+      "name": "diagnostics.log-archives",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the diagnostics capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account diagnostics read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "LogManager/set_settings": {
@@ -6020,7 +6213,7 @@
       "name": "LogManager/set_settings",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the diagnostics capability review",
+      "reason": "changes log retention settings and needs a log-management review",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -7178,49 +7371,58 @@
     "Quota/get_local_quota_info": {
       "audit_fields": [],
       "capability": "diagnostics",
-      "command": [],
+      "command": [
+        "diagnostics",
+        "local-quota"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Quota/get_local_quota_info",
+      "impact": "Read local disk quota information.",
+      "name": "diagnostics.local-quota",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the diagnostics capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account diagnostics read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Quota/get_quota_info": {
       "audit_fields": [],
       "capability": "diagnostics",
-      "command": [],
+      "command": [
+        "diagnostics",
+        "quota"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Quota/get_quota_info",
+      "impact": "Read disk quota information.",
+      "name": "diagnostics.quota",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the diagnostics capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account diagnostics read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "ResourceUsage/get_usages": {
       "audit_fields": [],
       "capability": "diagnostics",
-      "command": [],
+      "command": [
+        "diagnostics",
+        "resource-usage"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "ResourceUsage/get_usages",
+      "impact": "Read account resource usage and custom statistics.",
+      "name": "diagnostics.resource-usage",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the diagnostics capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account diagnostics read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Restore/directory_listing": {
@@ -8181,17 +8383,20 @@
     "ServerInformation/get_information": {
       "audit_fields": [],
       "capability": "diagnostics",
-      "command": [],
+      "command": [
+        "diagnostics",
+        "server-info"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "ServerInformation/get_information",
+      "impact": "Read service and device status exposed to the account.",
+      "name": "diagnostics.server-info",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the diagnostics capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account diagnostics read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "SpamAssassin/clear_spam_box": {
@@ -8299,113 +8504,327 @@
     "Stats/get_bandwidth": {
       "audit_fields": [],
       "capability": "diagnostics",
-      "command": [],
+      "command": [
+        "diagnostics",
+        "bandwidth"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Stats/get_bandwidth",
-      "parameters": {},
+      "impact": "Read bandwidth statistics for all domains.",
+      "name": "diagnostics.bandwidth",
+      "parameters": {
+        "timezone": {
+          "name": "timezone",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "timezone",
+          "validator": "bounded_text"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the diagnostics capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account diagnostics read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Stats/get_site_errors": {
       "audit_fields": [],
       "capability": "diagnostics",
-      "command": [],
+      "command": [
+        "diagnostics",
+        "site-errors"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Stats/get_site_errors",
-      "parameters": {},
+      "impact": "Read recent site error log lines for a domain.",
+      "name": "diagnostics.site-errors",
+      "parameters": {
+        "domain": {
+          "name": "domain",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        },
+        "log": {
+          "name": "log",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "log",
+          "validator": "enum"
+        },
+        "maxlines": {
+          "name": "maxlines",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "maxlines",
+          "validator": "integer"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the diagnostics capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account diagnostics read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Stats/get_stats_daily": {
       "audit_fields": [],
       "capability": "diagnostics",
-      "command": [],
+      "command": [
+        "diagnostics",
+        "awstats-daily"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Stats/get_stats_daily",
-      "parameters": {},
+      "impact": "Read daily AwStats statistics for a domain.",
+      "name": "diagnostics.awstats-daily",
+      "parameters": {
+        "domain": {
+          "name": "domain",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the diagnostics capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account diagnostics read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Stats/list_sites": {
       "audit_fields": [],
       "capability": "diagnostics",
-      "command": [],
+      "command": [
+        "diagnostics",
+        "stats-sites"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Stats/list_sites",
-      "parameters": {},
+      "impact": "List available site statistics reports.",
+      "name": "diagnostics.stats-sites",
+      "parameters": {
+        "engine": {
+          "name": "engine",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "engine",
+          "validator": "enum"
+        },
+        "traffic": {
+          "name": "traffic",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "traffic",
+          "validator": "enum"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the diagnostics capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account diagnostics read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Stats/list_stats_by_domain": {
       "audit_fields": [],
       "capability": "diagnostics",
-      "command": [],
+      "command": [
+        "diagnostics",
+        "stats-domain"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Stats/list_stats_by_domain",
-      "parameters": {},
+      "impact": "Read statistics report availability for one domain.",
+      "name": "diagnostics.stats-domain",
+      "parameters": {
+        "domain": {
+          "name": "domain",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        },
+        "engine": {
+          "name": "engine",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "engine",
+          "validator": "enum"
+        },
+        "ssl": {
+          "name": "ssl",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "ssl",
+          "validator": "integer"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the diagnostics capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account diagnostics read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "StatsBar/get_stats": {
       "audit_fields": [],
       "capability": "diagnostics",
-      "command": [],
+      "command": [
+        "diagnostics",
+        "stats-bar"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "StatsBar/get_stats",
-      "parameters": {},
+      "impact": "Read cPanel account statistics bar data.",
+      "name": "diagnostics.stats-bar",
+      "parameters": {
+        "display": {
+          "name": "display",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "display",
+          "validator": "bounded_text"
+        },
+        "infinityimg": {
+          "name": "infinityimg",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "infinityimg",
+          "validator": "bounded_text"
+        },
+        "infinitylang": {
+          "name": "infinitylang",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "infinitylang",
+          "validator": "bounded_text"
+        },
+        "rowcounter": {
+          "name": "rowcounter",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "rowcounter",
+          "validator": "bounded_text"
+        },
+        "warninglevel": {
+          "name": "warninglevel",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "warninglevel",
+          "validator": "integer"
+        },
+        "warnings": {
+          "name": "warnings",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "warnings",
+          "validator": "integer"
+        },
+        "warnout": {
+          "name": "warnout",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "warnout",
+          "validator": "integer"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the diagnostics capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account diagnostics read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "StatsManager/get_configuration": {
       "audit_fields": [],
       "capability": "diagnostics",
-      "command": [],
+      "command": [
+        "diagnostics",
+        "stats-config"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "StatsManager/get_configuration",
+      "impact": "Read weblog analyzer configuration.",
+      "name": "diagnostics.stats-config",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the diagnostics capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account diagnostics read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "StatsManager/save_configuration": {
@@ -8418,7 +8837,7 @@
       "name": "StatsManager/save_configuration",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the diagnostics capability review",
+      "reason": "changes weblog analyzer configuration and needs a diagnostics settings review",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -8532,49 +8951,94 @@
     "Variables/get_server_information": {
       "audit_fields": [],
       "capability": "diagnostics",
-      "command": [],
+      "command": [
+        "diagnostics",
+        "server-variable"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Variables/get_server_information",
-      "parameters": {},
+      "impact": "Read an allowed server configuration variable exposed to the account.",
+      "name": "diagnostics.server-variable",
+      "parameters": {
+        "name": {
+          "name": "name",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "name",
+          "validator": "enum"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the diagnostics capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account diagnostics read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Variables/get_session_information": {
       "audit_fields": [],
       "capability": "diagnostics",
-      "command": [],
+      "command": [
+        "diagnostics",
+        "session-variable"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Variables/get_session_information",
-      "parameters": {},
+      "impact": "Read an allowed session variable exposed to the account.",
+      "name": "diagnostics.session-variable",
+      "parameters": {
+        "name": {
+          "name": "name",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "name",
+          "validator": "enum"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the diagnostics capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account diagnostics read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Variables/get_user_information": {
       "audit_fields": [],
       "capability": "diagnostics",
-      "command": [],
+      "command": [
+        "diagnostics",
+        "user-variable"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Variables/get_user_information",
-      "parameters": {},
+      "impact": "Read an account configuration variable.",
+      "name": "diagnostics.user-variable",
+      "parameters": {
+        "name": {
+          "name": "name",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "name",
+          "validator": "bounded_text"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the diagnostics capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account diagnostics read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "VersionControl/create": {

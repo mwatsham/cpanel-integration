@@ -655,6 +655,28 @@ def test_ftp_account_creation_uses_protected_password_stdin(cli_env) -> None:
     assert transport.calls == []
 
 
+def test_diagnostics_quota_uses_fixed_readonly_uapi(cli_env) -> None:
+    env, key = cli_env
+    add_profile(env, key)
+    transport = FakeTransport([UAPIResponse({"used": 123, "limit": 456}, [], [])])
+
+    code, payload, stderr = invoke(
+        ["--profile", "test", "diagnostics", "quota"],
+        env=env,
+        transport=transport,
+    )
+
+    assert code == 0
+    assert stderr == ""
+    assert payload["operation"] == "diagnostics.quota"
+    assert payload["data"] == {"used": 123, "limit": 456}
+    assert (transport.calls[0]["module"], transport.calls[0]["function"]) == (
+        "Quota",
+        "get_quota_info",
+    )
+    assert transport.calls[0]["parameters"] == {}
+
+
 def test_email_domain_forwarder_dry_run_binds_routing_target(cli_env) -> None:
     env, key = cli_env
     add_profile(env, key)

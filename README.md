@@ -7,12 +7,14 @@ named profiles, structured JSON, and operation-bound confirmation for destructiv
 ## Scope
 
 The skill supports domains, account files, SSL certificates, MySQL/MariaDB databases, reviewed
-email administration, and reviewed FTP account administration. Email support covers mailbox
+email administration, reviewed FTP account administration, and read-only account diagnostics. Email support covers mailbox
 accounts, quotas, passwords, forwarders, autoresponders, filter state, spam controls, MX routing,
 SPF, and DKIM. FTP support covers account listing, creation, deletion, passwords, quotas, home
-directories, sessions, server information, and welcome messages. It does not support WHM, root or
-reseller administration, account provisioning, server settings, browser automation, deprecated API
-2, anonymous FTP configuration changes, or arbitrary UAPI calls.
+directories, sessions, server information, and welcome messages. Diagnostics support covers quota,
+resource usage, bandwidth, stats, features, login IP, log settings, and account/server variables
+exposed to the cPanel account. It does not support WHM, root or reseller administration, account
+provisioning, server settings, browser automation, deprecated API 2, anonymous FTP configuration
+changes, diagnostics setting changes, or arbitrary UAPI calls.
 
 ## Install
 
@@ -98,6 +100,9 @@ Global options precede the capability group:
 .venv/bin/cpanel-admin --profile production ftp accounts
 .venv/bin/cpanel-admin --profile production ftp sessions
 .venv/bin/cpanel-admin --profile production ftp quota --account deploy --domain example.com
+.venv/bin/cpanel-admin --profile production diagnostics quota
+.venv/bin/cpanel-admin --profile production diagnostics resource-usage
+.venv/bin/cpanel-admin --profile production diagnostics site-errors --domain example.com --maxlines 50
 ```
 
 Non-destructive mutations support a review step:
