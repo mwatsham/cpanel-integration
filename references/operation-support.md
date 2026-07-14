@@ -4,8 +4,8 @@
 
 - Source UAPI version: `11.136.0.25`
 - Source SHA-256: `3d9ec80cd8d774312c4bb6b0dfdbc17e6e6ffc92a8f0c2cd88f01e32864fa2c6`
-- Included operations: 175
-- Excluded operations: 218
+- Included operations: 190
+- Excluded operations: 203
 
 The local allowlist is an application safeguard, not a substitute for cPanel account permissions. This catalog does not provide arbitrary UAPI passthrough.
 
@@ -234,17 +234,17 @@ The local allowlist is an application safeguard, not a substitute for cPanel acc
 | `KnownHosts/delete` | excluded | security | - | removes SSH known_hosts state and needs host-key fingerprint review |
 | `KnownHosts/update` | excluded | security | - | changes SSH known_hosts state and needs host-key fingerprint review |
 | `KnownHosts/verify` | included | security | read | reviewed account security read operation |
-| `LangPHP/php_get_domain_handler` | excluded | runtime | - | not enabled until the runtime capability review |
-| `LangPHP/php_get_impacted_domains` | excluded | runtime | - | not enabled until the runtime capability review |
-| `LangPHP/php_get_installed_versions` | excluded | runtime | - | not enabled until the runtime capability review |
-| `LangPHP/php_get_system_default_version` | excluded | runtime | - | not enabled until the runtime capability review |
-| `LangPHP/php_get_vhost_versions` | excluded | runtime | - | not enabled until the runtime capability review |
-| `LangPHP/php_ini_get_user_basic_directives` | excluded | runtime | - | not enabled until the runtime capability review |
-| `LangPHP/php_ini_get_user_content` | excluded | runtime | - | not enabled until the runtime capability review |
-| `LangPHP/php_ini_get_user_paths` | excluded | runtime | - | not enabled until the runtime capability review |
-| `LangPHP/php_ini_set_user_basic_directives` | excluded | runtime | - | not enabled until the runtime capability review |
-| `LangPHP/php_ini_set_user_content` | excluded | runtime | - | not enabled until the runtime capability review |
-| `LangPHP/php_set_vhost_versions` | excluded | runtime | - | not enabled until the runtime capability review |
+| `LangPHP/php_get_domain_handler` | included | runtime | read | reviewed runtime read operation |
+| `LangPHP/php_get_impacted_domains` | included | runtime | read | reviewed runtime read operation |
+| `LangPHP/php_get_installed_versions` | included | runtime | read | reviewed runtime read operation |
+| `LangPHP/php_get_system_default_version` | included | runtime | read | reviewed runtime read operation |
+| `LangPHP/php_get_vhost_versions` | included | runtime | read | reviewed runtime read operation |
+| `LangPHP/php_ini_get_user_basic_directives` | included | runtime | read | reviewed runtime read operation |
+| `LangPHP/php_ini_get_user_content` | included | runtime | read | reviewed runtime read operation |
+| `LangPHP/php_ini_get_user_paths` | included | runtime | read | reviewed runtime read operation |
+| `LangPHP/php_ini_set_user_basic_directives` | excluded | runtime | - | PHP directive writes need a structured directive adapter |
+| `LangPHP/php_ini_set_user_content` | excluded | runtime | - | raw php.ini writes need protected content input review |
+| `LangPHP/php_set_vhost_versions` | excluded | runtime | - | PHP version changes need domain impact preflight |
 | `LastLogin/get_last_or_current_logged_in_ip` | included | diagnostics | read | reviewed account diagnostics read operation |
 | `LogManager/delete_archive` | excluded | diagnostics | - | deletes archived logs and needs a destructive log-management review |
 | `LogManager/get_settings` | included | diagnostics | read | reviewed account diagnostics read operation |
@@ -300,17 +300,17 @@ The local allowlist is an application safeguard, not a substitute for cPanel acc
 | `Mysql/set_privileges_on_database` | included | databases | mutate | supported by the existing MVP operation set |
 | `Mysql/setup_db_and_user` | excluded | databases | - | not enabled until the database capability review |
 | `Mysql/update_privileges` | excluded | databases | - | not enabled until the database capability review |
-| `NginxCaching/clear_cache` | excluded | runtime | - | not enabled until the runtime capability review |
-| `NginxCaching/disable_cache` | excluded | runtime | - | not enabled until the runtime capability review |
-| `NginxCaching/enable_cache` | excluded | runtime | - | not enabled until the runtime capability review |
-| `NginxCaching/reset_cache_config` | excluded | runtime | - | not enabled until the runtime capability review |
-| `PassengerApps/disable_application` | excluded | runtime | - | not enabled until the runtime capability review |
-| `PassengerApps/edit_application` | excluded | runtime | - | not enabled until the runtime capability review |
-| `PassengerApps/enable_application` | excluded | runtime | - | not enabled until the runtime capability review |
-| `PassengerApps/ensure_deps` | excluded | runtime | - | not enabled until the runtime capability review |
-| `PassengerApps/list_applications` | excluded | runtime | - | not enabled until the runtime capability review |
-| `PassengerApps/register_application` | excluded | runtime | - | not enabled until the runtime capability review |
-| `PassengerApps/unregister_application` | excluded | runtime | - | not enabled until the runtime capability review |
+| `NginxCaching/clear_cache` | included | runtime | mutate | reviewed runtime operation |
+| `NginxCaching/disable_cache` | included | runtime | mutate | reviewed runtime operation |
+| `NginxCaching/enable_cache` | included | runtime | mutate | reviewed runtime operation |
+| `NginxCaching/reset_cache_config` | included | runtime | mutate | reviewed runtime operation |
+| `PassengerApps/disable_application` | excluded | runtime | - | Passenger lifecycle changes need app-state preflight |
+| `PassengerApps/edit_application` | excluded | runtime | - | Passenger edits need structured app and env var adapters |
+| `PassengerApps/enable_application` | excluded | runtime | - | Passenger lifecycle changes need app-state preflight |
+| `PassengerApps/ensure_deps` | excluded | runtime | - | dependency installation can execute package manager code |
+| `PassengerApps/list_applications` | included | runtime | read | reviewed runtime read operation |
+| `PassengerApps/register_application` | excluded | runtime | - | Passenger registration needs path and env var adapters |
+| `PassengerApps/unregister_application` | excluded | runtime | - | Passenger removal needs app-state preflight |
 | `Quota/get_local_quota_info` | included | diagnostics | read | reviewed account diagnostics read operation |
 | `Quota/get_quota_info` | included | diagnostics | read | reviewed account diagnostics read operation |
 | `ResourceUsage/get_usages` | included | diagnostics | read | reviewed account diagnostics read operation |
@@ -389,13 +389,13 @@ The local allowlist is an application safeguard, not a substitute for cPanel acc
 | `Variables/get_server_information` | included | diagnostics | read | reviewed account diagnostics read operation |
 | `Variables/get_session_information` | included | diagnostics | read | reviewed account diagnostics read operation |
 | `Variables/get_user_information` | included | diagnostics | read | reviewed account diagnostics read operation |
-| `VersionControl/create` | excluded | runtime | - | not enabled until the runtime capability review |
-| `VersionControl/delete` | excluded | runtime | - | not enabled until the runtime capability review |
-| `VersionControl/retrieve` | excluded | runtime | - | not enabled until the runtime capability review |
-| `VersionControl/update` | excluded | runtime | - | not enabled until the runtime capability review |
-| `VersionControlDeployment/create` | excluded | runtime | - | not enabled until the runtime capability review |
-| `VersionControlDeployment/delete` | excluded | runtime | - | not enabled until the runtime capability review |
-| `VersionControlDeployment/retrieve` | excluded | runtime | - | not enabled until the runtime capability review |
+| `VersionControl/create` | excluded | runtime | - | Git repository creation needs source repository adapter review |
+| `VersionControl/delete` | excluded | runtime | - | Git repository deletion is destructive and needs repository preflight |
+| `VersionControl/retrieve` | included | runtime | read | reviewed runtime read operation |
+| `VersionControl/update` | excluded | runtime | - | Git repository updates need source repository adapter review |
+| `VersionControlDeployment/create` | excluded | runtime | - | deployment task creation needs repository state preflight |
+| `VersionControlDeployment/delete` | excluded | runtime | - | deployment task deletion needs task-state preflight |
+| `VersionControlDeployment/retrieve` | included | runtime | read | reviewed runtime read operation |
 | `WebVhosts/list_domains` | excluded | domains | - | not enabled until the domain capability review |
 | `WebVhosts/list_ssl_capable_domains` | included | domains | read | supported by the existing MVP operation set |
 | `cPGreyList/disable_all_domains` | included | email | mutate | reviewed email security administration operation |

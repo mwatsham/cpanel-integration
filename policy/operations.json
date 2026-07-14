@@ -6044,129 +6044,257 @@
     "LangPHP/php_get_domain_handler": {
       "audit_fields": [],
       "capability": "runtime",
-      "command": [],
+      "command": [
+        "runtime",
+        "php-domain-handler"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "LangPHP/php_get_domain_handler",
-      "parameters": {},
+      "impact": "Read the PHP handler for home or a virtual host.",
+      "name": "runtime.php-domain-handler",
+      "parameters": {
+        "type": {
+          "name": "type",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "type",
+          "validator": "enum"
+        },
+        "vhost": {
+          "name": "vhost",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "vhost",
+          "validator": "domain"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the runtime capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed runtime read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "LangPHP/php_get_impacted_domains": {
       "audit_fields": [],
       "capability": "runtime",
-      "command": [],
+      "command": [
+        "runtime",
+        "php-impacted-domains"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "LangPHP/php_get_impacted_domains",
-      "parameters": {},
+      "impact": "Read domains impacted by shared PHP configuration.",
+      "name": "runtime.php-impacted-domains",
+      "parameters": {
+        "domain": {
+          "name": "domain",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domain",
+          "validator": "domain"
+        },
+        "system_default": {
+          "name": "system_default",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "system_default",
+          "validator": "integer"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the runtime capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed runtime read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "LangPHP/php_get_installed_versions": {
       "audit_fields": [],
       "capability": "runtime",
-      "command": [],
+      "command": [
+        "runtime",
+        "php-installed"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "LangPHP/php_get_installed_versions",
+      "impact": "Read installed PHP versions.",
+      "name": "runtime.php-installed",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the runtime capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed runtime read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "LangPHP/php_get_system_default_version": {
       "audit_fields": [],
       "capability": "runtime",
-      "command": [],
+      "command": [
+        "runtime",
+        "php-default"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "LangPHP/php_get_system_default_version",
+      "impact": "Read the system default PHP version.",
+      "name": "runtime.php-default",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the runtime capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed runtime read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "LangPHP/php_get_vhost_versions": {
       "audit_fields": [],
       "capability": "runtime",
-      "command": [],
+      "command": [
+        "runtime",
+        "php-vhosts"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "LangPHP/php_get_vhost_versions",
-      "parameters": {},
+      "impact": "Read PHP versions assigned to virtual hosts.",
+      "name": "runtime.php-vhosts",
+      "parameters": {
+        "vhost": {
+          "name": "vhost",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "vhost",
+          "validator": "domain"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the runtime capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed runtime read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "LangPHP/php_ini_get_user_basic_directives": {
       "audit_fields": [],
       "capability": "runtime",
-      "command": [],
+      "command": [
+        "runtime",
+        "php-directives"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "LangPHP/php_ini_get_user_basic_directives",
-      "parameters": {},
+      "impact": "Read basic user PHP directives.",
+      "name": "runtime.php-directives",
+      "parameters": {
+        "type": {
+          "name": "type",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "type",
+          "validator": "enum"
+        },
+        "vhost": {
+          "name": "vhost",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "vhost",
+          "validator": "domain"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the runtime capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed runtime read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "LangPHP/php_ini_get_user_content": {
       "audit_fields": [],
       "capability": "runtime",
-      "command": [],
+      "command": [
+        "runtime",
+        "php-ini-content"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "LangPHP/php_ini_get_user_content",
-      "parameters": {},
+      "impact": "Read user php.ini content for home or a virtual host.",
+      "name": "runtime.php-ini-content",
+      "parameters": {
+        "type": {
+          "name": "type",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "type",
+          "validator": "bounded_text"
+        },
+        "vhost": {
+          "name": "vhost",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "vhost",
+          "validator": "domain"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the runtime capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed runtime read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "LangPHP/php_ini_get_user_paths": {
       "audit_fields": [],
       "capability": "runtime",
-      "command": [],
+      "command": [
+        "runtime",
+        "php-ini-paths"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "LangPHP/php_ini_get_user_paths",
+      "impact": "Read user php.ini file paths.",
+      "name": "runtime.php-ini-paths",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the runtime capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed runtime read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "LangPHP/php_ini_set_user_basic_directives": {
@@ -6179,7 +6307,7 @@
       "name": "LangPHP/php_ini_set_user_basic_directives",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the runtime capability review",
+      "reason": "PHP directive writes need a structured directive adapter",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -6195,7 +6323,7 @@
       "name": "LangPHP/php_ini_set_user_content",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the runtime capability review",
+      "reason": "raw php.ini writes need protected content input review",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -6211,7 +6339,7 @@
       "name": "LangPHP/php_set_vhost_versions",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the runtime capability review",
+      "reason": "PHP version changes need domain impact preflight",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -7328,65 +7456,77 @@
     "NginxCaching/clear_cache": {
       "audit_fields": [],
       "capability": "runtime",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "runtime",
+        "nginx-clear-cache"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "NginxCaching/clear_cache",
+      "impact": "Clear the account NGINX cache contents.",
+      "name": "runtime.nginx-clear-cache",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the runtime capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed runtime operation",
+      "recovery": "Cache content will be regenerated on subsequent requests.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "NginxCaching/disable_cache": {
       "audit_fields": [],
       "capability": "runtime",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "runtime",
+        "nginx-disable-cache"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "NginxCaching/disable_cache",
+      "impact": "Disable NGINX caching for the account.",
+      "name": "runtime.nginx-disable-cache",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the runtime capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed runtime operation",
+      "recovery": "Enable NGINX caching again if required.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "NginxCaching/enable_cache": {
       "audit_fields": [],
       "capability": "runtime",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "runtime",
+        "nginx-enable-cache"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "NginxCaching/enable_cache",
+      "impact": "Enable NGINX caching for the account.",
+      "name": "runtime.nginx-enable-cache",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the runtime capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed runtime operation",
+      "recovery": "Disable NGINX caching again if required.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "NginxCaching/reset_cache_config": {
       "audit_fields": [],
       "capability": "runtime",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "runtime",
+        "nginx-reset-cache"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "NginxCaching/reset_cache_config",
+      "impact": "Reset the account NGINX cache configuration.",
+      "name": "runtime.nginx-reset-cache",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the runtime capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed runtime operation",
+      "recovery": "Reapply the previous cache configuration if required.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "PassengerApps/disable_application": {
@@ -7399,7 +7539,7 @@
       "name": "PassengerApps/disable_application",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the runtime capability review",
+      "reason": "Passenger lifecycle changes need app-state preflight",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -7415,7 +7555,7 @@
       "name": "PassengerApps/edit_application",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the runtime capability review",
+      "reason": "Passenger edits need structured app and env var adapters",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -7431,7 +7571,7 @@
       "name": "PassengerApps/enable_application",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the runtime capability review",
+      "reason": "Passenger lifecycle changes need app-state preflight",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -7447,7 +7587,7 @@
       "name": "PassengerApps/ensure_deps",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the runtime capability review",
+      "reason": "dependency installation can execute package manager code",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -7456,17 +7596,20 @@
     "PassengerApps/list_applications": {
       "audit_fields": [],
       "capability": "runtime",
-      "command": [],
+      "command": [
+        "runtime",
+        "passenger-apps"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "PassengerApps/list_applications",
+      "impact": "List Passenger applications.",
+      "name": "runtime.passenger-apps",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the runtime capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed runtime read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "PassengerApps/register_application": {
@@ -7479,7 +7622,7 @@
       "name": "PassengerApps/register_application",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the runtime capability review",
+      "reason": "Passenger registration needs path and env var adapters",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -7495,7 +7638,7 @@
       "name": "PassengerApps/unregister_application",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the runtime capability review",
+      "reason": "Passenger removal needs app-state preflight",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -9190,7 +9333,7 @@
       "name": "VersionControl/create",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the runtime capability review",
+      "reason": "Git repository creation needs source repository adapter review",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -9206,7 +9349,7 @@
       "name": "VersionControl/delete",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the runtime capability review",
+      "reason": "Git repository deletion is destructive and needs repository preflight",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -9215,17 +9358,32 @@
     "VersionControl/retrieve": {
       "audit_fields": [],
       "capability": "runtime",
-      "command": [],
+      "command": [
+        "runtime",
+        "version-control"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "VersionControl/retrieve",
-      "parameters": {},
+      "impact": "List Git repositories configured in cPanel.",
+      "name": "runtime.version-control",
+      "parameters": {
+        "fields": {
+          "name": "fields",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "fields",
+          "validator": "bounded_text"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the runtime capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed runtime read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "VersionControl/update": {
@@ -9238,7 +9396,7 @@
       "name": "VersionControl/update",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the runtime capability review",
+      "reason": "Git repository updates need source repository adapter review",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -9254,7 +9412,7 @@
       "name": "VersionControlDeployment/create",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the runtime capability review",
+      "reason": "deployment task creation needs repository state preflight",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -9270,7 +9428,7 @@
       "name": "VersionControlDeployment/delete",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the runtime capability review",
+      "reason": "deployment task deletion needs task-state preflight",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -9279,17 +9437,20 @@
     "VersionControlDeployment/retrieve": {
       "audit_fields": [],
       "capability": "runtime",
-      "command": [],
+      "command": [
+        "runtime",
+        "deployments"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "VersionControlDeployment/retrieve",
+      "impact": "Read Git deployment task status.",
+      "name": "runtime.deployments",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the runtime capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed runtime read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "WebVhosts/list_domains": {

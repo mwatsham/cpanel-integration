@@ -697,6 +697,28 @@ def test_security_block_ip_dry_run_uses_bound_confirmation(cli_env) -> None:
     assert transport.calls == []
 
 
+def test_runtime_php_installed_versions_uses_fixed_readonly_uapi(cli_env) -> None:
+    env, key = cli_env
+    add_profile(env, key)
+    transport = FakeTransport([UAPIResponse(["ea-php82", "ea-php83"], [], [])])
+
+    code, payload, stderr = invoke(
+        ["--profile", "test", "runtime", "php-installed"],
+        env=env,
+        transport=transport,
+    )
+
+    assert code == 0
+    assert stderr == ""
+    assert payload["operation"] == "runtime.php-installed"
+    assert payload["data"] == ["ea-php82", "ea-php83"]
+    assert (transport.calls[0]["module"], transport.calls[0]["function"]) == (
+        "LangPHP",
+        "php_get_installed_versions",
+    )
+    assert transport.calls[0]["parameters"] == {}
+
+
 def test_email_domain_forwarder_dry_run_binds_routing_target(cli_env) -> None:
     env, key = cli_env
     add_profile(env, key)

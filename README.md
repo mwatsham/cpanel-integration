@@ -7,17 +7,20 @@ named profiles, structured JSON, and operation-bound confirmation for destructiv
 ## Scope
 
 The skill supports domains, account files, SSL certificates, MySQL/MariaDB databases, reviewed
-email administration, reviewed FTP account administration, read-only account diagnostics, and
-reviewed cPanel account security controls. Email support covers mailbox accounts, quotas,
+email administration, reviewed FTP account administration, read-only account diagnostics, reviewed
+cPanel account security controls, and reviewed runtime/site operations. Email support covers mailbox accounts, quotas,
 passwords, forwarders, autoresponders, filter state, spam controls, MX routing, SPF, and DKIM. FTP
 support covers account listing, creation, deletion, passwords, quotas, home directories, sessions,
 server information, and welcome messages. Diagnostics support covers quota, resource usage,
 bandwidth, stats, features, login IP, log settings, and account/server variables exposed to the
 cPanel account. Security support covers IP blocking, ModSecurity status/toggles, ClamAV status
 reads, notification preference reads, known-host verification, SSH port reads, and task queue reads.
-It does not support WHM, root or reseller administration, account provisioning, server settings,
-browser automation, deprecated API 2, anonymous FTP configuration changes, diagnostics setting
-changes, malware disinfection, secret token export, or arbitrary UAPI calls.
+Runtime support covers PHP version/config reads, NGINX cache controls, Passenger app listing, Git
+repository listing, and deployment status reads. It does not support WHM, root or reseller
+administration, account provisioning, server settings, browser automation, deprecated API 2,
+anonymous FTP configuration changes, diagnostics setting changes, malware disinfection, secret
+token export, PHP config writes, Passenger app lifecycle changes, Git repository mutation, or
+arbitrary UAPI calls.
 
 ## Install
 
@@ -109,6 +112,9 @@ Global options precede the capability group:
 .venv/bin/cpanel-admin --profile production security modsec-domains
 .venv/bin/cpanel-admin --profile production security block-ip --ip 203.0.113.9 --dry-run
 .venv/bin/cpanel-admin --profile production security known-host-verify --host-name example.com
+.venv/bin/cpanel-admin --profile production runtime php-installed
+.venv/bin/cpanel-admin --profile production runtime passenger-apps
+.venv/bin/cpanel-admin --profile production runtime nginx-clear-cache --dry-run
 ```
 
 Non-destructive mutations support a review step:
