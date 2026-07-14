@@ -69,7 +69,7 @@ EXPECTED_CANDIDATE_OPERATIONS = 393
 EXPECTED_CANDIDATE_IDENTITY_SHA256 = (
     "834c8bd9c048d93e9089fd22a7c569d4923cc8a5c9ecbc4172123ec2276a6ecb"
 )
-EXPECTED_POLICY_SHA256 = "edaa7b9e769d8c281577bea51fc37a5f9ae1920e799cef2b931d7ad2dee85c7c"
+EXPECTED_POLICY_SHA256 = "5b24d17b6d1df9a6a5a8a880881941ffd63e6a32cfd4954382ec338548df1f7f"
 
 _PROTECTED_SECRET_SOURCES = frozenset(
     {
@@ -227,6 +227,15 @@ _PROTECTED_INPUT_CONTRACTS = MappingProxyType(
                 sensitive_output=True,
             ),
             ("Email/passwd_pop", "password"): PolicyParameter(
+                name="password",
+                uapi_name="password",
+                sources=(InputSource.STDIN,),
+                validator="secret",
+                required=True,
+                secret=True,
+                sensitive_output=True,
+            ),
+            ("Email/verify_password", "password"): PolicyParameter(
                 name="password",
                 uapi_name="password",
                 sources=(InputSource.STDIN,),

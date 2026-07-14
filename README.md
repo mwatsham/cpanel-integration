@@ -85,8 +85,10 @@ Global options precede the capability group:
 .venv/bin/cpanel-admin --profile production ssl hosts
 .venv/bin/cpanel-admin --profile production databases list
 .venv/bin/cpanel-admin --profile production email accounts
+.venv/bin/cpanel-admin --profile production email accounts-disk --domain example.com
 .venv/bin/cpanel-admin --profile production email forwarders --domain example.com
 .venv/bin/cpanel-admin --profile production email mx-list --domain example.com
+.venv/bin/cpanel-admin --profile production email mailbox-status --account admin@example.com
 ```
 
 Non-destructive mutations support a review step:
@@ -102,6 +104,13 @@ the command line:
 ```bash
 printf '%s' "$MAILBOX_PASSWORD" | .venv/bin/cpanel-admin --profile staging email create-account \
   --email admin --domain example.com --password-stdin --dry-run
+```
+
+Password verification also uses standard input and does not echo the password in JSON output:
+
+```bash
+printf '%s' "$MAILBOX_PASSWORD" | .venv/bin/cpanel-admin --profile staging email verify-password \
+  --email admin@example.com --password-stdin
 ```
 
 Destructive actions require two commands. First request a five-minute plan:

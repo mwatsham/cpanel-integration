@@ -4,8 +4,8 @@
 
 - Source UAPI version: `11.136.0.25`
 - Source SHA-256: `3d9ec80cd8d774312c4bb6b0dfdbc17e6e6ffc92a8f0c2cd88f01e32864fa2c6`
-- Included operations: 52
-- Excluded operations: 341
+- Included operations: 80
+- Excluded operations: 313
 
 The local allowlist is an application safeguard, not a substitute for cPanel account permissions. This catalog does not provide arbitrary UAPI passthrough.
 
@@ -89,7 +89,7 @@ The local allowlist is an application safeguard, not a substitute for cPanel acc
 | `DynamicDNS/list` | excluded | domains | - | not enabled until the domain capability review |
 | `DynamicDNS/recreate` | excluded | domains | - | not enabled until the domain capability review |
 | `DynamicDNS/set_description` | excluded | domains | - | not enabled until the domain capability review |
-| `Email/account_name` | excluded | email | - | not enabled until the email capability review |
+| `Email/account_name` | included | email | read | reviewed email account administration operation |
 | `Email/add_auto_responder` | included | email | mutate | reviewed email administration operation |
 | `Email/add_domain_forwarder` | excluded | email | - | not enabled until the email capability review |
 | `Email/add_forwarder` | included | email | mutate | reviewed email administration operation |
@@ -105,7 +105,7 @@ The local allowlist is an application safeguard, not a substitute for cPanel acc
 | `Email/count_filters` | excluded | email | - | not enabled until the email capability review |
 | `Email/count_forwarders` | excluded | email | - | not enabled until the email capability review |
 | `Email/count_lists` | excluded | email | - | not enabled until the email capability review |
-| `Email/count_pops` | excluded | email | - | not enabled until the email capability review |
+| `Email/count_pops` | included | email | read | reviewed email account administration operation |
 | `Email/delete_auto_responder` | included | email | destructive | reviewed email administration operation |
 | `Email/delete_domain_forwarder` | excluded | email | - | not enabled until the email capability review |
 | `Email/delete_filter` | included | email | destructive | reviewed email administration operation |
@@ -115,14 +115,14 @@ The local allowlist is an application safeguard, not a substitute for cPanel acc
 | `Email/delete_mx` | included | email | destructive | reviewed email administration operation |
 | `Email/delete_pop` | included | email | destructive | reviewed email administration operation |
 | `Email/disable_filter` | included | email | mutate | reviewed email administration operation |
-| `Email/disable_mailbox_autocreate` | excluded | email | - | not enabled until the email capability review |
+| `Email/disable_mailbox_autocreate` | included | email | mutate | reviewed email account administration operation |
 | `Email/disable_spam_assassin` | included | email | mutate | reviewed email administration operation |
 | `Email/disable_spam_autodelete` | excluded | email | - | not enabled until the email capability review |
 | `Email/disable_spam_box` | included | email | mutate | reviewed email administration operation |
 | `Email/dispatch_client_settings` | excluded | email | - | not enabled until the email capability review |
 | `Email/edit_pop_quota` | included | email | mutate | reviewed email administration operation |
 | `Email/enable_filter` | included | email | mutate | reviewed email administration operation |
-| `Email/enable_mailbox_autocreate` | excluded | email | - | not enabled until the email capability review |
+| `Email/enable_mailbox_autocreate` | included | email | mutate | reviewed email account administration operation |
 | `Email/enable_spam_assassin` | included | email | mutate | reviewed email administration operation |
 | `Email/enable_spam_box` | included | email | mutate | reviewed email administration operation |
 | `Email/export_lists` | excluded | email | - | not enabled until the email capability review |
@@ -132,24 +132,24 @@ The local allowlist is an application safeguard, not a substitute for cPanel acc
 | `Email/get_auto_responder` | excluded | email | - | not enabled until the email capability review |
 | `Email/get_charsets` | excluded | email | - | not enabled until the email capability review |
 | `Email/get_client_settings` | excluded | email | - | not enabled until the email capability review |
-| `Email/get_default_email_quota` | excluded | email | - | not enabled until the email capability review |
-| `Email/get_default_email_quota_mib` | excluded | email | - | not enabled until the email capability review |
-| `Email/get_disk_usage` | excluded | email | - | not enabled until the email capability review |
+| `Email/get_default_email_quota` | included | email | read | reviewed email account administration operation |
+| `Email/get_default_email_quota_mib` | included | email | read | reviewed email account administration operation |
+| `Email/get_disk_usage` | included | email | read | reviewed email account administration operation |
 | `Email/get_filter` | excluded | email | - | not enabled until the email capability review |
 | `Email/get_held_message_count` | excluded | email | - | not enabled until the email capability review |
 | `Email/get_lists_total_disk_usage` | excluded | email | - | not enabled until the email capability review |
-| `Email/get_mailbox_autocreate` | excluded | email | - | not enabled until the email capability review |
+| `Email/get_mailbox_autocreate` | included | email | read | reviewed email account administration operation |
 | `Email/get_mailman_delegates` | excluded | email | - | not enabled until the email capability review |
-| `Email/get_main_account_disk_usage` | excluded | email | - | not enabled until the email capability review |
-| `Email/get_main_account_disk_usage_bytes` | excluded | email | - | not enabled until the email capability review |
-| `Email/get_max_email_quota` | excluded | email | - | not enabled until the email capability review |
-| `Email/get_max_email_quota_mib` | excluded | email | - | not enabled until the email capability review |
-| `Email/get_pop_quota` | excluded | email | - | not enabled until the email capability review |
+| `Email/get_main_account_disk_usage` | included | email | read | reviewed email account administration operation |
+| `Email/get_main_account_disk_usage_bytes` | included | email | read | reviewed email account administration operation |
+| `Email/get_max_email_quota` | included | email | read | reviewed email account administration operation |
+| `Email/get_max_email_quota_mib` | included | email | read | reviewed email account administration operation |
+| `Email/get_pop_quota` | included | email | read | reviewed email account administration operation |
 | `Email/get_spam_settings` | included | email | read | reviewed email administration operation |
 | `Email/get_webmail_settings` | excluded | email | - | not enabled until the email capability review |
 | `Email/has_delegated_mailman_lists` | excluded | email | - | not enabled until the email capability review |
 | `Email/has_plaintext_authentication` | excluded | email | - | not enabled until the email capability review |
-| `Email/hold_outgoing` | excluded | email | - | not enabled until the email capability review |
+| `Email/hold_outgoing` | included | email | mutate | reviewed email account administration operation |
 | `Email/list_auto_responders` | included | email | read | reviewed email administration operation |
 | `Email/list_default_address` | excluded | email | - | not enabled until the email capability review |
 | `Email/list_domain_forwarders` | excluded | email | - | not enabled until the email capability review |
@@ -158,14 +158,14 @@ The local allowlist is an application safeguard, not a substitute for cPanel acc
 | `Email/list_forwarders` | included | email | read | reviewed email administration operation |
 | `Email/list_forwarders_backups` | excluded | email | - | not enabled until the email capability review |
 | `Email/list_lists` | excluded | email | - | not enabled until the email capability review |
-| `Email/list_mail_domains` | excluded | email | - | not enabled until the email capability review |
+| `Email/list_mail_domains` | included | email | read | reviewed email account administration operation |
 | `Email/list_mxs` | included | email | read | reviewed email administration operation |
 | `Email/list_pops` | included | email | read | reviewed email administration operation |
-| `Email/list_pops_with_disk` | excluded | email | - | not enabled until the email capability review |
+| `Email/list_pops_with_disk` | included | email | read | reviewed email account administration operation |
 | `Email/list_system_filter_info` | excluded | email | - | not enabled until the email capability review |
 | `Email/passwd_list` | excluded | email | - | not enabled until the email capability review |
 | `Email/passwd_pop` | included | email | mutate | reviewed email administration operation |
-| `Email/release_outgoing` | excluded | email | - | not enabled until the email capability review |
+| `Email/release_outgoing` | included | email | mutate | reviewed email account administration operation |
 | `Email/remove_mailman_delegates` | excluded | email | - | not enabled until the email capability review |
 | `Email/reorder_filters` | excluded | email | - | not enabled until the email capability review |
 | `Email/set_always_accept` | excluded | email | - | not enabled until the email capability review |
@@ -174,17 +174,17 @@ The local allowlist is an application safeguard, not a substitute for cPanel acc
 | `Email/set_manual_mx_redirects` | included | email | mutate | reviewed email administration operation |
 | `Email/stats_db_status` | excluded | email | - | not enabled until the email capability review |
 | `Email/store_filter` | excluded | email | - | not enabled until the email capability review |
-| `Email/suspend_incoming` | excluded | email | - | not enabled until the email capability review |
-| `Email/suspend_login` | excluded | email | - | not enabled until the email capability review |
-| `Email/suspend_outgoing` | excluded | email | - | not enabled until the email capability review |
-| `Email/terminate_mailbox_sessions` | excluded | email | - | not enabled until the email capability review |
+| `Email/suspend_incoming` | included | email | mutate | reviewed email account administration operation |
+| `Email/suspend_login` | included | email | mutate | reviewed email account administration operation |
+| `Email/suspend_outgoing` | included | email | mutate | reviewed email account administration operation |
+| `Email/terminate_mailbox_sessions` | included | email | mutate | reviewed email account administration operation |
 | `Email/trace_delivery` | excluded | email | - | not enabled until the email capability review |
 | `Email/trace_filter` | excluded | email | - | not enabled until the email capability review |
 | `Email/unset_manual_mx_redirects` | included | email | mutate | reviewed email administration operation |
-| `Email/unsuspend_incoming` | excluded | email | - | not enabled until the email capability review |
-| `Email/unsuspend_login` | excluded | email | - | not enabled until the email capability review |
-| `Email/unsuspend_outgoing` | excluded | email | - | not enabled until the email capability review |
-| `Email/verify_password` | excluded | email | - | not enabled until the email capability review |
+| `Email/unsuspend_incoming` | included | email | mutate | reviewed email account administration operation |
+| `Email/unsuspend_login` | included | email | mutate | reviewed email account administration operation |
+| `Email/unsuspend_outgoing` | included | email | mutate | reviewed email account administration operation |
+| `Email/verify_password` | included | email | read | reviewed email account administration operation |
 | `EmailAuth/apply_dmarc` | excluded | email | - | not enabled until the email capability review |
 | `EmailAuth/disable_dkim` | included | email | destructive | reviewed email DNS administration operation |
 | `EmailAuth/enable_dkim` | included | email | mutate | reviewed email DNS administration operation |
@@ -252,9 +252,9 @@ The local allowlist is an application safeguard, not a substitute for cPanel acc
 | `LogManager/set_settings` | excluded | diagnostics | - | not enabled until the diagnostics capability review |
 | `Mailboxes/expunge_mailbox_messages` | excluded | email | - | not enabled until the email capability review |
 | `Mailboxes/expunge_messages_for_mailbox_guid` | excluded | email | - | not enabled until the email capability review |
-| `Mailboxes/get_mailbox_status_list` | excluded | email | - | not enabled until the email capability review |
-| `Mailboxes/has_utf8_mailbox_names` | excluded | email | - | not enabled until the email capability review |
-| `Mailboxes/set_utf8_mailbox_names` | excluded | email | - | not enabled until the email capability review |
+| `Mailboxes/get_mailbox_status_list` | included | email | read | reviewed email account administration operation |
+| `Mailboxes/has_utf8_mailbox_names` | included | email | read | reviewed email account administration operation |
+| `Mailboxes/set_utf8_mailbox_names` | included | email | mutate | reviewed email account administration operation |
 | `Mime/add_handler` | excluded | domains | - | not enabled until the domain capability review |
 | `Mime/add_hotlink` | excluded | domains | - | not enabled until the domain capability review |
 | `Mime/add_mime` | excluded | domains | - | not enabled until the domain capability review |

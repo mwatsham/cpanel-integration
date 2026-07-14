@@ -54,6 +54,11 @@ PROTECTED_MVP_INPUTS = {
         (InputSource.STDIN,),
         "secret",
     ),
+    ("Email/verify_password", "password"): (
+        "password",
+        (InputSource.STDIN,),
+        "secret",
+    ),
     ("SSL/install_ssl", "private_key"): (
         "key",
         (InputSource.PROTECTED_FILE,),
@@ -65,6 +70,7 @@ PROTECTED_ALTERNATE_UAPI_NAMES = {
     "Mysql/create_user": "name",
     "Email/add_pop": "email",
     "Email/passwd_pop": "email",
+    "Email/verify_password": "email",
     "SSL/install_ssl": "cert",
 }
 EMAIL_ADMIN_OPERATION_CONTRACTS = {

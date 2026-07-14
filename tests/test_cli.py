@@ -571,6 +571,41 @@ def test_email_account_creation_uses_protected_password_stdin(cli_env) -> None:
     assert "plain-secret" not in serialized
 
 
+def test_email_password_verification_uses_protected_password_stdin(cli_env) -> None:
+    env, key = cli_env
+    add_profile(env, key)
+
+    transport = FakeTransport([UAPIResponse({"valid": True}, [], [])])
+    code, payload, stderr = invoke(
+        [
+            "--profile",
+            "test",
+            "email",
+            "verify-password",
+            "--email",
+            "admin@example.com",
+            "--password-stdin",
+        ],
+        env=env,
+        stdin="mail-secret-marker\n",
+        transport=transport,
+    )
+
+    serialized = json.dumps(payload)
+    assert code == 0
+    assert stderr == ""
+    assert payload["operation"] == "email.verify-password"
+    assert (transport.calls[0]["module"], transport.calls[0]["function"]) == (
+        "Email",
+        "verify_password",
+    )
+    assert transport.calls[0]["parameters"] == {
+        "email": "admin@example.com",
+        "password": "mail-secret-marker",
+    }
+    assert "mail-secret-marker" not in serialized
+
+
 def test_dynamic_policy_parser_fails_closed_for_malformed_command_path() -> None:
     malformed = PolicyOperation(
         name="bad.command",
