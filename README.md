@@ -175,7 +175,8 @@ command using the returned fields:
 ```
 
 Changing the profile, operation, parameters, secret/file content, or file preflight state invalidates
-the digest. See [supported operations](references/operations.md) and the [safety policy](references/safety.md).
+the digest. See the [capability references](references/capabilities.md),
+[supported operations](references/operations.md), and the [safety policy](references/safety.md).
 
 ## Output and failures
 

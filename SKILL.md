@@ -11,7 +11,8 @@ requests or substitute deprecated API 2, WHM, shell, raw FTP clients, or browser
 ## Prepare
 
 1. Confirm the request concerns one individual cPanel account, not WHM or server administration.
-2. Read [references/operations.md](references/operations.md) to select an exact supported command.
+2. Read [references/capabilities.md](references/capabilities.md) and
+   [references/operations.md](references/operations.md) to select an exact supported command.
 3. Ask for the named profile only when it cannot be inferred safely.
 4. Check that the Fernet key is available from `CPANEL_ADMIN_FERNET_KEY` or the protected key file.
 5. Never ask the user to paste an API token, Fernet key, database password, or private key into
