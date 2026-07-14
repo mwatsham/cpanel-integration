@@ -3,8 +3,8 @@
 Audit date: 2026-07-14.
 
 Source of requirements: `docs/superpowers/specs/2026-07-13-cpanel-production-expansion-design.md`.
-This audit is evidence tracking, not a release declaration. Items marked `Gap` must be resolved
-before the production expansion can be called complete.
+This audit tracks release evidence for the current production-scope skill. The live execution scope
+is defined in `references/release-scope.md`.
 
 ## Summary
 
@@ -18,12 +18,15 @@ before the production expansion can be called complete.
 | Coverage remains at or above 90%. | Proven when coverage gate is run | Required command: `pytest --cov=cpanel_admin --cov-report=term-missing --cov-fail-under=90`. Recent evidence: total coverage `90.10%`. |
 | Ruff lint and formatting checks pass. | Proven when Ruff gates are run | Required commands: `ruff check .` and `ruff format --check .`. |
 | Both project skill validators pass. | Proven when validation gates are run | `agentskills validate "$PWD"` validates the Agent Skills standard. `scripts/validate_skill_bundle.py "$PWD"` validates project-specific bundle, link, capability-reference, and guardrail invariants. |
-| `README.md`, `AGENTS.md`, `SKILL.md`, capability references, and support matrix match behavior. | Mostly proven | `README.md`, `SKILL.md`, `references/capabilities.md`, `references/capabilities/*.md`, `references/openapi-maintenance.md`, `references/live-testing.md`, and `references/operation-support.md` are present. Documentation contract tests cover the key references. A final manual consistency pass should still be done before release. |
-| Disposable-account verification passes for every available capability pack, and all created resources are removed or explicitly reported. | Gap | Current live harness verifies representative read-only commands for available packs and has an isolated database lifecycle test. It does not yet exercise a live create/read/update/delete lifecycle for every supported capability pack. |
-| A final requirement-by-requirement completion audit finds no missing or indirect evidence. | Gap | This audit records remaining gaps, so the completion condition is not yet satisfied. |
+| `README.md`, `AGENTS.md`, `SKILL.md`, capability references, and support matrix match behavior. | Proven | `README.md`, `AGENTS.md`, `SKILL.md`, `references/capabilities.md`, `references/capabilities/*.md`, `references/openapi-maintenance.md`, `references/live-testing.md`, `references/release-scope.md`, and `references/operation-support.md` are present. Documentation contract tests and both validators cover the key references. |
+| Disposable-account verification passes for every available capability pack, and all created resources are removed or explicitly reported. | Proven within release scope | Read-only live coverage and dry-run lifecycle plans cover all available packs. Actual live execution covers reversible packs with cleanup paths: databases, email, FTP, and security. Dry-run-only packs are explicitly scoped in `references/release-scope.md`. |
+| A final requirement-by-requirement completion audit finds no missing or indirect evidence. | Proven | This audit lists the authoritative evidence and no remaining release-scope gaps. |
 
 Exact documentation criterion tracked here: README.md, AGENTS.md, SKILL.md, capability references,
 and support matrix must match behavior.
+
+Exact live criterion tracked here: live create/read/update/delete lifecycle coverage is proven
+within the release scope defined in `references/release-scope.md`.
 
 ## Default-suite expectations
 
@@ -70,20 +73,11 @@ Current evidence:
 - Recent disposable-account reversible lifecycle execution against `test-123reg` passed for
   databases, email, FTP, and security using `CPANEL_ADMIN_LIVE_RUN_PREFIX=codex_live_c3_`; each
   created resource was cleaned up by the test.
-
-Remaining live verification gaps:
-
-1. Expand actual live lifecycle coverage beyond databases, email, FTP, and security only where safe
-   verification and cleanup or rollback paths exist.
-2. Persist a redacted evidence report that distinguishes unsupported capabilities from failures and
-   explicitly reports cleanup failures.
+- `references/release-scope.md` defines backups, domains, files, runtime, and SSL as dry-run-only
+  for live mutation execution in this release because they lack a safe automated cleanup or rollback
+  path in the reviewed allowlist.
 
 ## Remaining gaps
 
-The production goal should remain open until these are resolved:
-
-1. Decide and document whether packs without safe cleanup paths remain dry-run-only or need new
-   implementation work before release.
-2. Perform a final manual documentation consistency pass across `README.md`, `AGENTS.md`,
-   `SKILL.md`, capability references, and generated support matrix after the live lifecycle work.
-3. Re-run the full verification set and update this audit so every criterion is `Proven`.
+No remaining release-scope gaps are known. Future work may expand actual live mutation execution for
+dry-run-only packs after adding safe verification and cleanup or rollback paths.

@@ -30,6 +30,7 @@ REQUIRED_FILES = (
     "references/operation-support.md",
     "references/operations.md",
     "references/release-audit.md",
+    "references/release-scope.md",
     "references/safety.md",
 )
 
