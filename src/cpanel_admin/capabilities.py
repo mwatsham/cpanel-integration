@@ -97,25 +97,26 @@ class CapabilityService:
     def require(self, context: object, operation: PolicyOperation) -> None:
         """Raise a safe error unless policy and discovered server state allow ``operation``."""
 
-        if operation.status is not SupportStatus.INCLUDED:
+        reviewed = _reviewed_operation(context, operation.name)
+        if reviewed.status is not SupportStatus.INCLUDED:
             raise CapabilityError(
-                f"operation excluded by policy: {operation.name}: {operation.reason}"
+                f"operation excluded by policy: {reviewed.name}: {reviewed.reason}"
             )
-        if operation.feature is None:
+        if reviewed.feature is None:
             return
-        availability = self.inspect(context).operations.get(operation.name)
+        availability = self.inspect(context).operations.get(reviewed.name)
         if availability is None or availability.status is Availability.UNKNOWN:
             raise CapabilityDiscoveryError(
-                f"operation capability could not be confirmed: {operation.name}"
+                f"operation capability could not be confirmed: {reviewed.name}"
             )
         if availability.status is Availability.SERVER_UNAVAILABLE:
             raise CapabilityError(
                 f"operation feature is not available on this server: "
-                f"{operation.name}: {operation.feature}"
+                f"{reviewed.name}: {reviewed.feature}"
             )
         if availability.status is Availability.POLICY_EXCLUDED:
             raise CapabilityError(
-                f"operation excluded by policy: {operation.name}: {availability.reason}"
+                f"operation excluded by policy: {reviewed.name}: {availability.reason}"
             )
 
     def _features(
@@ -198,6 +199,13 @@ def _operations(context: object) -> tuple[PolicyOperation, ...]:
         if operations:
             return operations
     raise CapabilityDiscoveryError("capability context must contain reviewed policy operations")
+
+
+def _reviewed_operation(context: object, name: str) -> PolicyOperation:
+    for operation in _operations(context):
+        if operation.name == name:
+            return operation
+    raise CapabilityError(f"operation missing from reviewed policy: {name}")
 
 
 def _aware(value: datetime) -> datetime:

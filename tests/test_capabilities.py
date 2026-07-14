@@ -147,6 +147,42 @@ def test_require_fails_closed_for_policy_exclusion_server_absence_and_unknown_st
         failing_service.require(context(FakeTransport(RuntimeError("boom")), email), email)
 
 
+@pytest.mark.parametrize("reviewed_operations", ["excluded", "missing"])
+def test_require_checks_reviewed_policy_before_caller_operation(
+    reviewed_operations: str,
+) -> None:
+    reviewed_email = operation(
+        name="email.accounts.list",
+        identity="Email/list_pops",
+        feature="popaccts",
+    )
+    excluded_cron = operation(
+        name="cron.jobs.list",
+        identity="Cron/listcron",
+        status=SupportStatus.EXCLUDED,
+        reason="not in reviewed MVP scope",
+    )
+    caller_supplied_cron = operation(
+        name="cron.jobs.list",
+        identity="Cron/listcron",
+        status=SupportStatus.INCLUDED,
+        feature=None,
+    )
+    policy_operations = (
+        (reviewed_email, excluded_cron)
+        if reviewed_operations == "excluded"
+        else (reviewed_email,)
+    )
+    service = CapabilityService(clock=lambda: datetime(2026, 7, 14, tzinfo=UTC))
+    subject = context(
+        FakeTransport([{"id": "popaccts", "enabled": 1}]),
+        *policy_operations,
+    )
+
+    with pytest.raises(CapabilityError, match="policy"):
+        service.require(subject, caller_supplied_cron)
+
+
 def test_only_successful_feature_lists_are_cached_for_sixty_seconds() -> None:
     email = operation(name="email.accounts.list", identity="Email/list_pops", feature="popaccts")
     now = datetime(2026, 7, 14, tzinfo=UTC)
