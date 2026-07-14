@@ -6,12 +6,36 @@ import io
 import json
 import os
 import secrets
+from dataclasses import dataclass
+from pathlib import Path
 
 import pytest
 
 from cpanel_admin.cli import main
 
 pytestmark = pytest.mark.live
+
+
+@dataclass(frozen=True)
+class LiveCommand:
+    """A representative read-only command safe for a disposable account."""
+
+    operation: str
+    arguments: tuple[str, ...]
+
+
+LIVE_COMMANDS: tuple[LiveCommand, ...] = (
+    LiveCommand("domains.list", ("domains", "list")),
+    LiveCommand("ssl.hosts", ("ssl", "hosts")),
+    LiveCommand("databases.list", ("databases", "list")),
+    LiveCommand("email.accounts", ("email", "accounts")),
+    LiveCommand("ftp.accounts", ("ftp", "accounts")),
+    LiveCommand("diagnostics.quota", ("diagnostics", "quota")),
+    LiveCommand("security.modsec-installed", ("security", "modsec-installed")),
+    LiveCommand("runtime.php-installed", ("runtime", "php-installed")),
+    LiveCommand("backups.list", ("backups", "list")),
+    LiveCommand("capabilities.inspect", ("capabilities", "inspect")),
+)
 
 
 def _live_environment() -> tuple[dict[str, str], str]:
@@ -42,6 +66,59 @@ def _invoke(env: dict[str, str], arguments: list[str], stdin: str = "") -> dict[
     return value
 
 
+def _write_report(env: dict[str, str], command: LiveCommand, code: int, result: object) -> None:
+    report_path = env.get("CPANEL_ADMIN_LIVE_REPORT")
+    if not report_path:
+        return
+    path = Path(report_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    summary: dict[str, object] = {
+        "command": " ".join(command.arguments),
+        "expected_operation": command.operation,
+        "exit_code": code,
+    }
+    if isinstance(result, dict):
+        summary.update(
+            {
+                "ok": result.get("ok"),
+                "operation": result.get("operation"),
+                "data_type": type(result.get("data")).__name__,
+                "warning_count": len(result.get("warnings", [])),
+                "message_count": len(result.get("messages", [])),
+            }
+        )
+    else:
+        summary["stderr"] = str(result).splitlines()[0][:160] if str(result) else ""
+    with path.open("a", encoding="utf-8") as handle:
+        json.dump(summary, handle, sort_keys=True)
+        handle.write("\n")
+
+
+def _invoke_command(env: dict[str, str], profile: str, command: LiveCommand) -> dict[str, object]:
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    code = main(
+        ["--profile", profile, *command.arguments],
+        env=env,
+        stdin=io.StringIO(""),
+        stdout=stdout,
+        stderr=stderr,
+    )
+    error = stderr.getvalue()
+    feature_missing = (code == 7 and "operation feature is not available" in error) or (
+        code == 6 and "do not have the feature" in error
+    )
+    if feature_missing:
+        _write_report(env, command, code, error)
+        pytest.skip(f"{command.operation} is not available on this disposable cPanel account")
+    assert code == 0, error
+    value = json.loads(stdout.getvalue())
+    assert value["ok"] is True
+    assert value["operation"] == command.operation
+    _write_report(env, command, code, value)
+    return value
+
+
 def test_live_read_only_discovery() -> None:
     env, profile = _live_environment()
     domains = _invoke(env, ["--profile", profile, "domains", "list"])
@@ -50,6 +127,13 @@ def test_live_read_only_discovery() -> None:
     assert "data" in domains
     assert "data" in certificates
     assert "data" in databases
+
+
+@pytest.mark.parametrize("command", LIVE_COMMANDS, ids=lambda command: command.operation)
+def test_live_representative_read_only_commands(command: LiveCommand) -> None:
+    env, profile = _live_environment()
+    result = _invoke_command(env, profile, command)
+    assert "data" in result
 
 
 def test_live_isolated_database_lifecycle() -> None:

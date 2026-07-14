@@ -53,5 +53,6 @@ path, domain, database name, secret content, file content, preflight state, or e
 ## Hard boundaries
 
 Never use this skill for WHM, port 2087, root/reseller actions, account lifecycle, server services,
-arbitrary UAPI, deprecated cPanel API 2, browser automation, shell access, FTP, or production live
-testing. Report an unsupported capability instead of widening the method.
+arbitrary UAPI, deprecated cPanel API 2, browser automation, shell access, raw FTP clients,
+anonymous FTP configuration, or production live testing. Report an unsupported capability instead of
+widening the method.
