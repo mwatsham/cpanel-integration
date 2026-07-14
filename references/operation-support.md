@@ -4,8 +4,8 @@
 
 - Source UAPI version: `11.136.0.25`
 - Source SHA-256: `3d9ec80cd8d774312c4bb6b0dfdbc17e6e6ffc92a8f0c2cd88f01e32864fa2c6`
-- Included operations: 159
-- Excluded operations: 234
+- Included operations: 175
+- Excluded operations: 218
 
 The local allowlist is an application safeguard, not a substitute for cPanel account permissions. This catalog does not provide arbitrary UAPI passthrough.
 
@@ -25,22 +25,22 @@ The local allowlist is an application safeguard, not a substitute for cPanel acc
 | `Bandwidth/get_enabled_protocols` | included | diagnostics | read | reviewed account diagnostics read operation |
 | `Bandwidth/get_retention_periods` | included | diagnostics | read | reviewed account diagnostics read operation |
 | `Bandwidth/query` | included | diagnostics | read | reviewed account diagnostics read operation |
-| `BlockIP/add_ip` | excluded | security | - | not enabled until the security capability review |
-| `BlockIP/remove_ip` | excluded | security | - | not enabled until the security capability review |
+| `BlockIP/add_ip` | included | security | mutate | reviewed account security operation |
+| `BlockIP/remove_ip` | included | security | mutate | reviewed account security operation |
 | `Chkservd/get_exim_ports` | included | diagnostics | read | reviewed account diagnostics read operation |
 | `Chkservd/get_exim_ports_ssl` | included | diagnostics | read | reviewed account diagnostics read operation |
-| `ClamScanner/check_disinfection_status` | excluded | security | - | not enabled until the security capability review |
-| `ClamScanner/disinfect_files` | excluded | security | - | not enabled until the security capability review |
-| `ClamScanner/get_scan_paths` | excluded | security | - | not enabled until the security capability review |
-| `ClamScanner/get_scan_status` | excluded | security | - | not enabled until the security capability review |
-| `ClamScanner/list_infected_files` | excluded | security | - | not enabled until the security capability review |
-| `ClamScanner/start_scan` | excluded | security | - | not enabled until the security capability review |
-| `ContactInformation/get_notification_preferences` | excluded | security | - | not enabled until the security capability review |
-| `ContactInformation/get_pushbullet_access_token` | excluded | security | - | not enabled until the security capability review |
-| `ContactInformation/set_email_addresses` | excluded | security | - | not enabled until the security capability review |
-| `ContactInformation/set_notification_preferences` | excluded | security | - | not enabled until the security capability review |
-| `ContactInformation/set_pushbullet_access_token` | excluded | security | - | not enabled until the security capability review |
-| `ContactInformation/unset_email_addresses` | excluded | security | - | not enabled until the security capability review |
+| `ClamScanner/check_disinfection_status` | included | security | read | reviewed account security read operation |
+| `ClamScanner/disinfect_files` | excluded | security | - | file disinfection is destructive and needs a malware remediation adapter |
+| `ClamScanner/get_scan_paths` | included | security | read | reviewed account security read operation |
+| `ClamScanner/get_scan_status` | included | security | read | reviewed account security read operation |
+| `ClamScanner/list_infected_files` | included | security | read | reviewed account security read operation |
+| `ClamScanner/start_scan` | excluded | security | - | virus scans can be long-running and need a task adapter |
+| `ContactInformation/get_notification_preferences` | included | security | read | reviewed account security read operation |
+| `ContactInformation/get_pushbullet_access_token` | excluded | security | - | returns a third-party access token |
+| `ContactInformation/set_email_addresses` | excluded | security | - | requires protected password input and contact-change review |
+| `ContactInformation/set_notification_preferences` | excluded | security | - | bulk notification preference changes need a structured preference adapter |
+| `ContactInformation/set_pushbullet_access_token` | excluded | security | - | stores a third-party access token |
+| `ContactInformation/unset_email_addresses` | excluded | security | - | requires protected password input and contact-change review |
 | `DCV/check_domains_via_dns` | excluded | ssl | - | not enabled until the ssl capability review |
 | `DCV/check_domains_via_http` | excluded | ssl | - | not enabled until the ssl capability review |
 | `DCV/ensure_domains_can_pass_dcv` | excluded | ssl | - | not enabled until the ssl capability review |
@@ -230,10 +230,10 @@ The local allowlist is an application safeguard, not a substitute for cPanel acc
 | `Ftp/set_homedir` | included | ftp | mutate | reviewed FTP account administration operation |
 | `Ftp/set_quota` | included | ftp | mutate | reviewed FTP account administration operation |
 | `Ftp/set_welcome_message` | included | ftp | mutate | reviewed FTP account administration operation |
-| `KnownHosts/create` | excluded | security | - | not enabled until the security capability review |
-| `KnownHosts/delete` | excluded | security | - | not enabled until the security capability review |
-| `KnownHosts/update` | excluded | security | - | not enabled until the security capability review |
-| `KnownHosts/verify` | excluded | security | - | not enabled until the security capability review |
+| `KnownHosts/create` | excluded | security | - | changes SSH known_hosts state and needs host-key fingerprint review |
+| `KnownHosts/delete` | excluded | security | - | removes SSH known_hosts state and needs host-key fingerprint review |
+| `KnownHosts/update` | excluded | security | - | changes SSH known_hosts state and needs host-key fingerprint review |
+| `KnownHosts/verify` | included | security | read | reviewed account security read operation |
 | `LangPHP/php_get_domain_handler` | excluded | runtime | - | not enabled until the runtime capability review |
 | `LangPHP/php_get_impacted_domains` | excluded | runtime | - | not enabled until the runtime capability review |
 | `LangPHP/php_get_installed_versions` | excluded | runtime | - | not enabled until the runtime capability review |
@@ -269,12 +269,12 @@ The local allowlist is an application safeguard, not a substitute for cPanel acc
 | `Mime/list_mime` | excluded | domains | - | not enabled until the domain capability review |
 | `Mime/list_redirects` | excluded | domains | - | not enabled until the domain capability review |
 | `Mime/redirect_info` | excluded | domains | - | not enabled until the domain capability review |
-| `ModSecurity/disable_all_domains` | excluded | security | - | not enabled until the security capability review |
-| `ModSecurity/disable_domains` | excluded | security | - | not enabled until the security capability review |
-| `ModSecurity/enable_all_domains` | excluded | security | - | not enabled until the security capability review |
-| `ModSecurity/enable_domains` | excluded | security | - | not enabled until the security capability review |
-| `ModSecurity/has_modsecurity_installed` | excluded | security | - | not enabled until the security capability review |
-| `ModSecurity/list_domains` | excluded | security | - | not enabled until the security capability review |
+| `ModSecurity/disable_all_domains` | included | security | mutate | reviewed account security operation |
+| `ModSecurity/disable_domains` | included | security | mutate | reviewed account security operation |
+| `ModSecurity/enable_all_domains` | included | security | mutate | reviewed account security operation |
+| `ModSecurity/enable_domains` | included | security | mutate | reviewed account security operation |
+| `ModSecurity/has_modsecurity_installed` | included | security | read | reviewed account security read operation |
+| `ModSecurity/list_domains` | included | security | read | reviewed account security read operation |
 | `Mysql/add_host` | excluded | databases | - | not enabled until the database capability review |
 | `Mysql/add_host_note` | excluded | databases | - | not enabled until the database capability review |
 | `Mysql/check_database` | excluded | databases | - | not enabled until the database capability review |
@@ -318,7 +318,7 @@ The local allowlist is an application safeguard, not a substitute for cPanel acc
 | `Restore/get_users` | excluded | backups | - | not enabled until the backup capability review |
 | `Restore/query_file_info` | excluded | backups | - | not enabled until the backup capability review |
 | `Restore/restore_file` | excluded | backups | - | not enabled until the backup capability review |
-| `SSH/get_port` | excluded | security | - | not enabled until the security capability review |
+| `SSH/get_port` | included | security | read | reviewed account security read operation |
 | `SSL/add_autossl_excluded_domains` | excluded | ssl | - | not enabled until the ssl capability review |
 | `SSL/can_ssl_redirect` | excluded | ssl | - | not enabled until the ssl capability review |
 | `SSL/check_shared_cert` | excluded | ssl | - | not enabled until the ssl capability review |
@@ -384,8 +384,8 @@ The local allowlist is an application safeguard, not a substitute for cPanel acc
 | `StatsManager/save_configuration` | excluded | diagnostics | - | changes weblog analyzer configuration and needs a diagnostics settings review |
 | `SubDomain/addsubdomain` | included | domains | mutate | supported by the existing MVP operation set |
 | `SubDomain/changedocroot` | excluded | domains | - | not enabled until the domain capability review |
-| `UserTasks/delete` | excluded | security | - | not enabled until the security capability review |
-| `UserTasks/retrieve` | excluded | security | - | not enabled until the security capability review |
+| `UserTasks/delete` | excluded | security | - | removes task queue entries and needs a task-management review |
+| `UserTasks/retrieve` | included | security | read | reviewed account security read operation |
 | `Variables/get_server_information` | included | diagnostics | read | reviewed account diagnostics read operation |
 | `Variables/get_session_information` | included | diagnostics | read | reviewed account diagnostics read operation |
 | `Variables/get_user_information` | included | diagnostics | read | reviewed account diagnostics read operation |

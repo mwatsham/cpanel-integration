@@ -330,35 +330,69 @@
       "verification": null
     },
     "BlockIP/add_ip": {
-      "audit_fields": [],
+      "audit_fields": [
+        "ip"
+      ],
       "capability": "security",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "security",
+        "block-ip"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "BlockIP/add_ip",
-      "parameters": {},
+      "impact": "Add an IP address or CIDR range to the cPanel account block list.",
+      "name": "security.block-ip",
+      "parameters": {
+        "ip": {
+          "name": "ip",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "ip",
+          "validator": "ip_cidr"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the security capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account security operation",
+      "recovery": "Remove the IP address or CIDR range from the block list.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "BlockIP/remove_ip": {
-      "audit_fields": [],
+      "audit_fields": [
+        "ip"
+      ],
       "capability": "security",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "security",
+        "unblock-ip"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "BlockIP/remove_ip",
-      "parameters": {},
+      "impact": "Remove an IP address or CIDR range from the cPanel account block list.",
+      "name": "security.unblock-ip",
+      "parameters": {
+        "ip": {
+          "name": "ip",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "ip",
+          "validator": "ip_cidr"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the security capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account security operation",
+      "recovery": "Add the IP address or CIDR range back to the block list if needed.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "Chkservd/get_exim_ports": {
@@ -402,17 +436,32 @@
     "ClamScanner/check_disinfection_status": {
       "audit_fields": [],
       "capability": "security",
-      "command": [],
+      "command": [
+        "security",
+        "clam-disinfection-status"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "ClamScanner/check_disinfection_status",
-      "parameters": {},
+      "impact": "Read ClamAV disinfection process status.",
+      "name": "security.clam-disinfection-status",
+      "parameters": {
+        "last_id": {
+          "name": "last_id",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "last_id",
+          "validator": "integer"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the security capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account security read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "ClamScanner/disinfect_files": {
@@ -425,7 +474,7 @@
       "name": "ClamScanner/disinfect_files",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the security capability review",
+      "reason": "file disinfection is destructive and needs a malware remediation adapter",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -434,49 +483,58 @@
     "ClamScanner/get_scan_paths": {
       "audit_fields": [],
       "capability": "security",
-      "command": [],
+      "command": [
+        "security",
+        "clam-scan-paths"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "ClamScanner/get_scan_paths",
+      "impact": "Read available virus scan target types.",
+      "name": "security.clam-scan-paths",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the security capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account security read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "ClamScanner/get_scan_status": {
       "audit_fields": [],
       "capability": "security",
-      "command": [],
+      "command": [
+        "security",
+        "clam-scan-status"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "ClamScanner/get_scan_status",
+      "impact": "Read current virus scan status.",
+      "name": "security.clam-scan-status",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the security capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account security read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "ClamScanner/list_infected_files": {
       "audit_fields": [],
       "capability": "security",
-      "command": [],
+      "command": [
+        "security",
+        "clam-infected-files"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "ClamScanner/list_infected_files",
+      "impact": "Read the infected file list reported by ClamAV.",
+      "name": "security.clam-infected-files",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the security capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account security read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "ClamScanner/start_scan": {
@@ -489,7 +547,7 @@
       "name": "ClamScanner/start_scan",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the security capability review",
+      "reason": "virus scans can be long-running and need a task adapter",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -498,17 +556,20 @@
     "ContactInformation/get_notification_preferences": {
       "audit_fields": [],
       "capability": "security",
-      "command": [],
+      "command": [
+        "security",
+        "notification-preferences"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "ContactInformation/get_notification_preferences",
+      "impact": "Read account notification preferences.",
+      "name": "security.notification-preferences",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the security capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account security read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "ContactInformation/get_pushbullet_access_token": {
@@ -521,7 +582,7 @@
       "name": "ContactInformation/get_pushbullet_access_token",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the security capability review",
+      "reason": "returns a third-party access token",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -537,7 +598,7 @@
       "name": "ContactInformation/set_email_addresses",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the security capability review",
+      "reason": "requires protected password input and contact-change review",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -553,7 +614,7 @@
       "name": "ContactInformation/set_notification_preferences",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the security capability review",
+      "reason": "bulk notification preference changes need a structured preference adapter",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -569,7 +630,7 @@
       "name": "ContactInformation/set_pushbullet_access_token",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the security capability review",
+      "reason": "stores a third-party access token",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -585,7 +646,7 @@
       "name": "ContactInformation/unset_email_addresses",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the security capability review",
+      "reason": "requires protected password input and contact-change review",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -5900,7 +5961,7 @@
       "name": "KnownHosts/create",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the security capability review",
+      "reason": "changes SSH known_hosts state and needs host-key fingerprint review",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -5916,7 +5977,7 @@
       "name": "KnownHosts/delete",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the security capability review",
+      "reason": "removes SSH known_hosts state and needs host-key fingerprint review",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -5932,7 +5993,7 @@
       "name": "KnownHosts/update",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the security capability review",
+      "reason": "changes SSH known_hosts state and needs host-key fingerprint review",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -5941,17 +6002,43 @@
     "KnownHosts/verify": {
       "audit_fields": [],
       "capability": "security",
-      "command": [],
+      "command": [
+        "security",
+        "known-host-verify"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "KnownHosts/verify",
-      "parameters": {},
+      "impact": "Validate a remote SSH host key against cPanel known_hosts handling.",
+      "name": "security.known-host-verify",
+      "parameters": {
+        "host_name": {
+          "name": "host_name",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "host_name",
+          "validator": "bounded_text"
+        },
+        "port": {
+          "name": "port",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "port",
+          "validator": "integer"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the security capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account security read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "LangPHP/php_get_domain_handler": {
@@ -6573,97 +6660,143 @@
     "ModSecurity/disable_all_domains": {
       "audit_fields": [],
       "capability": "security",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "security",
+        "disable-modsec-all"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "ModSecurity/disable_all_domains",
+      "impact": "Disable ModSecurity for all domains in the account.",
+      "name": "security.disable-modsec-all",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the security capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account security operation",
+      "recovery": "Enable ModSecurity for all domains again.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "ModSecurity/disable_domains": {
-      "audit_fields": [],
+      "audit_fields": [
+        "domains"
+      ],
       "capability": "security",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "security",
+        "disable-modsec"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "ModSecurity/disable_domains",
-      "parameters": {},
+      "impact": "Disable ModSecurity for selected domains.",
+      "name": "security.disable-modsec",
+      "parameters": {
+        "domains": {
+          "name": "domains",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domains",
+          "validator": "bounded_text"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the security capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account security operation",
+      "recovery": "Enable ModSecurity again for the affected domains.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "ModSecurity/enable_all_domains": {
       "audit_fields": [],
       "capability": "security",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "security",
+        "enable-modsec-all"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "ModSecurity/enable_all_domains",
+      "impact": "Enable ModSecurity for all domains in the account.",
+      "name": "security.enable-modsec-all",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the security capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account security operation",
+      "recovery": "Disable ModSecurity for selected domains if required.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "ModSecurity/enable_domains": {
-      "audit_fields": [],
+      "audit_fields": [
+        "domains"
+      ],
       "capability": "security",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "security",
+        "enable-modsec"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "ModSecurity/enable_domains",
-      "parameters": {},
+      "impact": "Enable ModSecurity for selected domains.",
+      "name": "security.enable-modsec",
+      "parameters": {
+        "domains": {
+          "name": "domains",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "domains",
+          "validator": "bounded_text"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the security capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account security operation",
+      "recovery": "Disable ModSecurity again for the affected domains if required.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "ModSecurity/has_modsecurity_installed": {
       "audit_fields": [],
       "capability": "security",
-      "command": [],
+      "command": [
+        "security",
+        "modsec-installed"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "ModSecurity/has_modsecurity_installed",
+      "impact": "Read whether ModSecurity is installed.",
+      "name": "security.modsec-installed",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the security capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account security read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "ModSecurity/list_domains": {
       "audit_fields": [],
       "capability": "security",
-      "command": [],
+      "command": [
+        "security",
+        "modsec-domains"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "ModSecurity/list_domains",
+      "impact": "Read ModSecurity status by domain.",
+      "name": "security.modsec-domains",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the security capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account security read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Mysql/add_host": {
@@ -7492,17 +7625,20 @@
     "SSH/get_port": {
       "audit_fields": [],
       "capability": "security",
-      "command": [],
+      "command": [
+        "security",
+        "ssh-port"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "SSH/get_port",
+      "impact": "Read the SSH port exposed to the account.",
+      "name": "security.ssh-port",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the security capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account security read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "SSL/add_autossl_excluded_domains": {
@@ -8926,7 +9062,7 @@
       "name": "UserTasks/delete",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the security capability review",
+      "reason": "removes task queue entries and needs a task-management review",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -8935,17 +9071,20 @@
     "UserTasks/retrieve": {
       "audit_fields": [],
       "capability": "security",
-      "command": [],
+      "command": [
+        "security",
+        "tasks"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "UserTasks/retrieve",
+      "impact": "Read task queue information.",
+      "name": "security.tasks",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the security capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed account security read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Variables/get_server_information": {

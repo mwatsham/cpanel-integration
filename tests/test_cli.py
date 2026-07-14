@@ -677,6 +677,26 @@ def test_diagnostics_quota_uses_fixed_readonly_uapi(cli_env) -> None:
     assert transport.calls[0]["parameters"] == {}
 
 
+def test_security_block_ip_dry_run_uses_bound_confirmation(cli_env) -> None:
+    env, key = cli_env
+    add_profile(env, key)
+    transport = FakeTransport()
+
+    code, plan, stderr = invoke(
+        ["--profile", "test", "security", "block-ip", "--ip", "203.0.113.9", "--dry-run"],
+        env=env,
+        transport=transport,
+    )
+
+    assert code == 0
+    assert stderr == ""
+    assert plan["operation"] == "security.block-ip"
+    assert plan["parameters"] == {"ip": "203.0.113.9"}
+    assert plan["requires_confirmation"] is True
+    assert len(plan["confirmation"]) == 12
+    assert transport.calls == []
+
+
 def test_email_domain_forwarder_dry_run_binds_routing_target(cli_env) -> None:
     env, key = cli_env
     add_profile(env, key)

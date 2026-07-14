@@ -7,14 +7,17 @@ named profiles, structured JSON, and operation-bound confirmation for destructiv
 ## Scope
 
 The skill supports domains, account files, SSL certificates, MySQL/MariaDB databases, reviewed
-email administration, reviewed FTP account administration, and read-only account diagnostics. Email support covers mailbox
-accounts, quotas, passwords, forwarders, autoresponders, filter state, spam controls, MX routing,
-SPF, and DKIM. FTP support covers account listing, creation, deletion, passwords, quotas, home
-directories, sessions, server information, and welcome messages. Diagnostics support covers quota,
-resource usage, bandwidth, stats, features, login IP, log settings, and account/server variables
-exposed to the cPanel account. It does not support WHM, root or reseller administration, account
-provisioning, server settings, browser automation, deprecated API 2, anonymous FTP configuration
-changes, diagnostics setting changes, or arbitrary UAPI calls.
+email administration, reviewed FTP account administration, read-only account diagnostics, and
+reviewed cPanel account security controls. Email support covers mailbox accounts, quotas,
+passwords, forwarders, autoresponders, filter state, spam controls, MX routing, SPF, and DKIM. FTP
+support covers account listing, creation, deletion, passwords, quotas, home directories, sessions,
+server information, and welcome messages. Diagnostics support covers quota, resource usage,
+bandwidth, stats, features, login IP, log settings, and account/server variables exposed to the
+cPanel account. Security support covers IP blocking, ModSecurity status/toggles, ClamAV status
+reads, notification preference reads, known-host verification, SSH port reads, and task queue reads.
+It does not support WHM, root or reseller administration, account provisioning, server settings,
+browser automation, deprecated API 2, anonymous FTP configuration changes, diagnostics setting
+changes, malware disinfection, secret token export, or arbitrary UAPI calls.
 
 ## Install
 
@@ -103,6 +106,9 @@ Global options precede the capability group:
 .venv/bin/cpanel-admin --profile production diagnostics quota
 .venv/bin/cpanel-admin --profile production diagnostics resource-usage
 .venv/bin/cpanel-admin --profile production diagnostics site-errors --domain example.com --maxlines 50
+.venv/bin/cpanel-admin --profile production security modsec-domains
+.venv/bin/cpanel-admin --profile production security block-ip --ip 203.0.113.9 --dry-run
+.venv/bin/cpanel-admin --profile production security known-host-verify --host-name example.com
 ```
 
 Non-destructive mutations support a review step:

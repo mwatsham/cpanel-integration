@@ -1,6 +1,6 @@
 ---
 name: cpanel-integration
-description: Safely administer individual cPanel accounts through documented UAPI operations for domains, files, SSL certificates, MySQL or MariaDB databases, email, FTP accounts, and read-only diagnostics. Use when Codex needs to inspect or change website resources, mailboxes, FTP users, quotas, resource usage, passwords, routing, SPF, or DKIM in cPanel. Do not use for WHM, root, reseller, account provisioning, server-wide administration, browser automation, anonymous FTP changes, or arbitrary UAPI calls.
+description: Safely administer individual cPanel accounts through documented UAPI operations for domains, files, SSL certificates, MySQL or MariaDB databases, email, FTP accounts, diagnostics, and account security controls. Use when Codex needs to inspect or change website resources, mailboxes, FTP users, quotas, resource usage, IP blocks, ModSecurity, passwords, routing, SPF, or DKIM in cPanel. Do not use for WHM, root, reseller, account provisioning, server-wide administration, browser automation, anonymous FTP changes, or arbitrary UAPI calls.
 ---
 
 # Administer an individual cPanel account
@@ -22,6 +22,8 @@ requests or substitute deprecated API 2, WHM, shell, raw FTP clients, or browser
 - Run read-only commands directly when they match the user's request.
 - Use read-only diagnostics commands to inspect quota, resource usage, bandwidth, features, logs,
   and account/server variables before risky changes.
+- Use account security commands only for reviewed IP blocking, ModSecurity, ClamAV status,
+  notification preference reads, known-host verification, SSH port reads, and task queue reads.
 - Run `--dry-run` before every mutation so the target, normalized parameters, impact, and recovery
   guidance can be reviewed.
 - For non-destructive mutations, present the dry-run and execute only within the user's authority.
