@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
@@ -216,6 +217,37 @@ def test_adapter_and_planner_reject_missing_or_extra_declared_inputs(
         DefaultOperationAdapter().to_uapi(policy, resolved, None)
     with pytest.raises(PolicyError, match="resolved inputs"):
         planner(policy).dry_run(context(), policy, resolved)
+
+
+def test_adapter_serializes_json_file_inputs_for_uapi() -> None:
+    policy = operation(
+        parameters={
+            "source_repository": PolicyParameter(
+                "source_repository",
+                "source_repository",
+                (InputSource.JSON_FILE,),
+                "json_file",
+                True,
+            )
+        }
+    )
+    source = {"url": "git@example.test:owner/site.git", "branch": "deploy-staging"}
+    content = json.dumps(source).encode()
+    resolved = ResolvedInputs(
+        values={"source_repository": source},
+        safe_values={
+            "source_repository": {
+                "name": "source-repository.json",
+                **fingerprint(content),
+            }
+        },
+        uploads={},
+        secrets=(),
+    )
+
+    assert DefaultOperationAdapter().to_uapi(policy, resolved, None) == {
+        "source_repository": ('{"branch":"deploy-staging","url":"git@example.test:owner/site.git"}')
+    }
 
 
 def test_preflight_requires_bound_reviewed_adapter_with_exact_selector() -> None:

@@ -1,7 +1,13 @@
 import pytest
 
 from cpanel_admin.errors import CapabilityError, UsageError
-from cpanel_admin.operations import OPERATIONS, Risk, get_operation, validate_parameters
+from cpanel_admin.operations import (
+    OPERATIONS,
+    Risk,
+    get_operation,
+    validate_parameters,
+    validate_value,
+)
 
 EXPECTED = {
     "domains.list",
@@ -97,6 +103,26 @@ def test_operation_maps_cli_parameters_to_uapi() -> None:
     operation = get_operation("files.list")
     values = validate_parameters(operation, {"path": "public_html"})
     assert operation.to_uapi(values) == {"dir": "public_html"}
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "repositories/site",
+        "/home/account/../etc",
+        "/home/account/\x00site",
+    ],
+)
+def test_absolute_path_rejects_relative_traversal_and_null_values(path: str) -> None:
+    with pytest.raises(UsageError, match="absolute cPanel path"):
+        validate_value("absolute_path", path)
+
+
+def test_absolute_path_accepts_normalized_home_directory_path() -> None:
+    assert (
+        validate_value("absolute_path", "/home/account/repositories/site")
+        == "/home/account/repositories/site"
+    )
 
 
 def test_sensitive_content_is_validated_without_appearing_in_error() -> None:

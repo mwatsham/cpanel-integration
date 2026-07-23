@@ -60,10 +60,23 @@ def test_runtime_policy_matches_review() -> None:
     assert subject.get("runtime.version-control").parameters["fields"].required is False
     assert subject.get("runtime.git-create").risk is Risk.MUTATE
     assert subject.get("runtime.git-create").parameters["source_repository"].required is False
+    assert (
+        subject.get("runtime.git-create").parameters["repository_root"].validator == "absolute_path"
+    )
     assert subject.get("runtime.git-update").risk is Risk.MUTATE
+    assert (
+        subject.get("runtime.git-update").parameters["repository_root"].validator == "absolute_path"
+    )
     assert subject.get("runtime.git-delete").risk is Risk.MUTATE
+    assert (
+        subject.get("runtime.git-delete").parameters["repository_root"].validator == "absolute_path"
+    )
     assert subject.get("runtime.git-delete").elevated_impact is True
     assert subject.get("runtime.deployment-create").risk is Risk.MUTATE
+    assert (
+        subject.get("runtime.deployment-create").parameters["repository_root"].validator
+        == "absolute_path"
+    )
     assert subject.get("runtime.deployment-delete").risk is Risk.MUTATE
     assert subject.get("runtime.deployment-delete").elevated_impact is True
     for identity, reason in RUNTIME_EXCLUDED.items():

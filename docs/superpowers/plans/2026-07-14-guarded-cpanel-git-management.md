@@ -45,10 +45,10 @@ assert subject.get("runtime.deployment-delete").elevated_impact is True
 Add CLI tests that call:
 
 ```bash
-cpanel-admin --profile test runtime git-create --repository-root public_html --name site --type git --source-repository source.json --dry-run
-cpanel-admin --profile test runtime git-update --repository-root public_html --name site --branch main --source-repository source.json --dry-run
-cpanel-admin --profile test runtime git-delete --repository-root public_html --dry-run
-cpanel-admin --profile test runtime deployment-create --repository-root public_html --dry-run
+cpanel-admin --profile test runtime git-create --repository-root /home/account/repositories/site --name site --type git --source-repository source.json --dry-run
+cpanel-admin --profile test runtime git-update --repository-root /home/account/repositories/site --name site --branch main --source-repository source.json --dry-run
+cpanel-admin --profile test runtime git-delete --repository-root /home/account/repositories/site --dry-run
+cpanel-admin --profile test runtime deployment-create --repository-root /home/account/repositories/site --dry-run
 cpanel-admin --profile test runtime deployment-delete --deploy-id abc123 --dry-run
 ```
 
