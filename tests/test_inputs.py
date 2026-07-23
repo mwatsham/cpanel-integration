@@ -42,10 +42,14 @@ def parameter(
     return PolicyParameter(name, name, (source,), validator, required, secret, secret)
 
 
-def operation(*parameters: PolicyParameter) -> PolicyOperation:
+def operation(
+    *parameters: PolicyParameter,
+    name: str = "test.operation",
+    identity: str = "Test/operation",
+) -> PolicyOperation:
     return PolicyOperation(
-        name="test.operation",
-        identity="Test/operation",
+        name=name,
+        identity=identity,
         command=("test", "operation"),
         capability="test",
         status=SupportStatus.INCLUDED,
@@ -360,6 +364,90 @@ def test_json_file_input_parses_object_and_fingerprints_file(tmp_path: Path) -> 
     }
     assert resolved.uploads == {}
     assert str(path) not in repr(resolved.safe_values)
+
+
+def test_git_create_source_repository_accepts_reviewed_shape_and_redacts_url(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "source-repository.json"
+    path.write_text('{"url": "git@github.com:example/site.git", "remote_name": "origin"}')
+    subject = operation(
+        parameter("source_repository", InputSource.JSON_FILE, "json_file"),
+        name="runtime.git-create",
+        identity="VersionControl/create",
+    )
+
+    resolved = InputResolver().resolve(
+        subject,
+        argparse.Namespace(source_repository=str(path)),
+        io.StringIO(),
+        {},
+    )
+
+    assert resolved.values["source_repository"] == {
+        "remote_name": "origin",
+        "url": "git@github.com:example/site.git",
+    }
+    assert resolved.secrets == ("git@github.com:example/site.git",)
+
+
+@pytest.mark.parametrize(
+    ("identity", "payload"),
+    [
+        (
+            "VersionControl/create",
+            '{"url": "git@github.com:example/site.git", "branch": "main"}',
+        ),
+        (
+            "VersionControl/update",
+            '{"url": "git@github.com:example/site.git"}',
+        ),
+        (
+            "VersionControl/create",
+            '{"url": "https://token@example.com/example/site.git"}',
+        ),
+    ],
+)
+def test_git_source_repository_rejects_unsupported_or_credential_bearing_values(
+    tmp_path: Path,
+    identity: str,
+    payload: str,
+) -> None:
+    path = tmp_path / "source-repository.json"
+    path.write_text(payload)
+    subject = operation(
+        parameter("source_repository", InputSource.JSON_FILE, "json_file"),
+        name="runtime.git-create" if identity.endswith("create") else "runtime.git-update",
+        identity=identity,
+    )
+
+    with pytest.raises(UsageError, match="source repository"):
+        InputResolver().resolve(
+            subject,
+            argparse.Namespace(source_repository=str(path)),
+            io.StringIO(),
+            {},
+        )
+
+
+def test_git_update_source_repository_accepts_only_remote_name(tmp_path: Path) -> None:
+    path = tmp_path / "source-repository.json"
+    path.write_text('{"remote_name": "origin"}')
+    subject = operation(
+        parameter("source_repository", InputSource.JSON_FILE, "json_file"),
+        name="runtime.git-update",
+        identity="VersionControl/update",
+    )
+
+    resolved = InputResolver().resolve(
+        subject,
+        argparse.Namespace(source_repository=str(path)),
+        io.StringIO(),
+        {},
+    )
+
+    assert resolved.values["source_repository"] == {"remote_name": "origin"}
+    assert resolved.secrets == ()
 
 
 def test_resolved_input_representation_exposes_only_safe_values(tmp_path: Path) -> None:

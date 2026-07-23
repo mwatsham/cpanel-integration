@@ -9431,7 +9431,7 @@
             "argument"
           ],
           "uapi_name": "repository_root",
-          "validator": "bounded_text"
+          "validator": "absolute_path"
         },
         "source_repository": {
           "name": "source_repository",
@@ -9486,7 +9486,7 @@
             "argument"
           ],
           "uapi_name": "repository_root",
-          "validator": "bounded_text"
+          "validator": "absolute_path"
         }
       },
       "preflight": null,
@@ -9574,7 +9574,7 @@
             "argument"
           ],
           "uapi_name": "repository_root",
-          "validator": "bounded_text"
+          "validator": "absolute_path"
         },
         "source_repository": {
           "name": "source_repository",
@@ -9618,7 +9618,7 @@
             "argument"
           ],
           "uapi_name": "repository_root",
-          "validator": "bounded_text"
+          "validator": "absolute_path"
         }
       },
       "preflight": null,

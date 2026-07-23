@@ -727,7 +727,7 @@ def test_runtime_php_installed_versions_uses_fixed_readonly_uapi(cli_env) -> Non
                 "runtime",
                 "git-create",
                 "--repository-root",
-                "public_html",
+                "/home/account/repositories/site",
                 "--name",
                 "site",
                 "--type",
@@ -745,7 +745,7 @@ def test_runtime_php_installed_versions_uses_fixed_readonly_uapi(cli_env) -> Non
                 "runtime",
                 "git-update",
                 "--repository-root",
-                "public_html",
+                "/home/account/repositories/site",
                 "--name",
                 "site",
                 "--branch",
@@ -763,7 +763,7 @@ def test_runtime_php_installed_versions_uses_fixed_readonly_uapi(cli_env) -> Non
                 "runtime",
                 "git-delete",
                 "--repository-root",
-                "public_html",
+                "/home/account/repositories/site",
                 "--dry-run",
             ],
             "runtime.git-delete",
@@ -775,7 +775,7 @@ def test_runtime_php_installed_versions_uses_fixed_readonly_uapi(cli_env) -> Non
                 "runtime",
                 "deployment-create",
                 "--repository-root",
-                "public_html",
+                "/home/account/repositories/site",
                 "--dry-run",
             ],
             "runtime.deployment-create",
@@ -802,7 +802,11 @@ def test_runtime_git_management_dry_runs_are_policy_guarded(
     env, key = cli_env
     add_profile(env, key)
     source = tmp_path / "source-repository.json"
-    source.write_text('{"url": "https://github.com/example/site.git", "branch": "main"}')
+    source.write_text(
+        '{"remote_name": "origin"}'
+        if operation == "runtime.git-update"
+        else '{"url": "https://github.com/example/site.git", "remote_name": "origin"}'
+    )
     resolved_args = [str(source) if item == "source-repository.json" else item for item in args]
     transport = FakeTransport()
 
@@ -821,7 +825,85 @@ def test_runtime_git_management_dry_runs_are_policy_guarded(
     assert payload["requires_confirmation"] is requires_confirmation
     if "source-repository.json" in args:
         assert payload["parameters"]["source_repository"]["name"] == "source-repository.json"
-        assert payload["parameters"]["source_repository"]["bytes"] == 64
+        assert payload["parameters"]["source_repository"]["bytes"] == len(source.read_bytes())
+
+
+def test_runtime_git_create_serializes_source_repository_for_uapi(cli_env, tmp_path: Path) -> None:
+    env, key = cli_env
+    add_profile(env, key)
+    source = tmp_path / "source-repository.json"
+    source.write_text('{"url": "https://github.com/example/site.git", "remote_name": "origin"}')
+    transport = FakeTransport([UAPIResponse(None, [], [])])
+
+    code, payload, stderr = invoke(
+        [
+            "--profile",
+            "test",
+            "runtime",
+            "git-create",
+            "--repository-root",
+            "/home/account/repositories/site",
+            "--name",
+            "site",
+            "--type",
+            "git",
+            "--source-repository",
+            str(source),
+        ],
+        env=env,
+        transport=transport,
+    )
+
+    assert code == 0
+    assert stderr == ""
+    assert payload["ok"] is True
+    assert transport.calls[0]["parameters"] == {
+        "name": "site",
+        "repository_root": "/home/account/repositories/site",
+        "source_repository": (
+            '{"remote_name":"origin","url":"https://github.com/example/site.git"}'
+        ),
+        "type": "git",
+    }
+
+
+def test_runtime_git_update_serializes_reviewed_source_repository_for_uapi(
+    cli_env, tmp_path: Path
+) -> None:
+    env, key = cli_env
+    add_profile(env, key)
+    source = tmp_path / "source-repository.json"
+    source.write_text('{"remote_name": "origin"}')
+    transport = FakeTransport([UAPIResponse(None, [], [])])
+
+    code, payload, stderr = invoke(
+        [
+            "--profile",
+            "test",
+            "runtime",
+            "git-update",
+            "--repository-root",
+            "/home/account/repositories/site",
+            "--name",
+            "site",
+            "--branch",
+            "deploy-staging",
+            "--source-repository",
+            str(source),
+        ],
+        env=env,
+        transport=transport,
+    )
+
+    assert code == 0, stderr
+    assert stderr == ""
+    assert payload["ok"] is True
+    assert transport.calls[0]["parameters"] == {
+        "branch": "deploy-staging",
+        "name": "site",
+        "repository_root": "/home/account/repositories/site",
+        "source_repository": '{"remote_name":"origin"}',
+    }
 
 
 def test_backup_list_uses_fixed_readonly_uapi(cli_env) -> None:

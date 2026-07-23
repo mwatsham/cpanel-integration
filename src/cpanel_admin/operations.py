@@ -320,6 +320,15 @@ def _path(value: object) -> str:
     return str(path)
 
 
+def _absolute_path(value: object) -> str:
+    if not isinstance(value, str) or not value or value != value.strip() or "\0" in value:
+        raise UsageError("Invalid absolute cPanel path")
+    path = PurePosixPath(value)
+    if not path.is_absolute() or ".." in path.parts or len(value) > 4096:
+        raise UsageError("Invalid absolute cPanel path; use an absolute path without '..'")
+    return str(path)
+
+
 def _filename(value: object) -> str:
     if (
         not isinstance(value, str)
@@ -522,6 +531,7 @@ def _unsupported_cron(_value: object) -> object:
 
 Validator = Callable[[object], object]
 _VALIDATOR_FUNCTIONS: dict[str, Validator] = {
+    "absolute_path": _absolute_path,
     "boolean": _boolean,
     "bounded_text": lambda item: _bounded_text(item, label="Text", maximum=MAX_TEXT_BYTES),
     "certificate": _certificate,

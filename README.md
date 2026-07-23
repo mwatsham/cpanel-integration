@@ -116,7 +116,7 @@ Global options precede the capability group:
 .venv/bin/cpanel-admin --profile production security known-host-verify --host-name example.com
 .venv/bin/cpanel-admin --profile production runtime php-installed
 .venv/bin/cpanel-admin --profile production runtime passenger-apps
-.venv/bin/cpanel-admin --profile production runtime git-repositories
+.venv/bin/cpanel-admin --profile production runtime version-control
 .venv/bin/cpanel-admin --profile production runtime deployments
 .venv/bin/cpanel-admin --profile production runtime nginx-clear-cache --dry-run
 .venv/bin/cpanel-admin --profile production backups list
@@ -129,7 +129,7 @@ For cPanel Git repository management, put the source repository object in a loca
 ```json
 {
   "url": "https://github.com/example/site.git",
-  "branch": "main"
+  "remote_name": "origin"
 }
 ```
 
@@ -137,15 +137,15 @@ Then dry-run and execute through the reviewed runtime commands:
 
 ```bash
 .venv/bin/cpanel-admin --profile production runtime git-create \
-  --repository-root public_html --name site --type git \
+  --repository-root /home/account/repositories/site --name site --type git \
   --source-repository ./source-repository.json --dry-run
 
 .venv/bin/cpanel-admin --profile production runtime git-update \
-  --repository-root public_html --branch main \
+  --repository-root /home/account/repositories/site --name site --branch main \
   --source-repository ./source-repository.json --dry-run
 
 .venv/bin/cpanel-admin --profile production runtime deployment-create \
-  --repository-root public_html --dry-run
+  --repository-root /home/account/repositories/site --dry-run
 ```
 
 Repository deletion and deployment-task deletion are elevated-impact mutations. Use the digest and
@@ -153,7 +153,7 @@ expiry returned by `--dry-run`:
 
 ```bash
 .venv/bin/cpanel-admin --profile production runtime git-delete \
-  --repository-root public_html --dry-run
+  --repository-root /home/account/repositories/site --dry-run
 
 .venv/bin/cpanel-admin --profile production runtime deployment-delete \
   --deploy-id deploy-123 --dry-run

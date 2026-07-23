@@ -36,3 +36,12 @@ def test_each_capability_reference_has_usage_and_safety_sections() -> None:
         assert "## Safety notes" in text
         assert "references/operation-support.md" in text
         assert "--dry-run" in text
+
+
+def test_runtime_git_examples_use_absolute_account_paths() -> None:
+    text = Path("references/capabilities/runtime.md").read_text(encoding="utf-8")
+
+    assert "runtime version-control" in text
+    assert "runtime git-repositories" not in text
+    assert text.count("--repository-root /home/account/repositories/site") == 4
+    assert "--repository-root public_html" not in text

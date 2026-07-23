@@ -14,6 +14,7 @@ from contextlib import suppress
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import NoReturn, TextIO, TypeVar, cast
+from urllib.parse import urlsplit
 
 from .catalog import JsonValue
 from .errors import ConfigError, UsageError
@@ -25,6 +26,10 @@ from .transport import Upload
 
 MAX_LOCAL_FILE_BYTES = 10 * 1024 * 1024
 ENVIRONMENT_NAME_RE = re.compile(r"^[A-Z][A-Z0-9_]{0,127}$")
+GIT_REMOTE_NAME_RE = re.compile(r"^[A-Za-z0-9._-]{1,255}$")
+GIT_SCP_URL_RE = re.compile(
+    r"^git@[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?:[A-Za-z0-9._~/-]+$"
+)
 _ENCRYPTED_PROFILE_FIELDS = frozenset({"encrypted_token"})
 _KeyT = TypeVar("_KeyT")
 _ValueT = TypeVar("_ValueT")
@@ -252,6 +257,56 @@ def _decode_json_file(content: bytes) -> object:
     return value
 
 
+def _repository_url(value: object) -> str:
+    if not isinstance(value, str) or not value or value != value.strip() or len(value) > 4096:
+        raise UsageError("Invalid source repository URL")
+    if any(character.isspace() or ord(character) < 32 for character in value):
+        raise UsageError("Invalid source repository URL")
+    if GIT_SCP_URL_RE.fullmatch(value):
+        return value
+    try:
+        parsed = urlsplit(value)
+        _ = parsed.port
+    except ValueError as exc:
+        raise UsageError("Invalid source repository URL") from exc
+    if (
+        parsed.scheme not in {"https", "ssh"}
+        or not parsed.hostname
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+        or (parsed.scheme == "https" and parsed.username is not None)
+        or (parsed.scheme == "ssh" and parsed.username not in {None, "git"})
+    ):
+        raise UsageError("Invalid source repository URL")
+    return value
+
+
+def _remote_name(value: object) -> str:
+    if not isinstance(value, str) or GIT_REMOTE_NAME_RE.fullmatch(value) is None:
+        raise UsageError("Invalid source repository remote name")
+    return value
+
+
+def _validate_source_repository(
+    operation: PolicyOperation, value: object
+) -> tuple[dict[str, object], tuple[str, ...]]:
+    if not isinstance(value, dict):
+        raise UsageError("Invalid source repository object")
+    if operation.identity == "VersionControl/create":
+        if set(value) - {"url", "remote_name"} or "url" not in value:
+            raise UsageError("Invalid source repository object for Git creation")
+        normalized: dict[str, object] = {"url": _repository_url(value["url"])}
+        if "remote_name" in value:
+            normalized["remote_name"] = _remote_name(value["remote_name"])
+        return normalized, (cast(str, normalized["url"]),)
+    if operation.identity == "VersionControl/update":
+        if set(value) != {"remote_name"}:
+            raise UsageError("Invalid source repository object for Git update")
+        return {"remote_name": _remote_name(value["remote_name"])}, ()
+    return value, ()
+
+
 def _missing(operation: PolicyOperation, parameter: PolicyParameter) -> UsageError:
     return UsageError(f"Missing required parameter for {operation.name}: {parameter.name}")
 
@@ -419,7 +474,11 @@ class InputResolver:
             if source is InputSource.JSON_FILE:
                 local_path = Path(cast(str, normalized))
                 content = _read_local_file(local_path)
-                values[parameter.name] = _decode_json_file(content)
+                decoded = _decode_json_file(content)
+                if parameter.name == "source_repository":
+                    decoded, source_secrets = _validate_source_repository(operation, decoded)
+                    secrets.extend(source_secrets)
+                values[parameter.name] = decoded
                 safe_values[parameter.name] = {
                     "name": local_path.name,
                     **fingerprint(content),

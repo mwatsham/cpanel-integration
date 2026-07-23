@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
@@ -277,7 +278,10 @@ class DefaultOperationAdapter:
                 continue
             if parameter.sources[0] is InputSource.LOCAL_FILE:
                 continue
-            result[parameter.uapi_name] = inputs.values[name]
+            value = inputs.values[name]
+            if parameter.sources[0] is InputSource.JSON_FILE:
+                value = json.dumps(value, sort_keys=True, separators=(",", ":"))
+            result[parameter.uapi_name] = value
         return result
 
     def verify(
