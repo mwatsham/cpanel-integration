@@ -144,6 +144,32 @@ def test_transport_failures_are_typed_and_redacted(
     assert "secret-token" not in str(error.value)
 
 
+@pytest.mark.parametrize(
+    "failure",
+    [
+        URLError(OSError("clone failed for https://github.com/example/private-site.git")),
+        OSError("clone failed for https://github.com/example/private-site.git"),
+    ],
+)
+def test_network_failures_redact_explicit_resolved_secrets(
+    profile: Profile, failure: Exception
+) -> None:
+    repository_url = "https://github.com/example/private-site.git"
+    transport = UAPITransport(opener=FakeOpener(failure))
+
+    with pytest.raises(TransportError) as error:
+        transport.call(
+            profile,
+            "token",
+            "VersionControl",
+            "create",
+            {"source_repository": f'{{"url":"{repository_url}"}}'},
+            redaction_secrets=(repository_url,),
+        )
+
+    assert repository_url not in str(error.value)
+
+
 def test_http_and_uapi_failures_are_typed(profile: Profile) -> None:
     http_error = HTTPError("https://example", 403, "Forbidden", {}, io.BytesIO(b"denied"))
     with pytest.raises(TransportError, match="HTTP 403"):
@@ -188,6 +214,34 @@ def test_uapi_error_redacts_policy_sensitive_names(profile: Profile) -> None:
             sensitive_names=("dkim_private_key",),
         )
     assert private_key not in str(error.value)
+
+
+def test_uapi_error_redacts_explicit_resolved_secrets(profile: Profile) -> None:
+    repository_url = "https://github.com/example/private-site.git"
+    opener = FakeOpener(
+        FakeResponse(
+            {
+                "result": {
+                    "status": 0,
+                    "errors": [f"failed to clone repository {repository_url}"],
+                }
+            }
+        )
+    )
+    with pytest.raises(UAPIError) as error:
+        UAPITransport(opener=opener).call(
+            profile,
+            "token",
+            "VersionControl",
+            "create",
+            {"source_repository": f'{{"url":"{repository_url}"}}'},
+            redaction_secrets=(repository_url,),
+        )
+    request = opener.requests[0][0]
+    assert request.method == "POST"
+    assert repository_url not in request.full_url
+    assert repository_url not in str(error.value)
+    assert "[REDACTED]" in str(error.value)
 
 
 def test_partial_result_failures_raise_only_indexes_and_safe_messages(profile: Profile) -> None:

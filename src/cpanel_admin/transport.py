@@ -212,6 +212,7 @@ class UAPITransport:
         method: str = "GET",
         files: Mapping[str, Upload] | None = None,
         sensitive_names: Collection[str] = (),
+        redaction_secrets: Collection[str] = (),
     ) -> UAPIResponse:
         if not 1 <= timeout <= 120:
             raise UsageError("Timeout must be between 1 and 120 seconds")
@@ -222,13 +223,19 @@ class UAPITransport:
             raise UsageError("UAPI request method must be GET or POST")
         if files and method != "POST":
             raise UsageError("File uploads require a POST request")
-        request_secrets = _request_secrets(parameters, sensitive_names)
+        request_secrets = (
+            *_request_secrets(parameters, sensitive_names),
+            *(str(secret) for secret in redaction_secrets if secret),
+        )
         effective_method = (
             "POST"
             if method == "GET"
             and not files
-            and {name.lower() for name in sensitive_names}.intersection(
-                name.lower() for name in parameters
+            and (
+                redaction_secrets
+                or {name.lower() for name in sensitive_names}.intersection(
+                    name.lower() for name in parameters
+                )
             )
             else method
         )
@@ -268,7 +275,7 @@ class UAPITransport:
                 raise TransportError("cPanel request timed out") from exc
             if isinstance(reason, ssl.SSLError):
                 raise TransportError("cPanel TLS verification failed") from exc
-            safe_reason = redact(str(reason), secrets=(token,))
+            safe_reason = redact(str(reason), secrets=(token, *request_secrets))
             raise TransportError(f"Network request failed: {safe_reason}") from exc
         except TimeoutError as exc:
             raise TransportError("cPanel request timed out") from exc
@@ -277,7 +284,7 @@ class UAPITransport:
         except TransportError:
             raise
         except OSError as exc:
-            safe_reason = redact(str(exc), secrets=(token,))
+            safe_reason = redact(str(exc), secrets=(token, *request_secrets))
             raise TransportError(f"Network request failed: {safe_reason}") from exc
         if len(body) > MAX_RESPONSE_BYTES:
             raise TransportError("cPanel response exceeds the 10 MiB safety limit")
