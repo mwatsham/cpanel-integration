@@ -124,11 +124,21 @@ Global options precede the capability group:
 .venv/bin/cpanel-admin --profile production backups file-info --path public_html/index.html
 ```
 
-For cPanel Git repository management, put the source repository object in a local JSON file:
+For cPanel Git repository creation, put the clone source in
+`source-repository-create.json`:
 
 ```json
 {
   "url": "https://github.com/example/site.git",
+  "remote_name": "origin"
+}
+```
+
+Updates use a separate `source-repository-update.json` because cPanel accepts only the remote name
+in the update descriptor. Pass the branch through `--branch`:
+
+```json
+{
   "remote_name": "origin"
 }
 ```
@@ -138,11 +148,11 @@ Then dry-run and execute through the reviewed runtime commands:
 ```bash
 .venv/bin/cpanel-admin --profile production runtime git-create \
   --repository-root /home/account/repositories/site --name site --type git \
-  --source-repository ./source-repository.json --dry-run
+  --source-repository ./source-repository-create.json --dry-run
 
 .venv/bin/cpanel-admin --profile production runtime git-update \
   --repository-root /home/account/repositories/site --name site --branch main \
-  --source-repository ./source-repository.json --dry-run
+  --source-repository ./source-repository-update.json --dry-run
 
 .venv/bin/cpanel-admin --profile production runtime deployment-create \
   --repository-root /home/account/repositories/site --dry-run

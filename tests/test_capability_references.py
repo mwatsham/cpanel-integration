@@ -45,3 +45,16 @@ def test_runtime_git_examples_use_absolute_account_paths() -> None:
     assert "runtime git-repositories" not in text
     assert text.count("--repository-root /home/account/repositories/site") == 4
     assert "--repository-root public_html" not in text
+
+
+def test_readme_git_workflow_uses_operation_specific_source_descriptors() -> None:
+    text = Path("README.md").read_text(encoding="utf-8")
+    create_command = text[text.index("runtime git-create") : text.index("runtime git-update")]
+    update_command = text[
+        text.index("runtime git-update") : text.index("runtime deployment-create")
+    ]
+
+    assert '"url": "https://github.com/example/site.git"' in text
+    assert text.count('"remote_name": "origin"') >= 2
+    assert "--source-repository ./source-repository-create.json" in create_command
+    assert "--source-repository ./source-repository-update.json" in update_command

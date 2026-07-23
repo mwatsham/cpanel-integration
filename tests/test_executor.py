@@ -157,6 +157,34 @@ def test_read_execution_checks_policy_calls_transport_and_audits() -> None:
     assert runtime.audit.events[0].outcome == "success"
 
 
+def test_execution_forwards_resolved_secrets_for_transport_error_redaction() -> None:
+    subject = operation()
+    runtime = context(subject)
+    repository_url = "https://github.com/example/private-site.git"
+
+    class RecordingTransport(FakeTransport):
+        redaction_secrets: tuple[str, ...] = ()
+
+        def call(self, *args, **kwargs):
+            self.redaction_secrets = tuple(kwargs["redaction_secrets"])
+            return super().call(*args, **kwargs)
+
+    transport = RecordingTransport()
+    runtime = ExecutionContext(
+        profile=runtime.profile,
+        token=runtime.token,
+        timeout=runtime.timeout,
+        transport=transport,
+        audit=runtime.audit,
+        policy=runtime.policy,
+    )
+    subject_inputs = ResolvedInputs({}, {}, {}, (repository_url,))
+
+    executor(subject).execute(runtime, subject, subject_inputs, confirmation=None)
+
+    assert transport.redaction_secrets == (repository_url,)
+
+
 def test_mutation_dry_run_never_calls_mutating_transport() -> None:
     subject = mutation()
     runtime = context(subject)

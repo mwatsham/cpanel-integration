@@ -192,6 +192,8 @@ class OperationExecutor:
         )
         if sensitive_names:
             kwargs["sensitive_names"] = sensitive_names
+        if inputs.secrets:
+            kwargs["redaction_secrets"] = inputs.secrets
         return context.transport.call(
             context.profile,
             context.token,
