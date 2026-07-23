@@ -9,4 +9,5 @@ htmlcov/
 build/
 dist/
 .superpowers/
+.worktrees/
 *.openapi.download
