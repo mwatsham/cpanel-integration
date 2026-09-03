@@ -8,7 +8,7 @@ from urllib.request import Request
 
 import pytest
 
-from cpanel_admin.errors import PartialFailure, TransportError, UAPIError
+from cpanel_admin.errors import PartialFailure, TransportError, UAPIError, UsageError
 from cpanel_admin.profiles import Profile
 from cpanel_admin.transport import SameOriginRedirectHandler, UAPITransport, Upload
 
@@ -67,6 +67,149 @@ def test_success_builds_verified_uapi_request(profile: Profile) -> None:
     assert request.full_url == "https://cpanel.example.com:2083/execute/DomainInfo/list_domains"
     assert request.get_header("Authorization") == "cpanel account:secret-token"
     assert timeout == 30
+
+
+def test_success_builds_verified_cpanel_api2_request(profile: Profile) -> None:
+    opener = FakeOpener(
+        FakeResponse(
+            {
+                "cpanelresult": {
+                    "apiversion": 2,
+                    "module": "Fileman",
+                    "func": "fileop",
+                    "event": {"result": 1},
+                    "data": [{"src": "public_html/index.php", "result": 1}],
+                }
+            }
+        )
+    )
+    transport = UAPITransport(opener=opener)
+
+    response = transport.call_api2(
+        profile,
+        "secret-token",
+        "Fileman",
+        "fileop",
+        {"op": "chmod", "sourcefiles": "public_html/index.php", "metadata": "0644"},
+    )
+
+    request, timeout = opener.requests[0]
+    assert response.data == [{"src": "public_html/index.php", "result": 1}]
+    assert request.full_url.startswith("https://cpanel.example.com:2083/json-api/cpanel?")
+    assert "cpanel_jsonapi_apiversion=2" in request.full_url
+    assert "cpanel_jsonapi_module=Fileman" in request.full_url
+    assert "cpanel_jsonapi_func=fileop" in request.full_url
+    assert request.get_header("Authorization") == "cpanel account:secret-token"
+    assert timeout == 30
+
+
+def test_api2_event_failure_is_typed_and_redacted(profile: Profile) -> None:
+    opener = FakeOpener(
+        FakeResponse(
+            {
+                "cpanelresult": {
+                    "event": {
+                        "result": 0,
+                        "reason": "chmod failed for token-secret",
+                    }
+                }
+            }
+        )
+    )
+
+    with pytest.raises(UAPIError) as error:
+        UAPITransport(opener=opener).call_api2(
+            profile,
+            "token",
+            "Fileman",
+            "fileop",
+            {"op": "chmod", "sourcefiles": "public_html/index.php", "metadata": "0644"},
+            redaction_secrets=("token-secret",),
+        )
+
+    assert "token-secret" not in str(error.value)
+
+
+def test_api2_item_failure_reports_partial_failure(profile: Profile) -> None:
+    opener = FakeOpener(
+        FakeResponse(
+            {
+                "cpanelresult": {
+                    "event": {"result": 1},
+                    "data": [
+                        {"result": 1, "file": "ok.html"},
+                        {"result": 0, "file": "bad.html", "message": "permission denied"},
+                    ],
+                }
+            }
+        )
+    )
+
+    with pytest.raises(PartialFailure, match="item 1: permission denied"):
+        UAPITransport(opener=opener).call_api2(
+            profile,
+            "token",
+            "Fileman",
+            "fileop",
+            {"op": "trash", "sourcefiles": "public_html/bad.html"},
+        )
+
+
+def test_api2_malformed_response_is_rejected(profile: Profile) -> None:
+    opener = FakeOpener(FakeResponse({"result": {"status": 1}}))
+
+    with pytest.raises(TransportError, match="invalid API 2 result"):
+        UAPITransport(opener=opener).call_api2(
+            profile,
+            "token",
+            "Fileman",
+            "fileop",
+            {"op": "trash", "sourcefiles": "public_html/bad.html"},
+        )
+
+
+@pytest.mark.parametrize(
+    ("failure", "message"),
+    [
+        (URLError(TimeoutError()), "timed out"),
+        (URLError(ssl.SSLError("bad certificate")), "TLS"),
+        (URLError(OSError("api2-token connection failed")), "Network request failed"),
+    ],
+)
+def test_api2_transport_failures_are_typed_and_redacted(
+    profile: Profile, failure: Exception, message: str
+) -> None:
+    with pytest.raises(TransportError, match=message) as error:
+        UAPITransport(opener=FakeOpener(failure)).call_api2(
+            profile,
+            "api2-token",
+            "Fileman",
+            "fileop",
+            {"op": "trash", "sourcefiles": "public_html/bad.html"},
+        )
+    assert "api2-token" not in str(error.value)
+
+
+@pytest.mark.parametrize(
+    ("module", "function", "timeout", "message"),
+    [
+        ("Fileman/bad", "fileop", 30, "Invalid cPanel API 2 operation identifier"),
+        ("Fileman", "bad-func", 30, "Invalid cPanel API 2 operation identifier"),
+        ("Fileman", "fileop", 0, "Timeout must be between 1 and 120 seconds"),
+    ],
+)
+def test_api2_rejects_invalid_identifiers_and_timeouts(
+    profile: Profile, module: str, function: str, timeout: int, message: str
+) -> None:
+    with pytest.raises(UsageError, match=message):
+        UAPITransport(opener=FakeOpener(FakeResponse({}))).call_api2(
+            profile,
+            "token",
+            module,
+            function,
+            {},
+            timeout,
+        )
 
 
 def test_parameters_are_url_encoded(profile: Profile) -> None:

@@ -408,6 +408,12 @@ def _trash_age(value: object) -> int:
     return value
 
 
+def _permissions(value: object) -> str:
+    if not isinstance(value, str) or not re.fullmatch(r"0?[0-7]{3}", value):
+        raise UsageError("Invalid permissions; use an octal mode like 0644 or 0755")
+    return value.zfill(4)
+
+
 def _enum(value: object) -> str:
     return _bounded_text(value, label="Enum value", maximum=255)
 
@@ -552,6 +558,7 @@ _VALIDATOR_FUNCTIONS: dict[str, Validator] = {
     "local_file": lambda item: _bounded_text(item, label="Local file path", maximum=4096),
     "path": _path,
     "pem": _pem,
+    "permissions": _permissions,
     "private_key": _private_key,
     "privilege": _privileges,
     "privileges": _privileges,

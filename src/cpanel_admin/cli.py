@@ -8,16 +8,18 @@ import os
 import sys
 from collections.abc import Mapping, Sequence
 from contextlib import redirect_stderr, redirect_stdout
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, TextIO
 
-from .audit import AuditWriter
+from .audit import AuditEvent, AuditWriter
 from .capabilities import CapabilityService
 from .catalog import Catalog
 from .confirmation import ConfirmationService
 from .errors import ConfigError, ConfirmationError, CPanelAdminError, UsageError
 from .executor import ExecutionContext, ExecutionResult, OperationExecutor
 from .inputs import InputResolver
+from .legacy_api2 import LEGACY_FILE_OPERATIONS, LegacyFileExecutor, resolve_legacy_file_inputs
 from .planner import ExecutionPlan, OperationPlanner
 from .policy import (
     InputSource,
@@ -134,6 +136,66 @@ def _add_policy_operation(
         _confirmation_options(parser)
 
 
+def _action_subparsers(group: argparse.ArgumentParser) -> Any:
+    return next(
+        action for action in group._actions if isinstance(action, argparse._SubParsersAction)
+    )
+
+
+def _add_policy_operation_alias(
+    groups_by_name: dict[str, argparse.ArgumentParser],
+    operation: PolicyOperation,
+    alias: str,
+) -> None:
+    group = groups_by_name["files"]
+    parser = _action_subparsers(group).add_parser(alias, allow_abbrev=False)
+    parser.set_defaults(
+        operation=operation.name,
+        dry_run=False,
+        confirm=None,
+        expires_at=None,
+    )
+    for parameter in operation.parameters.values():
+        _add_policy_parameter(parser, parameter)
+    _confirmation_options(parser)
+
+
+def _add_legacy_file_operations(groups_by_name: dict[str, argparse.ArgumentParser]) -> None:
+    group = groups_by_name["files"]
+    subparsers = _action_subparsers(group)
+    for operation in sorted(LEGACY_FILE_OPERATIONS.values(), key=lambda item: item.command):
+        _add_legacy_file_operation(subparsers, operation.name, operation.command[1])
+
+
+def _add_legacy_file_operation(subparsers: Any, operation_name: str, action: str) -> None:
+    parser = subparsers.add_parser(action, allow_abbrev=False)
+    parser.set_defaults(
+        legacy_api2_operation=operation_name,
+        dry_run=False,
+        confirm=None,
+        expires_at=None,
+    )
+    if action == "create-directory":
+        parser.add_argument("--directory", required=True)
+        parser.add_argument("--name", required=True)
+        parser.add_argument("--permissions")
+    elif action in {"delete-path"}:
+        parser.add_argument("--source", required=True)
+    elif action in {"rename-path", "copy-path", "move-path", "extract"}:
+        parser.add_argument("--source", required=True)
+        parser.add_argument("--destination", required=True)
+    elif action == "chmod-path":
+        parser.add_argument("--source", required=True)
+        parser.add_argument("--permissions", required=True)
+    elif action == "compress":
+        parser.add_argument("--source", required=True)
+        parser.add_argument("--destination", required=True)
+        parser.add_argument("--archive-type", required=True)
+    else:  # pragma: no cover - registry and parser additions are intentionally locked together
+        raise UsageError(f"Unsupported legacy file command: {action}")
+    _confirmation_options(parser)
+
+
 def build_parser(registry: PolicyRegistry | None = None) -> argparse.ArgumentParser:
     policy = registry or _default_policy_registry()
     parser = argparse.ArgumentParser(
@@ -169,6 +231,10 @@ def build_parser(registry: PolicyRegistry | None = None) -> argparse.ArgumentPar
     operation_groups: dict[str, argparse.ArgumentParser] = {}
     for operation in sorted(policy.included(), key=lambda item: item.command):
         _add_policy_operation(groups, operation_groups, operation)
+    write_operation = policy.get("files.write")
+    _add_policy_operation_alias(operation_groups, write_operation, "create-file")
+    _add_policy_operation_alias(operation_groups, write_operation, "update-file")
+    _add_legacy_file_operations(operation_groups)
 
     operations = groups.add_parser("operations", help="discover reviewed operation policy")
     operation_commands = operations.add_subparsers(dest="operations_command", required=True)
@@ -271,6 +337,136 @@ def _execution_result(result: ExecutionResult) -> dict[str, object]:
             "evidence": _json_safe(result.verification.evidence),
         },
         "summary": f"Completed {result.operation} for {result.profile}",
+    }
+
+
+def _legacy_values(args: argparse.Namespace) -> dict[str, object]:
+    return {
+        name: value
+        for name in ("directory", "name", "permissions", "source", "destination", "archive_type")
+        if (value := getattr(args, name, None)) is not None
+    }
+
+
+def _legacy_plan(
+    profile: str,
+    account: str,
+    operation,
+    parameters: Mapping[str, object],
+    confirmation: ConfirmationService,
+) -> dict[str, object]:
+    expires_at = None
+    digest = None
+    if operation.requires_confirmation:
+        plan = confirmation.plan_v2(
+            profile=profile,
+            account=account,
+            identity=operation.identity,
+            operation=operation.name,
+            parameters=parameters,
+            preflight=None,
+            policy_digest="legacy-cpanel-api-2-fileman",
+            risk=operation.risk,
+            elevated_impact=operation.elevated_impact,
+        )
+        expires_at = plan.expires_at
+        digest = plan.confirmation
+    return {
+        "ok": True,
+        "dry_run": True,
+        "profile": profile,
+        "operation": operation.name,
+        "identity": operation.identity,
+        "legacy_api": "cpanel-api-2",
+        "risk": operation.risk,
+        "elevated_impact": operation.elevated_impact,
+        "parameters": dict(parameters),
+        "impact": operation.impact,
+        "recovery": operation.recovery,
+        "requires_confirmation": operation.requires_confirmation,
+        "expires_at": expires_at,
+        "confirmation": digest,
+    }
+
+
+def _run_legacy_api2_operation(
+    args: argparse.Namespace,
+    env: Mapping[str, str],
+    store: ProfileStore,
+    transport: UAPITransport,
+) -> dict[str, object]:
+    if not args.profile:
+        raise UsageError("--profile is required for cPanel operations")
+    try:
+        operation = LEGACY_FILE_OPERATIONS[args.legacy_api2_operation]
+    except KeyError as exc:
+        raise UsageError("Unknown legacy cPanel API 2 file operation") from exc
+    profile = store.get(args.profile)
+    codec = SecretCodec.from_environment(env)
+    token = codec.decrypt(profile.encrypted_token)
+    command_values = _legacy_values(args)
+    parameters = resolve_legacy_file_inputs(operation, command_values)
+    confirmation = ConfirmationService(codec.key)
+    if args.dry_run:
+        return _legacy_plan(profile.name, profile.username, operation, parameters, confirmation)
+    if operation.requires_confirmation:
+        confirmation.verify_v2(
+            args.confirm,
+            profile=profile.name,
+            account=profile.username,
+            identity=operation.identity,
+            operation=operation.name,
+            parameters=parameters,
+            preflight=None,
+            policy_digest="legacy-cpanel-api-2-fileman",
+            expires_at=args.expires_at,
+            risk=operation.risk,
+            elevated_impact=operation.elevated_impact,
+        )
+    audit = AuditWriter(_audit_path(args, env))
+    event = AuditEvent.from_policy(
+        timestamp=datetime.now(UTC).isoformat(),
+        profile=profile.name,
+        operation=operation.name,
+        identity=operation.identity,
+        risk=operation.risk,
+        confirmed=operation.requires_confirmation,
+        safe_values=command_values,
+        audit_fields=tuple(command_values),
+        outcome="intent",
+        error_category=None,
+        verification=None,
+    )
+    audit.write(event, fail_closed=True)
+    response = LegacyFileExecutor(transport).execute(
+        profile, token, operation, command_values, timeout=args.timeout
+    )
+    audit.write(
+        AuditEvent.from_policy(
+            timestamp=datetime.now(UTC).isoformat(),
+            profile=profile.name,
+            operation=operation.name,
+            identity=operation.identity,
+            risk=operation.risk,
+            confirmed=operation.requires_confirmation,
+            safe_values=command_values,
+            audit_fields=tuple(command_values),
+            outcome="success",
+            error_category=None,
+            verification=None,
+        ),
+        fail_closed=True,
+    )
+    return {
+        "ok": True,
+        "profile": profile.name,
+        "operation": operation.name,
+        "identity": operation.identity,
+        "legacy_api": "cpanel-api-2",
+        "data": _json_safe(response.data),
+        "warnings": response.warnings,
+        "messages": response.messages,
+        "summary": f"Completed {operation.name} for {profile.name}",
     }
 
 
@@ -463,6 +659,8 @@ def main(
             result = _run_operations_discovery(args, registry)
         elif args.group == "capabilities":
             result = _run_capabilities(args, values, store, client, registry)
+        elif hasattr(args, "legacy_api2_operation"):
+            result = _run_legacy_api2_operation(args, values, store, client)
         else:
             result = _run_operation(args, values, input_stream, store, client)
         _write_json(output_stream, result, args.pretty)

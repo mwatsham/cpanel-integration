@@ -38,19 +38,39 @@ not provide replacements for the deprecated API 2 operations.
 
 ```text
 cpanel-admin --profile NAME files list --path RELATIVE_PATH
-cpanel-admin --profile NAME files inspect --path RELATIVE_PATH
+cpanel-admin --profile NAME files inspect --path RELATIVE_PATH [--include-permissions 1]
 cpanel-admin --profile NAME files read --directory RELATIVE_PATH --filename NAME
 cpanel-admin --profile NAME files write --directory RELATIVE_PATH --filename NAME \
   --content-stdin --dry-run
+cpanel-admin --profile NAME files create-file --directory RELATIVE_PATH --filename NAME \
+  --content-stdin --dry-run
+cpanel-admin --profile NAME files update-file --directory RELATIVE_PATH --filename NAME \
+  --content-stdin --dry-run
 cpanel-admin --profile NAME files upload --directory RELATIVE_PATH --source LOCAL_FILE --dry-run
+cpanel-admin --profile NAME files create-directory --directory RELATIVE_PATH --name NAME \
+  [--permissions OCTAL] --dry-run
+cpanel-admin --profile NAME files delete-path --source RELATIVE_PATH --dry-run
+cpanel-admin --profile NAME files rename-path --source RELATIVE_PATH \
+  --destination RELATIVE_PATH --dry-run
+cpanel-admin --profile NAME files copy-path --source RELATIVE_PATH \
+  --destination RELATIVE_PATH --dry-run
+cpanel-admin --profile NAME files move-path --source RELATIVE_PATH \
+  --destination RELATIVE_PATH --dry-run
+cpanel-admin --profile NAME files chmod-path --source RELATIVE_PATH \
+  --permissions OCTAL --dry-run
+cpanel-admin --profile NAME files compress --source RELATIVE_PATH \
+  --destination RELATIVE_PATH --archive-type zip --dry-run
+cpanel-admin --profile NAME files extract --source RELATIVE_PATH \
+  --destination RELATIVE_PATH --dry-run
 cpanel-admin --profile NAME files empty-trash --older-than DAYS --dry-run
 ```
 
 Write and upload are classified as destructive because a same-named remote file may be overwritten.
 Their plans include read-only target preflight metadata and a content hash, never content. Emptying
-trash is permanent. Direct delete and move are excluded because Fileman UAPI does not expose them.
-Paths must be relative and cannot contain `..`. Local upload, certificate, and key files are limited
-to 10 MiB.
+trash is permanent. `create-file` and `update-file` are aliases for the guarded UAPI write command.
+Directory creation, path delete/rename/copy/move, chmod, compress, and extract use a narrow
+cPanel API 2 Fileman fallback because Fileman UAPI does not expose those actions. Paths must be
+relative and cannot contain `..`. Local upload, certificate, and key files are limited to 10 MiB.
 
 ## SSL
 

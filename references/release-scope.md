@@ -32,6 +32,9 @@ The following packs remain dry-run-only for live mutation coverage in this relea
 They are still covered by policy tests, CLI tests, operation contract tests, generated metadata
 checks, and live dry-run plan tests. They are not executed as live mutations because a safe automated
 cleanup or rollback path is not available in the reviewed allowlist for this release.
+Files now include a narrow cPanel API 2 Fileman fallback for directory creation, path operations,
+permissions, compression, and extraction. Those fallback mutations remain dry-run-only in the
+disposable live suite until archive extraction and path cleanup can be proven safely.
 Runtime now includes guarded PHP administration plus cPanel Git repository and deployment-task
 mutations, but those runtime mutations remain dry-run-only in the disposable live suite until
 cleanup and rollback can be proven safely for the test account.

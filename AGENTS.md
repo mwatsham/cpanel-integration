@@ -3,7 +3,7 @@
 ## Project Overview
 
 - **Project:** cPanel Integration
-- **Purpose:** Build an Agent Skills-compatible skill that lets AI agents administer individual cPanel accounts through cPanel UAPI.
+- **Purpose:** Build an Agent Skills-compatible skill that lets AI agents administer individual cPanel accounts through cPanel UAPI, plus a narrow reviewed cPanel API 2 Fileman fallback for file operations missing from UAPI.
 - **Target users:** Expert web administrators.
 - **Stack:** Python 3.11+.
 - **Status:** MVP implementation complete; verification and live disposable-account testing remain.
@@ -11,7 +11,8 @@
 ## Scope
 
 - Support individual cPanel accounts only.
-- Use cPanel UAPI over verified HTTPS on port `2083`.
+- Use cPanel UAPI over verified HTTPS on port `2083` by default.
+- Use cPanel API 2 only for the reviewed Fileman fallback commands that have no UAPI equivalent.
 - Use documented API endpoints. Do not automate the cPanel web interface.
 - Support an explicit allowlist for domains, files/directories, SSL, MySQL/MariaDB databases,
   email, FTP, and PHP/runtime account administration.
@@ -69,14 +70,16 @@ Do not claim a command works until its configuration exists and the command has 
 
 ## API Design
 
-- Send requests to `https://<host>:2083/execute/<Module>/<function>`.
+- Send UAPI requests to `https://<host>:2083/execute/<Module>/<function>`.
+- Send reviewed Fileman API 2 fallback requests to `https://<host>:2083/json-api/cpanel`.
 - Authenticate using the documented `Authorization: cpanel <username>:<token>` request header.
 - Read named profile metadata and encrypted API tokens from the profile configuration.
 - Read the Fernet master key from `CPANEL_ADMIN_FERNET_KEY`, or from the permission-checked key
   file when the environment value is absent.
 - Keep TLS certificate and hostname verification enabled.
 - URI-encode all request parameters.
-- Treat both non-successful HTTP responses and UAPI responses with `status != 1` as failures.
+- Treat non-successful HTTP responses, UAPI responses with `status != 1`, and API 2 responses with
+  unsuccessful event/item results as failures.
 - Return structured JSON and concise, redacted summaries.
 - Use a reviewed module/function allowlist. Never expose an unrestricted arbitrary-call mode by default.
 

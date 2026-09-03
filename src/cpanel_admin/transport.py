@@ -180,7 +180,11 @@ def _raise_partial_failure_if_needed(data: object, *, secrets: tuple[str, ...]) 
         return
     failures: list[str] = []
     for index, item in enumerate(data):
-        if not isinstance(item, Mapping) or not _is_failed_item(item):
+        if not isinstance(item, Mapping):
+            continue
+        api2_result = item.get("result")
+        api2_failed = api2_result is not None and api2_result not in {True, "1"}
+        if not api2_failed and not _is_failed_item(item):
             continue
         message = redact(_item_failure_message(item), secrets=secrets)
         failures.append(f"item {index}: {message}")
@@ -300,6 +304,91 @@ class UAPITransport:
         if result.get("status") != 1:
             errors = _string_list(result.get("errors"))
             reason = "; ".join(errors) or "cPanel UAPI operation failed"
+            safe_reason = redact(reason, secrets=(token, *request_secrets))
+            raise UAPIError(str(safe_reason))
+        data = result.get("data")
+        _raise_partial_failure_if_needed(data, secrets=(token, *request_secrets))
+        return UAPIResponse(
+            data=data,
+            warnings=_string_list(result.get("warnings")),
+            messages=_string_list(result.get("messages")),
+        )
+
+    def call_api2(
+        self,
+        profile: Profile,
+        token: str,
+        module: str,
+        function: str,
+        parameters: Mapping[str, object],
+        timeout: int = 30,
+        *,
+        sensitive_names: Collection[str] = (),
+        redaction_secrets: Collection[str] = (),
+    ) -> UAPIResponse:
+        if not 1 <= timeout <= 120:
+            raise UsageError("Timeout must be between 1 and 120 seconds")
+        if not module.isidentifier() or not function.isidentifier():
+            raise UsageError("Invalid cPanel API 2 operation identifier")
+        base = f"https://{_host_for_url(profile.host)}:{profile.port}/json-api/cpanel"
+        query_parameters = {
+            "cpanel_jsonapi_apiversion": 2,
+            "cpanel_jsonapi_module": module,
+            "cpanel_jsonapi_func": function,
+            **dict(parameters),
+        }
+        request_secrets = (
+            *_request_secrets(parameters, sensitive_names),
+            *(str(secret) for secret in redaction_secrets if secret),
+        )
+        headers = {
+            "Authorization": f"cpanel {profile.username}:{token}",
+            "Accept": "application/json",
+            "User-Agent": "cpanel-account-admin/0.1",
+        }
+        request = Request(
+            f"{base}?{urlencode(query_parameters, doseq=True)}",
+            headers=headers,
+            method="GET",
+        )
+        try:
+            with self._opener.open(request, timeout=timeout) as response:
+                if not 200 <= response.status < 300:
+                    raise TransportError(f"cPanel returned HTTP {response.status}")
+                body = response.read(MAX_RESPONSE_BYTES + 1)
+        except HTTPError as exc:
+            raise TransportError(f"cPanel returned HTTP {exc.code}") from exc
+        except URLError as exc:
+            reason = exc.reason
+            if isinstance(reason, socket.timeout):
+                raise TransportError("cPanel request timed out") from exc
+            if isinstance(reason, ssl.SSLError):
+                raise TransportError("cPanel TLS verification failed") from exc
+            safe_reason = redact(str(reason), secrets=(token, *request_secrets))
+            raise TransportError(f"Network request failed: {safe_reason}") from exc
+        except TimeoutError as exc:
+            raise TransportError("cPanel request timed out") from exc
+        except ssl.SSLError as exc:
+            raise TransportError("cPanel TLS verification failed") from exc
+        except TransportError:
+            raise
+        except OSError as exc:
+            safe_reason = redact(str(exc), secrets=(token, *request_secrets))
+            raise TransportError(f"Network request failed: {safe_reason}") from exc
+        if len(body) > MAX_RESPONSE_BYTES:
+            raise TransportError("cPanel response exceeds the 10 MiB safety limit")
+        try:
+            payload = json.loads(body)
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise TransportError("cPanel response is not a valid JSON object") from exc
+        if not isinstance(payload, dict):
+            raise TransportError("cPanel response is not a valid JSON object")
+        result = payload.get("cpanelresult")
+        if not isinstance(result, dict):
+            raise TransportError("cPanel response has an invalid API 2 result")
+        event = result.get("event")
+        if isinstance(event, Mapping) and event.get("result") not in {True, "1"}:
+            reason = "; ".join(_string_list(event.get("reason"))) or "cPanel API 2 operation failed"
             safe_reason = redact(reason, secrets=(token, *request_secrets))
             raise UAPIError(str(safe_reason))
         data = result.get("data")

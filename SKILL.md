@@ -1,12 +1,13 @@
 ---
 name: cpanel-integration
-description: Safely administer individual cPanel accounts through documented UAPI operations for domains, files and directories, SSL certificates, MySQL or MariaDB databases, email, FTP accounts, diagnostics, security controls, PHP/runtime operations, guarded Git repository deployments, and backups. Use when Codex needs to inspect or change website resources, directory privacy/indexing, mailboxes, FTP users, quotas, resource usage, IP blocks, ModSecurity, PHP versions/configuration, cPanel Git repositories, backups, passwords, routing, SPF, or DKIM in cPanel. Do not use for WHM, root, reseller, account provisioning, server-wide administration, browser automation, anonymous FTP changes, restore execution, shell Git commands, or arbitrary UAPI calls.
+description: Safely administer individual cPanel accounts through documented UAPI operations and a narrow reviewed cPanel API 2 Fileman fallback for domains, files and directories, SSL certificates, MySQL or MariaDB databases, email, FTP accounts, diagnostics, security controls, PHP/runtime operations, guarded Git repository deployments, and backups. Use when Codex needs to inspect or change website resources, create/update/delete files or directories, manage permissions, compress/extract archives, directory privacy/indexing, mailboxes, FTP users, quotas, resource usage, IP blocks, ModSecurity, PHP versions/configuration, cPanel Git repositories, backups, passwords, routing, SPF, or DKIM in cPanel. Do not use for WHM, root, reseller, account provisioning, server-wide administration, browser automation, anonymous FTP changes, restore execution, shell Git commands, arbitrary UAPI calls, or arbitrary API 2 calls.
 ---
 
 # Administer an individual cPanel account
 
 Use the `cpanel-admin` CLI as the execution and safety boundary. Do not construct direct cPanel
-requests or substitute deprecated API 2, WHM, shell, raw FTP clients, or browser automation.
+requests or substitute WHM, shell, raw FTP clients, or browser automation. Use cPanel API 2 only
+through the fixed Fileman fallback commands documented here.
 
 ## Prepare
 
@@ -25,8 +26,9 @@ requests or substitute deprecated API 2, WHM, shell, raw FTP clients, or browser
   and account/server variables before risky changes.
 - Use account security commands only for reviewed IP blocking, ModSecurity, ClamAV status,
   notification preference reads, known-host verification, SSH port reads, and task queue reads.
-- Use files commands for reviewed file content operations plus directory autocomplete, indexing, and
-  directory privacy administration.
+- Use files commands for reviewed file content operations, directory creation/deletion/renaming,
+  permissions, compression/extraction, directory autocomplete, indexing, and directory privacy
+  administration.
 - Use runtime commands only for reviewed PHP/runtime reads and writes, NGINX cache controls,
   Passenger app listing, guarded cPanel Git repository management, and deployment status/task
   management.
@@ -34,6 +36,9 @@ requests or substitute deprecated API 2, WHM, shell, raw FTP clients, or browser
   backup metadata reads. Do not execute restores or remote-destination backups.
 - Run `--dry-run` before every mutation so the target, normalized parameters, impact, and recovery
   guidance can be reviewed.
+- Treat `files create-directory`, `files delete-path`, `files rename-path`, `files copy-path`,
+  `files move-path`, `files chmod-path`, `files compress`, and `files extract` as the only approved
+  cPanel API 2 fallback commands. Do not generalize them into arbitrary API 2 calls.
 - For Git repository create/update commands, provide `source_repository` through a local JSON file
   with `--source-repository`; never paste repository tokens, private keys, or deploy credentials
   into chat or command arguments.
@@ -55,7 +60,7 @@ requests or substitute deprecated API 2, WHM, shell, raw FTP clients, or browser
 ## Guardrails
 
 - Keep TLS verification enabled and use only cPanel HTTPS port 2083.
-- Never add raw module/function passthrough or broaden the operation allowlist ad hoc.
+- Never add raw module/function passthrough or broaden the UAPI/API 2 operation allowlists ad hoc.
 - Never run arbitrary local or remote shell Git commands as a substitute for the reviewed cPanel
   `runtime git-*` and `runtime deployment-*` commands.
 - Do not expose command input, environment secrets, encrypted tokens, password values, certificate

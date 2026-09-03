@@ -1,8 +1,9 @@
 # cPanel Account Administration Skill
 
 A production-oriented Agent Skill and Python CLI for administering individual cPanel accounts with
-AI assistance. It uses a fixed cPanel UAPI allowlist, verified HTTPS on port 2083, Fernet-encrypted
-named profiles, structured JSON, and operation-bound confirmation for destructive actions.
+AI assistance. It uses a fixed cPanel UAPI allowlist, a narrow reviewed cPanel API 2 Fileman
+fallback for file operations missing from UAPI, verified HTTPS on port 2083, Fernet-encrypted named
+profiles, structured JSON, and operation-bound confirmation for destructive actions.
 
 ## Scope
 
@@ -19,11 +20,12 @@ blocking, ModSecurity status/toggles, ClamAV status reads, notification preferen
 known-host verification, SSH port reads, and task queue reads. Runtime support covers PHP
 version/config reads and guarded PHP administration, NGINX cache controls, Passenger app listing,
 guarded cPanel Git repository management, and Git deployment task reads/mutations. Backup support covers backup listing, home-directory full-backup
-initiation, and backup file metadata reads. It does not support WHM, root or reseller
-administration, account provisioning, server settings, browser automation, deprecated API 2,
-anonymous FTP configuration changes, diagnostics setting changes, malware disinfection, secret
-token export, Passenger app lifecycle changes, arbitrary shell Git commands,
-remote backup destinations, restore execution, or arbitrary UAPI calls.
+initiation, and backup file metadata reads. The only deprecated API 2 support is the fixed Fileman
+fallback for create-directory, delete-path, rename/copy/move, chmod, compress, and extract. It does
+not support WHM, root or reseller administration, account provisioning, server settings, browser
+automation, other deprecated API 2 calls, anonymous FTP configuration changes, diagnostics setting
+changes, malware disinfection, secret token export, Passenger app lifecycle changes, arbitrary shell
+Git commands, remote backup destinations, restore execution, or arbitrary UAPI/API calls.
 
 ## Install
 
@@ -95,7 +97,23 @@ Global options precede the capability group:
 ```bash
 .venv/bin/cpanel-admin --profile production domains list
 .venv/bin/cpanel-admin --profile production files list --path public_html
+.venv/bin/cpanel-admin --profile production files inspect --path public_html/index.html --include-permissions 1
 .venv/bin/cpanel-admin --profile production files autocomplete --path public_html --dirsonly 1
+.venv/bin/cpanel-admin --profile production files create-file \
+  --directory public_html --filename index.html --content-stdin --dry-run
+.venv/bin/cpanel-admin --profile production files update-file \
+  --directory public_html --filename index.html --content-stdin --dry-run
+.venv/bin/cpanel-admin --profile production files create-directory \
+  --directory public_html --name assets --permissions 0755 --dry-run
+.venv/bin/cpanel-admin --profile production files delete-path --source public_html/old.html --dry-run
+.venv/bin/cpanel-admin --profile production files rename-path \
+  --source public_html/old.html --destination public_html/new.html --dry-run
+.venv/bin/cpanel-admin --profile production files chmod-path \
+  --source public_html/index.php --permissions 0644 --dry-run
+.venv/bin/cpanel-admin --profile production files compress \
+  --source public_html/assets --destination public_html/assets.zip --archive-type zip --dry-run
+.venv/bin/cpanel-admin --profile production files extract \
+  --source public_html/assets.zip --destination public_html/assets --dry-run
 .venv/bin/cpanel-admin --profile production files directory-indexing --dir public_html
 .venv/bin/cpanel-admin --profile production files directory-indexing-list --dir public_html
 .venv/bin/cpanel-admin --profile production files set-directory-indexing --dir public_html --type disabled --dry-run

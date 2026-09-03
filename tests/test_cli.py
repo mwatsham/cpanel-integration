@@ -36,6 +36,23 @@ class FakeTransport:
             return self.responses.pop(0)
         return UAPIResponse(data={"result": "ok"}, warnings=[], messages=[])
 
+    def call_api2(self, profile, token, module, function, parameters, timeout=30, **kwargs):
+        self.calls.append(
+            {
+                "profile": profile.name,
+                "token": token,
+                "module": module,
+                "function": function,
+                "parameters": dict(parameters),
+                "timeout": timeout,
+                "api_family": "cpanel-api-2",
+                **kwargs,
+            }
+        )
+        if self.responses:
+            return self.responses.pop(0)
+        return UAPIResponse(data=[{"result": 1}], warnings=[], messages=[])
+
 
 @pytest.fixture
 def cli_env(tmp_path: Path) -> tuple[dict[str, str], str]:
@@ -1047,6 +1064,190 @@ def test_file_directory_user_password_uses_stdin_and_is_redacted(cli_env) -> Non
     assert payload["identity"] == "DirectoryPrivacy/add_user"
     assert payload["parameters"]["password"]["bytes"] == len("directory-secret")
     assert "directory-secret" not in serialized
+
+
+@pytest.mark.parametrize("alias", ["create-file", "update-file"])
+def test_file_create_update_aliases_use_guarded_uapi_write(cli_env, alias: str) -> None:
+    env, key = cli_env
+    add_profile(env, key)
+    transport = FakeTransport([UAPIResponse([{"file": "home.html"}], [], [])])
+
+    code, payload, stderr = invoke(
+        [
+            "--profile",
+            "test",
+            "files",
+            alias,
+            "--directory",
+            "public_html",
+            "--filename",
+            "index.html",
+            "--content-stdin",
+            "--dry-run",
+        ],
+        env=env,
+        stdin="<h1>Hello</h1>",
+        transport=transport,
+    )
+
+    assert code == 0
+    assert stderr == ""
+    assert transport.calls[0]["function"] == "list_files"
+    assert payload["operation"] == "files.write"
+    assert payload["identity"] == "Fileman/save_file_content"
+
+
+@pytest.mark.parametrize(
+    ("args", "operation", "parameters", "requires_confirmation"),
+    [
+        (
+            [
+                "files",
+                "create-directory",
+                "--directory",
+                "public_html",
+                "--name",
+                "assets",
+                "--permissions",
+                "0755",
+            ],
+            "files.create-directory",
+            {"path": "public_html", "name": "assets", "permissions": "0755"},
+            False,
+        ),
+        (
+            ["files", "delete-path", "--source", "public_html/old.html"],
+            "files.delete-path",
+            {"op": "trash", "sourcefiles": "public_html/old.html", "doubledecode": 0},
+            True,
+        ),
+        (
+            [
+                "files",
+                "rename-path",
+                "--source",
+                "public_html/old.html",
+                "--destination",
+                "public_html/new.html",
+            ],
+            "files.rename-path",
+            {
+                "op": "rename",
+                "sourcefiles": "public_html/old.html",
+                "destfiles": "public_html/new.html",
+                "doubledecode": 0,
+            },
+            True,
+        ),
+        (
+            [
+                "files",
+                "chmod-path",
+                "--source",
+                "public_html/index.php",
+                "--permissions",
+                "644",
+            ],
+            "files.chmod-path",
+            {
+                "op": "chmod",
+                "sourcefiles": "public_html/index.php",
+                "metadata": "0644",
+                "doubledecode": 0,
+            },
+            True,
+        ),
+        (
+            [
+                "files",
+                "compress",
+                "--source",
+                "public_html/assets",
+                "--destination",
+                "public_html/assets.zip",
+                "--archive-type",
+                "zip",
+            ],
+            "files.compress",
+            {
+                "op": "compress",
+                "sourcefiles": "public_html/assets",
+                "destfiles": "public_html/assets.zip",
+                "metadata": "zip",
+                "doubledecode": 0,
+            },
+            True,
+        ),
+        (
+            [
+                "files",
+                "extract",
+                "--source",
+                "public_html/assets.zip",
+                "--destination",
+                "public_html/assets",
+            ],
+            "files.extract",
+            {
+                "op": "extract",
+                "sourcefiles": "public_html/assets.zip",
+                "destfiles": "public_html/assets",
+                "doubledecode": 0,
+            },
+            True,
+        ),
+    ],
+)
+def test_legacy_file_commands_dry_run_with_fixed_api2_payloads(
+    cli_env, args, operation, parameters, requires_confirmation
+) -> None:
+    env, key = cli_env
+    add_profile(env, key)
+    transport = FakeTransport()
+
+    code, payload, stderr = invoke(
+        ["--profile", "test", *args, "--dry-run"],
+        env=env,
+        transport=transport,
+    )
+
+    assert code == 0
+    assert stderr == ""
+    assert transport.calls == []
+    assert payload["operation"] == operation
+    assert payload["identity"].startswith("cpanel-api-2/Fileman/")
+    assert payload["legacy_api"] == "cpanel-api-2"
+    assert payload["parameters"] == parameters
+    assert payload["requires_confirmation"] is requires_confirmation
+
+
+def test_legacy_file_create_directory_executes_fixed_api2_call(cli_env) -> None:
+    env, key = cli_env
+    add_profile(env, key)
+    transport = FakeTransport()
+
+    code, payload, stderr = invoke(
+        [
+            "--profile",
+            "test",
+            "files",
+            "create-directory",
+            "--directory",
+            "public_html",
+            "--name",
+            "assets",
+        ],
+        env=env,
+        transport=transport,
+    )
+
+    assert code == 0
+    assert stderr == ""
+    assert payload["operation"] == "files.create-directory"
+    assert transport.calls[0]["api_family"] == "cpanel-api-2"
+    assert transport.calls[0]["module"] == "Fileman"
+    assert transport.calls[0]["function"] == "mkdir"
+    assert transport.calls[0]["parameters"] == {"path": "public_html", "name": "assets"}
 
 
 @pytest.mark.parametrize(

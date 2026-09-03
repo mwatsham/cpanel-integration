@@ -8,7 +8,7 @@ Read this file before any cPanel mutation.
 |---|---|---|
 | Read | Execute when requested | list domains, read a file, list certificates |
 | Mutate | Dry-run first; execute within approved scope | add subdomain, create database, grant privileges |
-| Destructive | Dry-run, explicit user approval, exact confirmation | overwrite file, install/remove SSL, purge trash, delete database or profile |
+| Destructive | Dry-run, explicit user approval, exact confirmation | overwrite file, trash a path, chmod, compress/extract, install/remove SSL, purge trash, delete database or profile |
 
 ## Destructive workflow
 
@@ -45,6 +45,9 @@ path, domain, database name, secret content, file content, preflight state, or e
 
 - File write/upload can overwrite remote content. The CLI records target preflight metadata but does
   not create a backup. Confirm an independent backup exists when recovery matters.
+- The legacy Fileman API 2 fallback can create directories, trash paths, rename/copy/move paths,
+  change permissions, compress archives, and extract archives. Use it only when UAPI lacks the
+  operation and always review `--dry-run` output first.
 - Emptying trash and deleting a database have no automatic rollback. Verify an independent backup.
 - SSL removal can interrupt HTTPS. Keep the previous certificate, private key, and CA bundle in a
   secure location before replacement or removal.
@@ -53,6 +56,6 @@ path, domain, database name, secret content, file content, preflight state, or e
 ## Hard boundaries
 
 Never use this skill for WHM, port 2087, root/reseller actions, account lifecycle, server services,
-arbitrary UAPI, deprecated cPanel API 2, browser automation, shell access, raw FTP clients,
+arbitrary UAPI, arbitrary cPanel API 2, browser automation, shell access, raw FTP clients,
 anonymous FTP configuration, or production live testing. Report an unsupported capability instead of
 widening the method.
