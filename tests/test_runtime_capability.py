@@ -17,6 +17,9 @@ RUNTIME_INCLUDED = {
     "LangPHP/php_ini_get_user_basic_directives",
     "LangPHP/php_ini_get_user_content",
     "LangPHP/php_ini_get_user_paths",
+    "LangPHP/php_ini_set_user_basic_directives",
+    "LangPHP/php_ini_set_user_content",
+    "LangPHP/php_set_vhost_versions",
     "NginxCaching/clear_cache",
     "NginxCaching/disable_cache",
     "NginxCaching/enable_cache",
@@ -31,11 +34,6 @@ RUNTIME_INCLUDED = {
     "VersionControlDeployment/retrieve",
 }
 RUNTIME_EXCLUDED = {
-    "LangPHP/php_ini_set_user_basic_directives": (
-        "PHP directive writes need a structured directive adapter"
-    ),
-    "LangPHP/php_ini_set_user_content": "raw php.ini writes need protected content input review",
-    "LangPHP/php_set_vhost_versions": "PHP version changes need domain impact preflight",
     "PassengerApps/disable_application": "Passenger lifecycle changes need app-state preflight",
     "PassengerApps/edit_application": "Passenger edits need structured app and env var adapters",
     "PassengerApps/enable_application": "Passenger lifecycle changes need app-state preflight",
@@ -57,6 +55,14 @@ def test_runtime_policy_matches_review() -> None:
     assert subject.get("runtime.nginx-clear-cache").risk is Risk.MUTATE
     assert subject.get("runtime.nginx-reset-cache").elevated_impact is True
     assert subject.get("runtime.php-domain-handler").parameters["type"].required is True
+    assert subject.get("runtime.php-set-vhost-version").risk is Risk.MUTATE
+    assert subject.get("runtime.php-set-vhost-version").elevated_impact is True
+    assert subject.get("runtime.php-set-directives").risk is Risk.MUTATE
+    assert (
+        subject.get("runtime.php-set-directives").parameters["directive"].sensitive_output is True
+    )
+    assert subject.get("runtime.php-set-ini-content").risk is Risk.MUTATE
+    assert subject.get("runtime.php-set-ini-content").elevated_impact is True
     assert subject.get("runtime.version-control").parameters["fields"].required is False
     assert subject.get("runtime.git-create").risk is Risk.MUTATE
     assert subject.get("runtime.git-create").parameters["source_repository"].required is False

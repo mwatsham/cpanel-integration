@@ -4,8 +4,8 @@
 
 - Source UAPI version: `11.136.0.25`
 - Source SHA-256: `3d9ec80cd8d774312c4bb6b0dfdbc17e6e6ffc92a8f0c2cd88f01e32864fa2c6`
-- Included operations: 200
-- Excluded operations: 193
+- Included operations: 214
+- Excluded operations: 179
 
 The local allowlist is an application safeguard, not a substitute for cPanel account permissions. This catalog does not provide arbitrary UAPI passthrough.
 
@@ -66,16 +66,16 @@ The local allowlist is an application safeguard, not a substitute for cPanel acc
 | `DNSSEC/remove_zone_key` | excluded | ssl | - | not enabled until the ssl capability review |
 | `DNSSEC/set_nsec3` | excluded | ssl | - | not enabled until the ssl capability review |
 | `DNSSEC/unset_nsec3` | excluded | ssl | - | not enabled until the ssl capability review |
-| `DirectoryIndexes/get_indexing` | excluded | files | - | not enabled until the file capability review |
-| `DirectoryIndexes/list_directories` | excluded | files | - | not enabled until the file capability review |
-| `DirectoryIndexes/set_indexing` | excluded | files | - | not enabled until the file capability review |
-| `DirectoryPrivacy/add_user` | excluded | files | - | not enabled until the file capability review |
-| `DirectoryPrivacy/configure_directory_protection` | excluded | files | - | not enabled until the file capability review |
-| `DirectoryPrivacy/delete_user` | excluded | files | - | not enabled until the file capability review |
-| `DirectoryPrivacy/is_directory_protected` | excluded | files | - | not enabled until the file capability review |
-| `DirectoryPrivacy/list_directories` | excluded | files | - | not enabled until the file capability review |
-| `DirectoryPrivacy/list_users` | excluded | files | - | not enabled until the file capability review |
-| `DirectoryProtection/list_directories` | excluded | files | - | not enabled until the file capability review |
+| `DirectoryIndexes/get_indexing` | included | files | read | reviewed directory indexing read operation |
+| `DirectoryIndexes/list_directories` | included | files | read | reviewed directory indexing read operation |
+| `DirectoryIndexes/set_indexing` | included | files | mutate | reviewed directory indexing mutation |
+| `DirectoryPrivacy/add_user` | included | files | mutate | reviewed directory privacy mutation with password supplied only through standard input |
+| `DirectoryPrivacy/configure_directory_protection` | included | files | mutate | reviewed directory privacy mutation |
+| `DirectoryPrivacy/delete_user` | included | files | mutate | reviewed directory privacy user removal |
+| `DirectoryPrivacy/is_directory_protected` | included | files | read | reviewed directory privacy read operation |
+| `DirectoryPrivacy/list_directories` | included | files | read | reviewed directory privacy read operation |
+| `DirectoryPrivacy/list_users` | included | files | read | reviewed directory privacy read operation |
+| `DirectoryProtection/list_directories` | included | files | read | reviewed directory protection read operation |
 | `Domain/convert_temporary_to_registered` | excluded | domains | - | not enabled until the domain capability review |
 | `Domain/is_temporary_domain` | excluded | domains | - | not enabled until the domain capability review |
 | `Domain/temporary_domain_is_disabled` | excluded | domains | - | not enabled until the domain capability review |
@@ -202,13 +202,13 @@ The local allowlist is an application safeguard, not a substitute for cPanel acc
 | `Features/has_features_like` | included | diagnostics | read | reviewed account diagnostics read operation |
 | `Features/list_features` | included | diagnostics | read | reviewed account diagnostics read operation |
 | `Features/list_features_like` | included | diagnostics | read | reviewed account diagnostics read operation |
-| `Fileman/autocompletedir` | excluded | files | - | not enabled until the file capability review |
+| `Fileman/autocompletedir` | included | files | read | reviewed file manager read operation |
 | `Fileman/empty_trash` | included | files | destructive | supported by the existing MVP operation set |
 | `Fileman/get_file_content` | included | files | read | supported by the existing MVP operation set |
 | `Fileman/get_file_information` | included | files | read | supported by the existing MVP operation set |
 | `Fileman/list_files` | included | files | read | supported by the existing MVP operation set |
 | `Fileman/save_file_content` | included | files | destructive | supported by the existing MVP operation set |
-| `Fileman/transcode` | excluded | files | - | not enabled until the file capability review |
+| `Fileman/transcode` | excluded | files | - | encoding transforms need an explicit charset/content review |
 | `Fileman/upload_files` | included | files | destructive | supported by the existing MVP operation set |
 | `Ftp/add_ftp` | included | ftp | mutate | reviewed FTP account administration operation |
 | `Ftp/allows_anonymous_ftp` | included | ftp | read | reviewed FTP account administration read operation |
@@ -242,9 +242,9 @@ The local allowlist is an application safeguard, not a substitute for cPanel acc
 | `LangPHP/php_ini_get_user_basic_directives` | included | runtime | read | reviewed runtime read operation |
 | `LangPHP/php_ini_get_user_content` | included | runtime | read | reviewed runtime read operation |
 | `LangPHP/php_ini_get_user_paths` | included | runtime | read | reviewed runtime read operation |
-| `LangPHP/php_ini_set_user_basic_directives` | excluded | runtime | - | PHP directive writes need a structured directive adapter |
-| `LangPHP/php_ini_set_user_content` | excluded | runtime | - | raw php.ini writes need protected content input review |
-| `LangPHP/php_set_vhost_versions` | excluded | runtime | - | PHP version changes need domain impact preflight |
+| `LangPHP/php_ini_set_user_basic_directives` | included | runtime | mutate | reviewed PHP directive mutation with protected file input |
+| `LangPHP/php_ini_set_user_content` | included | runtime | mutate | reviewed PHP ini mutation with protected file input |
+| `LangPHP/php_set_vhost_versions` | included | runtime | mutate | reviewed PHP virtual host version mutation |
 | `LastLogin/get_last_or_current_logged_in_ip` | included | diagnostics | read | reviewed account diagnostics read operation |
 | `LogManager/delete_archive` | excluded | diagnostics | - | deletes archived logs and needs a destructive log-management review |
 | `LogManager/get_settings` | included | diagnostics | read | reviewed account diagnostics read operation |

@@ -6,9 +6,10 @@ named profiles, structured JSON, and operation-bound confirmation for destructiv
 
 ## Scope
 
-The skill supports domains, account files, SSL certificates, MySQL/MariaDB databases, reviewed
-email administration, reviewed FTP account administration, read-only account diagnostics, reviewed
-cPanel account security controls, reviewed runtime/site operations, and guarded backup operations.
+The skill supports domains, account files and directories, SSL certificates, MySQL/MariaDB
+databases, reviewed email administration, reviewed FTP account administration, read-only account
+diagnostics, reviewed cPanel account security controls, reviewed runtime/site operations, and
+guarded backup operations.
 Email support covers mailbox accounts, quotas, passwords, forwarders, autoresponders, filter state,
 spam controls, MX routing, SPF, and DKIM. FTP support covers account listing, creation, deletion,
 passwords, quotas, home directories, sessions, server information, and welcome messages.
@@ -16,12 +17,12 @@ Diagnostics support covers quota, resource usage, bandwidth, stats, features, lo
 settings, and account/server variables exposed to the cPanel account. Security support covers IP
 blocking, ModSecurity status/toggles, ClamAV status reads, notification preference reads,
 known-host verification, SSH port reads, and task queue reads. Runtime support covers PHP
-version/config reads, NGINX cache controls, Passenger app listing, guarded cPanel Git repository
-management, and Git deployment task reads/mutations. Backup support covers backup listing, home-directory full-backup
+version/config reads and guarded PHP administration, NGINX cache controls, Passenger app listing,
+guarded cPanel Git repository management, and Git deployment task reads/mutations. Backup support covers backup listing, home-directory full-backup
 initiation, and backup file metadata reads. It does not support WHM, root or reseller
 administration, account provisioning, server settings, browser automation, deprecated API 2,
 anonymous FTP configuration changes, diagnostics setting changes, malware disinfection, secret
-token export, PHP config writes, Passenger app lifecycle changes, arbitrary shell Git commands,
+token export, Passenger app lifecycle changes, arbitrary shell Git commands,
 remote backup destinations, restore execution, or arbitrary UAPI calls.
 
 ## Install
@@ -94,6 +95,16 @@ Global options precede the capability group:
 ```bash
 .venv/bin/cpanel-admin --profile production domains list
 .venv/bin/cpanel-admin --profile production files list --path public_html
+.venv/bin/cpanel-admin --profile production files autocomplete --path public_html --dirsonly 1
+.venv/bin/cpanel-admin --profile production files directory-indexing --dir public_html
+.venv/bin/cpanel-admin --profile production files directory-indexing-list --dir public_html
+.venv/bin/cpanel-admin --profile production files set-directory-indexing --dir public_html --type disabled --dry-run
+.venv/bin/cpanel-admin --profile production files directory-privacy-status --dir public_html/private
+.venv/bin/cpanel-admin --profile production files directory-privacy-list --dir public_html
+.venv/bin/cpanel-admin --profile production files directory-privacy-users --dir public_html/private
+.venv/bin/cpanel-admin --profile production files directory-protection-list --dir public_html
+.venv/bin/cpanel-admin --profile production files protect-directory \
+  --dir public_html/private --authname Members --enabled 1 --dry-run
 .venv/bin/cpanel-admin --profile production ssl hosts
 .venv/bin/cpanel-admin --profile production databases list
 .venv/bin/cpanel-admin --profile production email accounts
@@ -115,6 +126,8 @@ Global options precede the capability group:
 .venv/bin/cpanel-admin --profile production security block-ip --ip 203.0.113.9 --dry-run
 .venv/bin/cpanel-admin --profile production security known-host-verify --host-name example.com
 .venv/bin/cpanel-admin --profile production runtime php-installed
+.venv/bin/cpanel-admin --profile production runtime php-set-vhost-version \
+  --vhost example.com --version ea-php83 --dry-run
 .venv/bin/cpanel-admin --profile production runtime passenger-apps
 .venv/bin/cpanel-admin --profile production runtime version-control
 .venv/bin/cpanel-admin --profile production runtime deployments
@@ -200,6 +213,28 @@ FTP account passwords are also protected inputs:
 ```bash
 printf '%s' "$FTP_PASSWORD" | .venv/bin/cpanel-admin --profile staging ftp create \
   --user deploy --domain example.com --password-stdin --dry-run
+```
+
+Directory privacy passwords use the same standard-input pattern:
+
+```bash
+printf '%s' "$DIRECTORY_PASSWORD" | .venv/bin/cpanel-admin --profile staging files add-directory-user \
+  --dir public_html/private --user admin --password-stdin --dry-run
+```
+
+PHP directive and php.ini mutations must use protected `0600` local files. Plans and audits include
+only file fingerprints, not directive or php.ini contents:
+
+```bash
+umask 077
+printf '%s\n' '{"memory_limit":"256M","display_errors":"Off"}' > ./directives.json
+printf '%s\n' 'memory_limit=256M' > ./php.ini
+
+.venv/bin/cpanel-admin --profile staging runtime php-set-directives \
+  --type vhost --vhost example.com --directive-file ./directives.json --dry-run
+
+.venv/bin/cpanel-admin --profile staging runtime php-set-ini-content \
+  --type vhost --vhost example.com --content-file ./php.ini --dry-run
 ```
 
 DKIM private-key imports must use a protected `0600` file:

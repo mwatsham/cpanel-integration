@@ -69,6 +69,11 @@ PROTECTED_MVP_INPUTS = {
         (InputSource.STDIN,),
         "secret",
     ),
+    ("DirectoryPrivacy/add_user", "password"): (
+        "password",
+        (InputSource.STDIN,),
+        "secret",
+    ),
     ("EmailAuth/install_dkim_private_keys", "key"): (
         "key",
         (InputSource.PROTECTED_FILE,),
@@ -79,6 +84,16 @@ PROTECTED_MVP_INPUTS = {
         (InputSource.PROTECTED_FILE,),
         "private_key",
     ),
+    ("LangPHP/php_ini_set_user_basic_directives", "directive"): (
+        "directive",
+        (InputSource.PROTECTED_FILE,),
+        "content",
+    ),
+    ("LangPHP/php_ini_set_user_content", "content"): (
+        "content",
+        (InputSource.PROTECTED_FILE,),
+        "content",
+    ),
 }
 PROTECTED_ALTERNATE_UAPI_NAMES = {
     "Fileman/save_file_content": "file",
@@ -88,8 +103,11 @@ PROTECTED_ALTERNATE_UAPI_NAMES = {
     "Email/verify_password": "email",
     "Ftp/add_ftp": "user",
     "Ftp/passwd": "user",
+    "DirectoryPrivacy/add_user": "user",
     "EmailAuth/install_dkim_private_keys": "domain",
     "SSL/install_ssl": "cert",
+    "LangPHP/php_ini_set_user_basic_directives": "type",
+    "LangPHP/php_ini_set_user_content": "type",
 }
 EMAIL_ADMIN_OPERATION_CONTRACTS = {
     "Email/list_pops": ("email.accounts", ("email", "accounts")),

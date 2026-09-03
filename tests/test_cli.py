@@ -906,6 +906,239 @@ def test_runtime_git_update_serializes_reviewed_source_repository_for_uapi(
     }
 
 
+@pytest.mark.parametrize(
+    ("args", "operation", "identity", "risk", "requires_confirmation"),
+    [
+        (
+            ["files", "autocomplete", "--path", "public_html", "--dirsonly", "1"],
+            "files.autocomplete",
+            "Fileman/autocompletedir",
+            "read",
+            False,
+        ),
+        (
+            ["files", "directory-indexing", "--dir", "public_html"],
+            "files.directory-indexing",
+            "DirectoryIndexes/get_indexing",
+            "read",
+            False,
+        ),
+        (
+            ["files", "directory-indexing-list", "--dir", "public_html"],
+            "files.directory-indexing-list",
+            "DirectoryIndexes/list_directories",
+            "read",
+            False,
+        ),
+        (
+            ["files", "set-directory-indexing", "--dir", "public_html", "--type", "disabled"],
+            "files.set-directory-indexing",
+            "DirectoryIndexes/set_indexing",
+            "mutate",
+            False,
+        ),
+        (
+            ["files", "directory-privacy-status", "--dir", "public_html/private"],
+            "files.directory-privacy-status",
+            "DirectoryPrivacy/is_directory_protected",
+            "read",
+            False,
+        ),
+        (
+            ["files", "directory-privacy-list", "--dir", "public_html"],
+            "files.directory-privacy-list",
+            "DirectoryPrivacy/list_directories",
+            "read",
+            False,
+        ),
+        (
+            ["files", "directory-privacy-users", "--dir", "public_html/private"],
+            "files.directory-privacy-users",
+            "DirectoryPrivacy/list_users",
+            "read",
+            False,
+        ),
+        (
+            ["files", "directory-protection-list", "--dir", "public_html"],
+            "files.directory-protection-list",
+            "DirectoryProtection/list_directories",
+            "read",
+            False,
+        ),
+        (
+            [
+                "files",
+                "protect-directory",
+                "--dir",
+                "public_html/private",
+                "--authname",
+                "Members",
+                "--enabled",
+                "1",
+            ],
+            "files.protect-directory",
+            "DirectoryPrivacy/configure_directory_protection",
+            "mutate",
+            True,
+        ),
+        (
+            ["files", "delete-directory-user", "--dir", "public_html/private", "--user", "admin"],
+            "files.delete-directory-user",
+            "DirectoryPrivacy/delete_user",
+            "mutate",
+            True,
+        ),
+    ],
+)
+def test_file_directory_administration_commands_are_policy_guarded(
+    cli_env, args, operation, identity, risk, requires_confirmation
+) -> None:
+    env, key = cli_env
+    add_profile(env, key)
+    transport = FakeTransport()
+    command = args + (["--dry-run"] if risk != "read" else [])
+
+    code, payload, stderr = invoke(
+        ["--profile", "test", *command],
+        env=env,
+        transport=transport,
+    )
+
+    assert code == 0
+    assert stderr == ""
+    assert payload["operation"] == operation
+    assert payload["identity"] == identity
+    if risk == "read":
+        assert transport.calls[0]["function"] == identity.split("/", 1)[1]
+    else:
+        assert transport.calls == []
+        assert payload["risk"] == risk
+        assert payload["requires_confirmation"] is requires_confirmation
+
+
+def test_file_directory_user_password_uses_stdin_and_is_redacted(cli_env) -> None:
+    env, key = cli_env
+    add_profile(env, key)
+    transport = FakeTransport()
+
+    code, payload, stderr = invoke(
+        [
+            "--profile",
+            "test",
+            "files",
+            "add-directory-user",
+            "--dir",
+            "public_html/private",
+            "--user",
+            "admin",
+            "--password-stdin",
+            "--dry-run",
+        ],
+        env=env,
+        stdin="directory-secret\n",
+        transport=transport,
+    )
+
+    serialized = json.dumps(payload)
+    assert code == 0
+    assert stderr == ""
+    assert transport.calls == []
+    assert payload["operation"] == "files.add-directory-user"
+    assert payload["identity"] == "DirectoryPrivacy/add_user"
+    assert payload["parameters"]["password"]["bytes"] == len("directory-secret")
+    assert "directory-secret" not in serialized
+
+
+@pytest.mark.parametrize(
+    ("args", "operation", "identity", "requires_confirmation"),
+    [
+        (
+            [
+                "runtime",
+                "php-set-vhost-version",
+                "--vhost",
+                "example.com",
+                "--version",
+                "ea-php83",
+                "--dry-run",
+            ],
+            "runtime.php-set-vhost-version",
+            "LangPHP/php_set_vhost_versions",
+            True,
+        ),
+        (
+            [
+                "runtime",
+                "php-set-directives",
+                "--type",
+                "vhost",
+                "--vhost",
+                "example.com",
+                "--directive-file",
+                "directives.json",
+                "--dry-run",
+            ],
+            "runtime.php-set-directives",
+            "LangPHP/php_ini_set_user_basic_directives",
+            False,
+        ),
+        (
+            [
+                "runtime",
+                "php-set-ini-content",
+                "--type",
+                "vhost",
+                "--vhost",
+                "example.com",
+                "--content-file",
+                "php.ini",
+                "--dry-run",
+            ],
+            "runtime.php-set-ini-content",
+            "LangPHP/php_ini_set_user_content",
+            True,
+        ),
+    ],
+)
+def test_runtime_php_administration_dry_runs_are_policy_guarded(
+    cli_env, tmp_path: Path, args, operation, identity, requires_confirmation
+) -> None:
+    env, key = cli_env
+    add_profile(env, key)
+    directives = tmp_path / "directives.json"
+    directives.write_text('{"memory_limit":"256M","display_errors":"Off"}')
+    directives.chmod(0o600)
+    php_ini = tmp_path / "php.ini"
+    php_ini.write_text("memory_limit=256M\n")
+    php_ini.chmod(0o600)
+    resolved_args = [
+        str(directives)
+        if item == "directives.json"
+        else str(php_ini)
+        if item == "php.ini"
+        else item
+        for item in args
+    ]
+    transport = FakeTransport()
+
+    code, payload, stderr = invoke(
+        ["--profile", "test", *resolved_args],
+        env=env,
+        transport=transport,
+    )
+
+    serialized = json.dumps(payload)
+    assert code == 0
+    assert stderr == ""
+    assert transport.calls == []
+    assert payload["operation"] == operation
+    assert payload["identity"] == identity
+    assert payload["risk"] == "mutate"
+    assert payload["requires_confirmation"] is requires_confirmation
+    assert "memory_limit" not in serialized
+    assert "display_errors" not in serialized
+
+
 def test_backup_list_uses_fixed_readonly_uapi(cli_env) -> None:
     env, key = cli_env
     add_profile(env, key)

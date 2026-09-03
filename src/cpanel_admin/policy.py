@@ -69,7 +69,7 @@ EXPECTED_CANDIDATE_OPERATIONS = 393
 EXPECTED_CANDIDATE_IDENTITY_SHA256 = (
     "834c8bd9c048d93e9089fd22a7c569d4923cc8a5c9ecbc4172123ec2276a6ecb"
 )
-EXPECTED_POLICY_SHA256 = "f64d3816d1f553e53650d383eca1145a97cfe7e6ef327542a155289e0a94c33f"
+EXPECTED_POLICY_SHA256 = "9055004edc7df06957e958853cd2b4ec6793dcb9ea707c58b4fcb7c5066f62ef"
 
 _PROTECTED_SECRET_SOURCES = frozenset(
     {
@@ -263,6 +263,15 @@ _PROTECTED_INPUT_CONTRACTS = MappingProxyType(
                 secret=True,
                 sensitive_output=True,
             ),
+            ("DirectoryPrivacy/add_user", "password"): PolicyParameter(
+                name="password",
+                uapi_name="password",
+                sources=(InputSource.STDIN,),
+                validator="secret",
+                required=True,
+                secret=True,
+                sensitive_output=True,
+            ),
             ("EmailAuth/install_dkim_private_keys", "key"): PolicyParameter(
                 name="key",
                 uapi_name="key",
@@ -277,6 +286,24 @@ _PROTECTED_INPUT_CONTRACTS = MappingProxyType(
                 uapi_name="key",
                 sources=(InputSource.PROTECTED_FILE,),
                 validator="private_key",
+                required=True,
+                secret=True,
+                sensitive_output=True,
+            ),
+            ("LangPHP/php_ini_set_user_basic_directives", "directive"): PolicyParameter(
+                name="directive",
+                uapi_name="directive",
+                sources=(InputSource.PROTECTED_FILE,),
+                validator="content",
+                required=True,
+                secret=True,
+                sensitive_output=True,
+            ),
+            ("LangPHP/php_ini_set_user_content", "content"): PolicyParameter(
+                name="content",
+                uapi_name="content",
+                sources=(InputSource.PROTECTED_FILE,),
+                validator="content",
                 required=True,
                 secret=True,
                 sensitive_output=True,

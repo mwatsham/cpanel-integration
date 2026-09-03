@@ -1082,163 +1082,404 @@
       "verification": null
     },
     "DirectoryIndexes/get_indexing": {
-      "audit_fields": [],
+      "audit_fields": [
+        "dir"
+      ],
       "capability": "files",
-      "command": [],
+      "command": [
+        "files",
+        "directory-indexing"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "DirectoryIndexes/get_indexing",
-      "parameters": {},
+      "impact": "Read the Apache directory index setting for a directory.",
+      "name": "files.directory-indexing",
+      "parameters": {
+        "dir": {
+          "name": "dir",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "dir",
+          "validator": "path"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the file capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed directory indexing read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "DirectoryIndexes/list_directories": {
-      "audit_fields": [],
+      "audit_fields": [
+        "dir"
+      ],
       "capability": "files",
-      "command": [],
+      "command": [
+        "files",
+        "directory-indexing-list"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "DirectoryIndexes/list_directories",
-      "parameters": {},
+      "impact": "List directories and their index settings below a path.",
+      "name": "files.directory-indexing-list",
+      "parameters": {
+        "dir": {
+          "name": "dir",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "dir",
+          "validator": "path"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the file capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed directory indexing read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "DirectoryIndexes/set_indexing": {
-      "audit_fields": [],
+      "audit_fields": [
+        "dir",
+        "type"
+      ],
       "capability": "files",
-      "command": [],
+      "command": [
+        "files",
+        "set-directory-indexing"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "DirectoryIndexes/set_indexing",
-      "parameters": {},
+      "impact": "Change the Apache directory index setting for a directory.",
+      "name": "files.set-directory-indexing",
+      "parameters": {
+        "dir": {
+          "name": "dir",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "dir",
+          "validator": "path"
+        },
+        "type": {
+          "name": "type",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "type",
+          "validator": "enum"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the file capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed directory indexing mutation",
+      "recovery": "Restore the previous directory index setting after reading it with files directory-indexing.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "DirectoryPrivacy/add_user": {
-      "audit_fields": [],
+      "audit_fields": [
+        "dir",
+        "user"
+      ],
       "capability": "files",
-      "command": [],
+      "command": [
+        "files",
+        "add-directory-user"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "DirectoryPrivacy/add_user",
-      "parameters": {},
+      "impact": "Create or update a password-protected directory user.",
+      "name": "files.add-directory-user",
+      "parameters": {
+        "dir": {
+          "name": "dir",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "dir",
+          "validator": "path"
+        },
+        "password": {
+          "name": "password",
+          "required": true,
+          "secret": true,
+          "sensitive_output": true,
+          "sources": [
+            "stdin"
+          ],
+          "uapi_name": "password",
+          "validator": "secret"
+        },
+        "user": {
+          "name": "user",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "user",
+          "validator": "bounded_text"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the file capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed directory privacy mutation with password supplied only through standard input",
+      "recovery": "Delete the directory privacy user or set a replacement password.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "DirectoryPrivacy/configure_directory_protection": {
-      "audit_fields": [],
+      "audit_fields": [
+        "authname",
+        "dir",
+        "enabled"
+      ],
       "capability": "files",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "files",
+        "protect-directory"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "DirectoryPrivacy/configure_directory_protection",
-      "parameters": {},
+      "impact": "Enable or disable HTTP basic authentication for a directory.",
+      "name": "files.protect-directory",
+      "parameters": {
+        "authname": {
+          "name": "authname",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "authname",
+          "validator": "bounded_text"
+        },
+        "dir": {
+          "name": "dir",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "dir",
+          "validator": "path"
+        },
+        "enabled": {
+          "name": "enabled",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "enabled",
+          "validator": "integer"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the file capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed directory privacy mutation",
+      "recovery": "Restore the previous directory protection state after checking files directory-privacy-status.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "DirectoryPrivacy/delete_user": {
-      "audit_fields": [],
+      "audit_fields": [
+        "dir",
+        "user"
+      ],
       "capability": "files",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "files",
+        "delete-directory-user"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "DirectoryPrivacy/delete_user",
-      "parameters": {},
+      "impact": "Remove a user from a password-protected directory.",
+      "name": "files.delete-directory-user",
+      "parameters": {
+        "dir": {
+          "name": "dir",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "dir",
+          "validator": "path"
+        },
+        "user": {
+          "name": "user",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "user",
+          "validator": "bounded_text"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the file capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed directory privacy user removal",
+      "recovery": "Recreate the directory privacy user with a new password if needed.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "DirectoryPrivacy/is_directory_protected": {
-      "audit_fields": [],
+      "audit_fields": [
+        "dir"
+      ],
       "capability": "files",
-      "command": [],
+      "command": [
+        "files",
+        "directory-privacy-status"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "DirectoryPrivacy/is_directory_protected",
-      "parameters": {},
+      "impact": "Read whether a directory is password protected.",
+      "name": "files.directory-privacy-status",
+      "parameters": {
+        "dir": {
+          "name": "dir",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "dir",
+          "validator": "path"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the file capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed directory privacy read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "DirectoryPrivacy/list_directories": {
-      "audit_fields": [],
+      "audit_fields": [
+        "dir"
+      ],
       "capability": "files",
-      "command": [],
+      "command": [
+        "files",
+        "directory-privacy-list"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "DirectoryPrivacy/list_directories",
-      "parameters": {},
+      "impact": "List directory privacy settings below a path.",
+      "name": "files.directory-privacy-list",
+      "parameters": {
+        "dir": {
+          "name": "dir",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "dir",
+          "validator": "path"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the file capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed directory privacy read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "DirectoryPrivacy/list_users": {
-      "audit_fields": [],
+      "audit_fields": [
+        "dir"
+      ],
       "capability": "files",
-      "command": [],
+      "command": [
+        "files",
+        "directory-privacy-users"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "DirectoryPrivacy/list_users",
-      "parameters": {},
+      "impact": "List users for a password-protected directory.",
+      "name": "files.directory-privacy-users",
+      "parameters": {
+        "dir": {
+          "name": "dir",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "dir",
+          "validator": "path"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the file capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed directory privacy read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "DirectoryProtection/list_directories": {
-      "audit_fields": [],
+      "audit_fields": [
+        "dir"
+      ],
       "capability": "files",
-      "command": [],
+      "command": [
+        "files",
+        "directory-protection-list"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "DirectoryProtection/list_directories",
-      "parameters": {},
+      "impact": "List directory protection metadata below a path.",
+      "name": "files.directory-protection-list",
+      "parameters": {
+        "dir": {
+          "name": "dir",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "dir",
+          "validator": "path"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the file capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed directory protection read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Domain/convert_temporary_to_registered": {
@@ -4988,17 +5229,43 @@
     "Fileman/autocompletedir": {
       "audit_fields": [],
       "capability": "files",
-      "command": [],
+      "command": [
+        "files",
+        "autocomplete"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "Fileman/autocompletedir",
-      "parameters": {},
+      "impact": "Read file-manager autocomplete suggestions for directories below a path.",
+      "name": "files.autocomplete",
+      "parameters": {
+        "dirsonly": {
+          "name": "dirsonly",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "dirsonly",
+          "validator": "integer"
+        },
+        "path": {
+          "name": "path",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "path",
+          "validator": "path"
+        }
+      },
       "preflight": null,
-      "reason": "not enabled until the file capability review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed file manager read operation",
+      "recovery": "No change is made.",
+      "risk": "read",
+      "status": "included",
       "verification": null
     },
     "Fileman/empty_trash": {
@@ -5211,7 +5478,7 @@
       "name": "Fileman/transcode",
       "parameters": {},
       "preflight": null,
-      "reason": "not enabled until the file capability review",
+      "reason": "encoding transforms need an explicit charset/content review",
       "recovery": "",
       "risk": null,
       "status": "excluded",
@@ -6327,51 +6594,160 @@
       "verification": null
     },
     "LangPHP/php_ini_set_user_basic_directives": {
-      "audit_fields": [],
+      "audit_fields": [
+        "type",
+        "vhost"
+      ],
       "capability": "runtime",
-      "command": [],
+      "command": [
+        "runtime",
+        "php-set-directives"
+      ],
       "elevated_impact": false,
       "feature": null,
-      "impact": "",
-      "name": "LangPHP/php_ini_set_user_basic_directives",
-      "parameters": {},
+      "impact": "Set basic user PHP directives from a protected local directive file.",
+      "name": "runtime.php-set-directives",
+      "parameters": {
+        "directive": {
+          "name": "directive",
+          "required": true,
+          "secret": true,
+          "sensitive_output": true,
+          "sources": [
+            "protected_file"
+          ],
+          "uapi_name": "directive",
+          "validator": "content"
+        },
+        "type": {
+          "name": "type",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "type",
+          "validator": "enum"
+        },
+        "vhost": {
+          "name": "vhost",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "vhost",
+          "validator": "domain"
+        }
+      },
       "preflight": null,
-      "reason": "PHP directive writes need a structured directive adapter",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed PHP directive mutation with protected file input",
+      "recovery": "Restore the previous directive values after reading them with runtime php-directives.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "LangPHP/php_ini_set_user_content": {
-      "audit_fields": [],
+      "audit_fields": [
+        "type",
+        "vhost"
+      ],
       "capability": "runtime",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "runtime",
+        "php-set-ini-content"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "LangPHP/php_ini_set_user_content",
-      "parameters": {},
+      "impact": "Replace user php.ini content from a protected local file.",
+      "name": "runtime.php-set-ini-content",
+      "parameters": {
+        "content": {
+          "name": "content",
+          "required": true,
+          "secret": true,
+          "sensitive_output": true,
+          "sources": [
+            "protected_file"
+          ],
+          "uapi_name": "content",
+          "validator": "content"
+        },
+        "type": {
+          "name": "type",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "type",
+          "validator": "enum"
+        },
+        "vhost": {
+          "name": "vhost",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "vhost",
+          "validator": "domain"
+        }
+      },
       "preflight": null,
-      "reason": "raw php.ini writes need protected content input review",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed PHP ini mutation with protected file input",
+      "recovery": "Restore the previous php.ini content after reading it with runtime php-ini-content.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "LangPHP/php_set_vhost_versions": {
-      "audit_fields": [],
+      "audit_fields": [
+        "version",
+        "vhost"
+      ],
       "capability": "runtime",
-      "command": [],
-      "elevated_impact": false,
+      "command": [
+        "runtime",
+        "php-set-vhost-version"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "LangPHP/php_set_vhost_versions",
-      "parameters": {},
+      "impact": "Change the PHP version used by a virtual host.",
+      "name": "runtime.php-set-vhost-version",
+      "parameters": {
+        "version": {
+          "name": "version",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "version",
+          "validator": "bounded_text"
+        },
+        "vhost": {
+          "name": "vhost",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "vhost",
+          "validator": "domain"
+        }
+      },
       "preflight": null,
-      "reason": "PHP version changes need domain impact preflight",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
+      "reason": "reviewed PHP virtual host version mutation",
+      "recovery": "Restore the previous PHP version after checking runtime php-vhosts.",
+      "risk": "mutate",
+      "status": "included",
       "verification": null
     },
     "LastLogin/get_last_or_current_logged_in_ip": {

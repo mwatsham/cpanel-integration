@@ -13,8 +13,8 @@
 - Support individual cPanel accounts only.
 - Use cPanel UAPI over verified HTTPS on port `2083`.
 - Use documented API endpoints. Do not automate the cPanel web interface.
-- Support an explicit allowlist for domains, files, SSL, MySQL/MariaDB databases, email, and FTP
-  account administration.
+- Support an explicit allowlist for domains, files/directories, SSL, MySQL/MariaDB databases,
+  email, FTP, and PHP/runtime account administration.
 - Reject WHM API calls, root or reseller operations, account provisioning, and server-service administration.
 
 ## Structure
@@ -72,8 +72,8 @@ Do not claim a command works until its configuration exists and the command has 
 - Send requests to `https://<host>:2083/execute/<Module>/<function>`.
 - Authenticate using the documented `Authorization: cpanel <username>:<token>` request header.
 - Read named profile metadata and encrypted API tokens from the profile configuration.
-- Read the Fernet master key from `CPANEL_ADMIN_FERNET_KEY`, or from the permission-checked key file
-  when the environment value is absent.
+- Read the Fernet master key from `CPANEL_ADMIN_FERNET_KEY`, or from the permission-checked key
+  file when the environment value is absent.
 - Keep TLS certificate and hostname verification enabled.
 - URI-encode all request parameters.
 - Treat both non-successful HTTP responses and UAPI responses with `status != 1` as failures.

@@ -1,6 +1,6 @@
 ---
 name: cpanel-integration
-description: Safely administer individual cPanel accounts through documented UAPI operations for domains, files, SSL certificates, MySQL or MariaDB databases, email, FTP accounts, diagnostics, security controls, runtime/site operations, guarded Git repository deployments, and backups. Use when Codex needs to inspect or change website resources, mailboxes, FTP users, quotas, resource usage, IP blocks, ModSecurity, PHP runtime, cPanel Git repositories, backups, passwords, routing, SPF, or DKIM in cPanel. Do not use for WHM, root, reseller, account provisioning, server-wide administration, browser automation, anonymous FTP changes, restore execution, shell Git commands, or arbitrary UAPI calls.
+description: Safely administer individual cPanel accounts through documented UAPI operations for domains, files and directories, SSL certificates, MySQL or MariaDB databases, email, FTP accounts, diagnostics, security controls, PHP/runtime operations, guarded Git repository deployments, and backups. Use when Codex needs to inspect or change website resources, directory privacy/indexing, mailboxes, FTP users, quotas, resource usage, IP blocks, ModSecurity, PHP versions/configuration, cPanel Git repositories, backups, passwords, routing, SPF, or DKIM in cPanel. Do not use for WHM, root, reseller, account provisioning, server-wide administration, browser automation, anonymous FTP changes, restore execution, shell Git commands, or arbitrary UAPI calls.
 ---
 
 # Administer an individual cPanel account
@@ -25,8 +25,11 @@ requests or substitute deprecated API 2, WHM, shell, raw FTP clients, or browser
   and account/server variables before risky changes.
 - Use account security commands only for reviewed IP blocking, ModSecurity, ClamAV status,
   notification preference reads, known-host verification, SSH port reads, and task queue reads.
-- Use runtime commands only for reviewed PHP/runtime reads, NGINX cache controls, Passenger app
-  listing, guarded cPanel Git repository management, and deployment status/task management.
+- Use files commands for reviewed file content operations plus directory autocomplete, indexing, and
+  directory privacy administration.
+- Use runtime commands only for reviewed PHP/runtime reads and writes, NGINX cache controls,
+  Passenger app listing, guarded cPanel Git repository management, and deployment status/task
+  management.
 - Use backup commands only for reviewed backup listing, home-directory full-backup initiation, and
   backup metadata reads. Do not execute restores or remote-destination backups.
 - Run `--dry-run` before every mutation so the target, normalized parameters, impact, and recovery
@@ -34,6 +37,9 @@ requests or substitute deprecated API 2, WHM, shell, raw FTP clients, or browser
 - For Git repository create/update commands, provide `source_repository` through a local JSON file
   with `--source-repository`; never paste repository tokens, private keys, or deploy credentials
   into chat or command arguments.
+- For directory privacy users, provide passwords only with `--password-stdin`.
+- For PHP directive and php.ini mutations, provide content only through protected `0600` local files
+  with `--directive-file` or `--content-file`; do not echo PHP configuration content in summaries.
 - For non-destructive mutations, present the dry-run and execute only within the user's authority.
 - For destructive operations, read [references/safety.md](references/safety.md), run `--dry-run`,
   present the returned plan, and obtain explicit user approval immediately before execution.
@@ -42,8 +48,9 @@ requests or substitute deprecated API 2, WHM, shell, raw FTP clients, or browser
 - Treat any nonzero exit as failure. Report its concise error and exit-code category without
   exposing environment values or request headers.
 - Verify mutations with the corresponding read command when the API offers one.
-- For mailbox passwords, FTP passwords, database passwords, private keys, certificate material, and
-  other secrets, use only the approved `--*-stdin`, `--*-file`, or protected profile mechanisms.
+- For mailbox passwords, FTP passwords, database passwords, directory privacy passwords, PHP
+  configuration payloads, private keys, certificate material, and other secrets, use only the
+  approved `--*-stdin`, `--*-file`, or protected profile mechanisms.
 
 ## Guardrails
 
