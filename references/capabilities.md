@@ -15,6 +15,7 @@ generated matrix first. The authoritative operation list remains
 | Files | [capabilities/files.md](capabilities/files.md) | Account file content, directory operations, permissions, compression/extraction, uploads, and trash cleanup |
 | FTP | [capabilities/ftp.md](capabilities/ftp.md) | FTP account and session administration |
 | Runtime | [capabilities/runtime.md](capabilities/runtime.md) | PHP reads/writes, NGINX cache controls, Passenger apps, guarded cPanel Git repository/deployment management, and runtime status |
+| PHP Selector | [capabilities/php-selector.md](capabilities/php-selector.md) | CloudLinux account PHP versions, extensions, and reviewed options over restricted SSH |
 | Security | [capabilities/security.md](capabilities/security.md) | IP blocks, ModSecurity, ClamAV status, known-host checks, SSH port reads, and task queues |
 | Software | [capabilities/software.md](capabilities/software.md) | Passenger application lifecycle, protected environment settings, and npm/pip/gem dependency installation |
 | SSL | [capabilities/ssl.md](capabilities/ssl.md) | Certificate inventory, installation, and removal |

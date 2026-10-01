@@ -288,6 +288,16 @@ def build_parser(registry: PolicyRegistry | None = None) -> argparse.ArgumentPar
     test = profile_commands.add_parser("test")
     test.add_argument("name")
     profile_commands.add_parser("rotate-key")
+    ssh = profile_commands.add_parser("configure-ssh")
+    ssh.add_argument("name")
+    ssh.add_argument("--host", help="SSH hostname; defaults to the cPanel host")
+    ssh.add_argument("--port", type=int, default=22)
+    ssh.add_argument(
+        "--identity-file", help="local private-key path; otherwise use SSH agent/default keys"
+    )
+    from .php_selector import add_parsers
+
+    add_parsers(groups)
 
     operation_groups: dict[str, argparse.ArgumentParser] = {}
     for operation in sorted(policy.included(), key=lambda item: item.command):
@@ -792,6 +802,7 @@ def _run_profiles(
         codec = SecretCodec.from_environment(env)
         profile = store.get(args.name)
         parameters = profile.public_dict()
+        parameters.pop("ssh", None)
         service = ConfirmationService(codec.key)
         if args.dry_run:
             plan = service.plan(
@@ -820,6 +831,11 @@ def _run_profiles(
         except UnicodeEncodeError as exc:
             raise ConfigError("CPANEL_ADMIN_FERNET_KEY_NEW is not a valid Fernet key") from exc
         return _profile_result("profiles.rotate-key", {"rotated": store.rotate(codec, new_codec)})
+    if command == "configure-ssh":
+        profile = store.configure_ssh(
+            args.name, host=args.host, port=args.port, identity_file=args.identity_file
+        )
+        return _profile_result("profiles.configure-ssh", profile.public_dict())
     raise UsageError("Unknown profile command")
 
 
@@ -852,6 +868,10 @@ def main(
         registry = _default_policy_registry()
         if args.group == "profiles":
             result = _run_profiles(args, values, input_stream, store, client)
+        elif args.group == "php-selector":
+            from .php_selector import run as run_php_selector
+
+            result = run_php_selector(args, values, store)
         elif args.group == "operations":
             result = _run_operations_discovery(args, registry)
         elif args.group == "capabilities":

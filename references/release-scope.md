@@ -6,6 +6,10 @@ is intentionally stricter than the product capability policy.
 
 ## Actual live execution
 
+CloudLinux PHP Selector SSH commands are covered by simulated SSH, confirmation, and CLI tests.
+They are not part of automated live execution. A disposable account with verified SSH access and
+end-user selectorctl support is required before collecting live evidence.
+
 Software application mutations are covered by mocked CLI and verification tests. They have not
 been executed against a disposable live account. The opt-in read suite includes application
 inventory. Dependency installs can run package scripts and need a separately reviewed live fixture.

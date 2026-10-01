@@ -22,20 +22,56 @@ USERNAME_RE = re.compile(r"^[A-Za-z0-9_]{1,32}$")
 
 
 @dataclass(frozen=True)
+class SSHSettings:
+    """Opt-in account SSH endpoint; key material stays outside the profile store."""
+
+    host: str
+    port: int = 22
+    identity_file: str | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "host", _normalize_host(self.host))
+        if (
+            isinstance(self.port, bool)
+            or not isinstance(self.port, int)
+            or not 1 <= self.port <= 65535
+        ):
+            raise ConfigError("SSH port must be between 1 and 65535")
+        if self.identity_file is not None:
+            if (
+                not isinstance(self.identity_file, str)
+                or not self.identity_file
+                or any(ord(char) < 32 for char in self.identity_file)
+            ):
+                raise ConfigError("Invalid SSH identity file")
+            object.__setattr__(
+                self, "identity_file", str(Path(self.identity_file).expanduser().absolute())
+            )
+
+
+@dataclass(frozen=True)
 class Profile:
     name: str
     host: str
     port: int
     username: str
     encrypted_token: str
+    ssh: SSHSettings | None = None
 
-    def public_dict(self) -> dict[str, str | int]:
-        return {
+    def public_dict(self) -> dict[str, object]:
+        result = {
             "name": self.name,
             "host": self.host,
             "port": self.port,
             "username": self.username,
         }
+        if self.ssh is not None:
+            result["ssh"] = {
+                "host": self.ssh.host,
+                "port": self.ssh.port,
+                "identity_file_configured": self.ssh.identity_file is not None,
+            }
+        return result
 
 
 def default_profile_path(env: Mapping[str, str] | None = None) -> Path:
@@ -118,7 +154,16 @@ class ProfileStore:
             raise ConfigError(f"Profile {name!r} must use HTTPS port 2083")
         if not isinstance(encrypted_token, str) or not encrypted_token:
             raise ConfigError(f"Profile {name!r} has invalid encrypted token data")
-        return Profile(stored_name, host, port, username, encrypted_token)
+        ssh = None
+        if raw.get("ssh") is not None:
+            value = raw["ssh"]
+            if not isinstance(value, dict) or set(value) - {"host", "port", "identity_file"}:
+                raise ConfigError("Invalid SSH profile settings")
+            try:
+                ssh = SSHSettings(**value)
+            except TypeError as exc:
+                raise ConfigError("Invalid SSH profile settings") from exc
+        return Profile(stored_name, host, port, username, encrypted_token, ssh)
 
     def _write_raw(self, value: dict[str, Any]) -> None:
         self.path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -179,7 +224,9 @@ class ProfileStore:
         if name in raw_profiles and not replace:
             raise ConfigError(f"Profile {name!r} already exists; use --replace")
         profile = Profile(name, host, 2083, username, codec.encrypt(token))
-        raw_profiles[name] = {key: item for key, item in asdict(profile).items() if key != "name"}
+        raw_profiles[name] = {
+            key: item for key, item in asdict(profile).items() if key != "name" and item is not None
+        }
         self._write_raw(value)
         return profile
 
@@ -189,6 +236,24 @@ class ProfileStore:
         del value["profiles"][name]
         self._write_raw(value)
         return profile
+
+    def configure_ssh(
+        self,
+        name: str,
+        *,
+        host: str | None = None,
+        port: int = 22,
+        identity_file: str | None = None,
+    ) -> Profile:
+        """Configure SSH for the same account username without handling private keys."""
+        profile = self.get(name)
+        if profile.username == "root":
+            raise ConfigError("PHP Selector SSH requires a non-root cPanel account")
+        settings = SSHSettings(host or profile.host, port, identity_file)
+        value = self._load_raw()
+        value["profiles"][name]["ssh"] = asdict(settings)
+        self._write_raw(value)
+        return self.get(name)
 
     def rotate(self, codec: SecretCodec, new_codec: SecretCodec) -> int:
         value = self._load_raw()

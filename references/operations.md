@@ -5,6 +5,10 @@ group. Use `--timeout SECONDS` from 1 to 120 when needed. Every mutation accepts
 
 ## Software
 
+CloudLinux PHP Selector has a separate `php-selector` command group over restricted account SSH.
+Configure it with `profiles configure-ssh NAME`; see
+[the PHP Selector guide](capabilities/php-selector.md) for requirements and the fixed command list.
+
 Use `software list`, `register`, `edit`, `enable`, `disable`, `unregister`, and `dependencies`.
 All mutations use `--dry-run` and require confirmation. See
 [the software reference](capabilities/software.md) for exact options, protected environment input,

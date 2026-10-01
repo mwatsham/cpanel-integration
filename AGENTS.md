@@ -14,8 +14,12 @@
 - Use cPanel UAPI over verified HTTPS on port `2083` by default.
 - Use cPanel API 2 only for the reviewed Fileman and Cron fallback commands that have no UAPI equivalent.
 - Use documented API endpoints. Do not automate the cPanel web interface.
+- CloudLinux PHP Selector is an explicit SSH exception: use only the fixed account-level
+  `selectorctl` commands in `php_selector.py`, with key authentication and strict host-key checks.
+  Never add arbitrary shell execution, sudo, root login, or cross-account selector flags.
 - Support an explicit allowlist for domains, files/directories, SSL, MySQL/MariaDB databases,
-  email, FTP, PHP/runtime account administration, Passenger software management, backups, and cron jobs.
+  email, FTP, PHP/runtime account administration, CloudLinux PHP Selector,
+  Passenger software management, backups, and cron jobs.
 - Reject WHM API calls, root or reseller operations, account provisioning, and server-service administration.
 
 ## Structure

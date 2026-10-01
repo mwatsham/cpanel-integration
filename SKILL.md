@@ -1,13 +1,18 @@
 ---
 name: cpanel-integration
-description: Administer individual cPanel accounts through reviewed UAPI operations and narrow API 2 Fileman/Cron fallbacks. Use for domains, files and permissions, archives, cron jobs, SSL, databases, email, FTP, diagnostics, account security, PHP settings, Passenger application lifecycle and npm/pip/gem dependencies, cPanel Git deployments, and backups. Uses encrypted named profiles, dry-run plans, protected secret input, and confirmation for high-impact changes. Excludes WHM, root/reseller administration, account provisioning, browser automation, restore execution, shell Git, standalone package installers, arbitrary UAPI calls, and arbitrary API 2 calls.
+description: Administer individual cPanel accounts through reviewed UAPI operations and narrow API 2 Fileman/Cron fallbacks. Use for domains, files and permissions, archives, cron jobs, SSL, databases, email, FTP, diagnostics, account security, PHP settings, CloudLinux PHP Selector over restricted account SSH, Passenger application lifecycle and npm/pip/gem dependencies, cPanel Git deployments, and backups. Uses encrypted named profiles, dry-run plans, protected secret input, and confirmation for high-impact changes. Excludes WHM, root/reseller administration, account provisioning, browser automation, restore execution, shell Git, standalone package installers, arbitrary UAPI calls, and arbitrary API 2 calls.
 ---
 
 # Administer an individual cPanel account
 
 Use the `cpanel-admin` CLI as the execution and safety boundary. Do not construct direct cPanel
-requests or substitute WHM, shell, raw FTP clients, or browser automation. Use cPanel API 2 only
+requests or substitute WHM, arbitrary shell commands, raw FTP clients, or browser automation. Use cPanel API 2 only
 through the fixed Fileman and Cron fallback commands documented here.
+
+For CloudLinux PHP Selector only, use the fixed `php-selector` CLI commands over account SSH as
+documented in [the PHP Selector guide](references/capabilities/php-selector.md). This is an explicit
+exception to API-only execution. Require a configured SSH profile and verified host key; do not
+substitute direct SSH commands, sudo, root access, or alternative selector executables.
 
 ## Prepare
 
@@ -32,6 +37,9 @@ through the fixed Fileman and Cron fallback commands documented here.
 - Use runtime commands only for reviewed PHP/runtime reads and writes, NGINX cache controls,
   Passenger app listing, guarded cPanel Git repository management, and deployment status/task
   management.
+- Use `php-selector` for CloudLinux PHP versions, extension toggles, and the guide's reviewed
+  non-secret options. Run a dry run and obtain confirmation for every mutation. Changes affect
+  the account; verify the website separately when its PHP handler might differ.
 - Use backup commands only for reviewed backup listing, home-directory full-backup initiation, and
   backup metadata reads. Do not execute restores or remote-destination backups.
 - Use [software commands](references/capabilities/software.md) for Passenger application

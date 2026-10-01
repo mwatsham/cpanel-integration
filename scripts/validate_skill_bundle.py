@@ -17,6 +17,7 @@ CAPABILITIES = (
     "files",
     "ftp",
     "runtime",
+    "php-selector",
     "security",
     "software",
     "ssl",

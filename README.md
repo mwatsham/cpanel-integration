@@ -31,6 +31,25 @@ remote backup destinations, restore execution, or arbitrary UAPI/API calls.
 
 ## Software management
 
+### CloudLinux PHP Selector
+
+The `php-selector` commands manage CloudLinux's **Select PHP Version** through a restricted
+account SSH connection. They support available/current versions, extension enable/disable, and
+common PHP limits and options. This is separate from MultiPHP and requires SSH key access plus
+CageFS 7.6.17+ end-user selectorctl support.
+
+```bash
+cpanel-admin profiles configure-ssh staging --port 22 --identity-file ~/.ssh/id_ed25519
+cpanel-admin --profile staging php-selector versions
+cpanel-admin --profile staging php-selector set-version --version 8.3 --dry-run
+```
+
+Trust the server's host key using a fingerprint verified with your provider before connecting.
+All mutations require confirmation and are followed by a state check.
+See [PHP Selector setup and commands](references/capabilities/php-selector.md).
+
+### Passenger applications
+
 Use `software list`, `register`, `edit`, `enable`, `disable`, and `unregister` to manage Passenger
 applications. Use `software dependencies` to start npm, pip, or Ruby Gem dependency installation
 from an application's existing manifest. Existing `runtime php-*` commands manage PHP.
