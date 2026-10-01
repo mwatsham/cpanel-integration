@@ -7,6 +7,7 @@ generated matrix first. The authoritative operation list remains
 | Capability | Reference | Primary use |
 | --- | --- | --- |
 | Backups | [capabilities/backups.md](capabilities/backups.md) | Local backup inventory and guarded home-directory backup starts |
+| Cron | [capabilities/cron.md](capabilities/cron.md) | Cron job listing, notification email, and guarded job add/edit/remove |
 | Databases | [capabilities/databases.md](capabilities/databases.md) | MySQL/MariaDB databases, users, and grants |
 | Diagnostics | [capabilities/diagnostics.md](capabilities/diagnostics.md) | Quota, bandwidth, features, logs, stats, and account state |
 | Domains | [capabilities/domains.md](capabilities/domains.md) | Domain discovery and reviewed subdomain creation |

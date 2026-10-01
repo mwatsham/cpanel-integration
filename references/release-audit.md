@@ -14,7 +14,7 @@ is defined in `references/release-scope.md`.
 | Catalog generation is deterministic and committed output is current. | Proven | `scripts/generate_catalog.py` emits deterministic JSON/Markdown. `scripts/check_generated.py` verifies `src/cpanel_admin/data/operation_catalog.json` and `references/operation-support.md`. |
 | Every candidate operation in scope has an explicit include or exclude policy record. | Proven | Current policy surface has 393 selected candidate operations, 393 policy records, 214 included, 179 excluded, 0 missing records, and 0 extra records. |
 | Every included operation passes its operation-level contract tests. | Proven by default suite | `tests/test_policy.py` parameterizes included operations for metadata completeness, protected inputs, immutable lookup, command boundaries, and no raw `module`/`function` parameters. Capability-pack tests cover reviewed expansion contracts. |
-| Unit, mocked integration, CLI, redaction, and documentation tests pass. | Proven by default suite | `tests/` includes audit, capabilities, catalog generation, CLI, confirmation, executor, inputs, legacy API 2 Fileman fallback, operations, planner, policy, profiles, redaction, secrets, transport, live-harness, OpenAPI-reference, capability-reference, and release-audit tests. |
+| Unit, mocked integration, CLI, redaction, and documentation tests pass. | Proven by default suite | `tests/` includes audit, capabilities, catalog generation, CLI, confirmation, executor, inputs, legacy API 2 Fileman and Cron fallbacks, operations, planner, policy, profiles, redaction, secrets, transport, live-harness, OpenAPI-reference, capability-reference, and release-audit tests. |
 | Coverage remains at or above 90%. | Proven when coverage gate is run | Required command: `pytest --cov=cpanel_admin --cov-report=term-missing --cov-fail-under=90`. Recent evidence: total coverage `90.26%`. |
 | Ruff lint and formatting checks pass. | Proven when Ruff gates are run | Required commands: `ruff check .` and `ruff format --check .`. |
 | Both project skill validators pass. | Proven when validation gates are run | `agentskills validate "$PWD"` validates the Agent Skills standard. `scripts/validate_skill_bundle.py "$PWD"` validates project-specific bundle, link, capability-reference, and guardrail invariants. |
@@ -56,7 +56,7 @@ Current live verification is intentionally opt-in and gated by:
 Current evidence:
 
 - Representative read-only matrix exists in `tests/test_live_cpanel.py`.
-- Lifecycle dry-run plan specs exist for backups, databases, domains, email, files, FTP, runtime,
+- Lifecycle dry-run plan specs exist for backups, cron, databases, domains, email, files, FTP, runtime,
   including guarded PHP administration and cPanel Git repository management, security, and SSL.
 - Redacted JSON-lines reporting exists through `CPANEL_ADMIN_LIVE_REPORT`.
 - `references/live-testing.md` documents gates, feature-unavailable skips, report handling, and the
@@ -64,17 +64,18 @@ Current evidence:
 - Recent disposable-account run against `test-123reg` passed read-only verification for available
   packs and skipped unsupported account features explicitly.
 - Recent disposable-account lifecycle dry-run run against `test-123reg` passed plans for backups,
-  databases, domains, email, files, FTP, runtime, security, and SSL using
+  cron, databases, domains, email, files, FTP, runtime, security, and SSL using
   `CPANEL_ADMIN_LIVE_ENABLE_DESTRUCTIVE=I_ACCEPT_LIVE_RESOURCE_MUTATION`,
   `CPANEL_ADMIN_LIVE_RUN_PREFIX=codex_live_a1_`, and `CPANEL_ADMIN_LIVE_DOMAIN` with all operations
   still executed as `--dry-run`.
 - Reversible actual lifecycle specs exist for databases, email, FTP, and security. Other mutable
-  packs, including file/directory operations and runtime PHP/Git repository/deployment mutations, remain dry-run-only until an
-  independent verification and cleanup or rollback path exists.
+  packs, including cron, file/directory operations, and runtime PHP/Git repository/deployment
+  mutations, remain dry-run-only until an independent verification and cleanup or rollback path
+  exists.
 - Recent disposable-account reversible lifecycle execution against `test-123reg` passed for
   databases, email, FTP, and security using `CPANEL_ADMIN_LIVE_RUN_PREFIX=codex_live_c3_`; each
   created resource was cleaned up by the test.
-- `references/release-scope.md` defines backups, domains, files, runtime, and SSL as dry-run-only
+- `references/release-scope.md` defines backups, cron, domains, files, runtime, and SSL as dry-run-only
   for live mutation execution in this release because they lack a safe automated cleanup or rollback
   path in the reviewed allowlist.
 

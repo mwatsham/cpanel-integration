@@ -181,6 +181,29 @@ def _backup_full_plan(_env: dict[str, str], _prefix: str) -> LifecyclePlan:
     return LifecyclePlan(("backups", "full-to-home", "--dry-run"), "", "home-directory-backup")
 
 
+def _cron_add_plan(_env: dict[str, str], prefix: str) -> LifecyclePlan:
+    return LifecyclePlan(
+        (
+            "cron",
+            "add",
+            "--minute",
+            "0",
+            "--hour",
+            "2",
+            "--day",
+            "*",
+            "--month",
+            "*",
+            "--weekday",
+            "*",
+            "--command-stdin",
+            "--dry-run",
+        ),
+        f"/usr/bin/printf '{prefix}cron-dry-run' >/dev/null",
+        f"{prefix}cron",
+    )
+
+
 def _ssl_remove_plan(env: dict[str, str], _prefix: str) -> LifecyclePlan:
     domain = _domain(env, "ssl")
     if domain is None:
@@ -198,11 +221,13 @@ LIVE_COMMANDS: tuple[LiveCommand, ...] = (
     LiveCommand("security.modsec-installed", ("security", "modsec-installed")),
     LiveCommand("runtime.php-installed", ("runtime", "php-installed")),
     LiveCommand("backups.list", ("backups", "list")),
+    LiveCommand("cron.list", ("cron", "list")),
     LiveCommand("capabilities.inspect", ("capabilities", "inspect")),
 )
 
 LIVE_LIFECYCLE_SPECS: tuple[LiveLifecycleSpec, ...] = (
     LiveLifecycleSpec("backups", "backups.full-to-home", "start", _backup_full_plan),
+    LiveLifecycleSpec("cron", "cron.add", "create", _cron_add_plan),
     LiveLifecycleSpec("databases", "databases.create", "create", _database_create_plan),
     LiveLifecycleSpec(
         "domains",

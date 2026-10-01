@@ -1,13 +1,13 @@
 ---
 name: cpanel-integration
-description: Safely administer individual cPanel accounts through documented UAPI operations and a narrow reviewed cPanel API 2 Fileman fallback for domains, files and directories, SSL certificates, MySQL or MariaDB databases, email, FTP accounts, diagnostics, security controls, PHP/runtime operations, guarded Git repository deployments, and backups. Use when Codex needs to inspect or change website resources, create/update/delete files or directories, manage permissions, compress/extract archives, directory privacy/indexing, mailboxes, FTP users, quotas, resource usage, IP blocks, ModSecurity, PHP versions/configuration, cPanel Git repositories, backups, passwords, routing, SPF, or DKIM in cPanel. Do not use for WHM, root, reseller, account provisioning, server-wide administration, browser automation, anonymous FTP changes, restore execution, shell Git commands, arbitrary UAPI calls, or arbitrary API 2 calls.
+description: Safely administer individual cPanel accounts through documented UAPI operations and narrow reviewed cPanel API 2 Fileman and Cron fallbacks for domains, files and directories, cron jobs, SSL certificates, MySQL or MariaDB databases, email, FTP accounts, diagnostics, security controls, PHP/runtime operations, guarded Git repository deployments, and backups. Use when Codex needs to inspect or change website resources, create/update/delete files or directories, manage permissions, compress/extract archives, manage cron jobs, directory privacy/indexing, mailboxes, FTP users, quotas, resource usage, IP blocks, ModSecurity, PHP versions/configuration, cPanel Git repositories, backups, passwords, routing, SPF, or DKIM in cPanel. Do not use for WHM, root, reseller, account provisioning, server-wide administration, browser automation, anonymous FTP changes, restore execution, shell Git commands, arbitrary UAPI calls, or arbitrary API 2 calls.
 ---
 
 # Administer an individual cPanel account
 
 Use the `cpanel-admin` CLI as the execution and safety boundary. Do not construct direct cPanel
 requests or substitute WHM, shell, raw FTP clients, or browser automation. Use cPanel API 2 only
-through the fixed Fileman fallback commands documented here.
+through the fixed Fileman and Cron fallback commands documented here.
 
 ## Prepare
 
@@ -34,17 +34,23 @@ through the fixed Fileman fallback commands documented here.
   management.
 - Use backup commands only for reviewed backup listing, home-directory full-backup initiation, and
   backup metadata reads. Do not execute restores or remote-destination backups.
+- Use cron commands only for reviewed job listing, notification email, and job add/edit/remove
+  operations. Do not use them for arbitrary local shell execution or WHM/root crontabs.
 - Run `--dry-run` before every mutation so the target, normalized parameters, impact, and recovery
   guidance can be reviewed.
 - Treat `files create-directory`, `files delete-path`, `files rename-path`, `files copy-path`,
   `files move-path`, `files chmod-path`, `files compress`, and `files extract` as the only approved
-  cPanel API 2 fallback commands. Do not generalize them into arbitrary API 2 calls.
+  Fileman cPanel API 2 fallback commands. Treat `cron list`, `cron get-email`, `cron set-email`,
+  `cron add`, `cron edit`, and `cron remove` as the only approved Cron cPanel API 2 fallback
+  commands. Do not generalize them into arbitrary API 2 calls.
 - For Git repository create/update commands, provide `source_repository` through a local JSON file
   with `--source-repository`; never paste repository tokens, private keys, or deploy credentials
   into chat or command arguments.
 - For directory privacy users, provide passwords only with `--password-stdin`.
 - For PHP directive and php.ini mutations, provide content only through protected `0600` local files
   with `--directive-file` or `--content-file`; do not echo PHP configuration content in summaries.
+- For cron add/edit commands, provide command text only through `--command-stdin` or a protected
+  `0600` file with `--command-file`; plans and audit records must show only the fingerprint.
 - For non-destructive mutations, present the dry-run and execute only within the user's authority.
 - For destructive operations, read [references/safety.md](references/safety.md), run `--dry-run`,
   present the returned plan, and obtain explicit user approval immediately before execution.

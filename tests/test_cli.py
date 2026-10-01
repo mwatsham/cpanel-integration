@@ -1251,6 +1251,202 @@ def test_legacy_file_create_directory_executes_fixed_api2_call(cli_env) -> None:
 
 
 @pytest.mark.parametrize(
+    ("args", "operation", "parameters", "requires_confirmation"),
+    [
+        (
+            ["cron", "set-email", "--email", "admin@example.com"],
+            "cron.set-email",
+            {"email": "admin@example.com"},
+            False,
+        ),
+        (
+            [
+                "cron",
+                "add",
+                "--minute",
+                "*/15",
+                "--hour",
+                "*",
+                "--day",
+                "*",
+                "--month",
+                "*",
+                "--weekday",
+                "*",
+                "--command-stdin",
+            ],
+            "cron.add",
+            {
+                "minute": "*/15",
+                "hour": "*",
+                "day": "*",
+                "month": "*",
+                "weekday": "*",
+                "command": {
+                    "bytes": len("php /home/account/public_html/artisan schedule:run"),
+                    "sha256": "b39c5b21b278e41f6d10c31a9741352b46cd752d38d3411afe5a0d650d83fce5",
+                },
+            },
+            False,
+        ),
+        (
+            [
+                "cron",
+                "edit",
+                "--linekey",
+                "f32e3d460c179443e5f772359c7954ec",
+                "--minute",
+                "0",
+                "--hour",
+                "2",
+                "--day",
+                "*",
+                "--month",
+                "*",
+                "--weekday",
+                "1-5",
+                "--command-stdin",
+            ],
+            "cron.edit",
+            {
+                "linekey": "f32e3d460c179443e5f772359c7954ec",
+                "minute": "0",
+                "hour": "2",
+                "day": "*",
+                "month": "*",
+                "weekday": "1-5",
+                "command": {
+                    "bytes": len("php /home/account/public_html/artisan schedule:run"),
+                    "sha256": "b39c5b21b278e41f6d10c31a9741352b46cd752d38d3411afe5a0d650d83fce5",
+                },
+            },
+            True,
+        ),
+        (
+            ["cron", "remove", "--linekey", "f32e3d460c179443e5f772359c7954ec"],
+            "cron.remove",
+            {"linekey": "f32e3d460c179443e5f772359c7954ec"},
+            True,
+        ),
+    ],
+)
+def test_legacy_cron_commands_dry_run_with_fixed_api2_payloads(
+    cli_env, args, operation, parameters, requires_confirmation
+) -> None:
+    env, key = cli_env
+    add_profile(env, key)
+    transport = FakeTransport()
+
+    code, payload, stderr = invoke(
+        ["--profile", "test", *args, "--dry-run"],
+        env=env,
+        stdin="php /home/account/public_html/artisan schedule:run",
+        transport=transport,
+    )
+
+    serialized = json.dumps(payload)
+    assert code == 0
+    assert stderr == ""
+    assert transport.calls == []
+    assert payload["operation"] == operation
+    assert payload["identity"].startswith("cpanel-api-2/Cron/")
+    assert payload["legacy_api"] == "cpanel-api-2"
+    assert payload["parameters"] == parameters
+    assert payload["requires_confirmation"] is requires_confirmation
+    assert "artisan schedule:run" not in serialized
+
+
+def test_legacy_cron_list_executes_fixed_api2_read(cli_env) -> None:
+    env, key = cli_env
+    add_profile(env, key)
+    transport = FakeTransport(
+        [UAPIResponse([{"linekey": "abc123", "command": "php cron.php"}], [], [])]
+    )
+
+    code, payload, stderr = invoke(
+        ["--profile", "test", "cron", "list"],
+        env=env,
+        transport=transport,
+    )
+
+    assert code == 0
+    assert stderr == ""
+    assert payload["operation"] == "cron.list"
+    assert transport.calls[0]["api_family"] == "cpanel-api-2"
+    assert transport.calls[0]["module"] == "Cron"
+    assert transport.calls[0]["function"] == "listcron"
+    assert transport.calls[0]["parameters"] == {}
+
+
+def test_legacy_cron_add_requires_command_stdin(cli_env) -> None:
+    env, key = cli_env
+    add_profile(env, key)
+
+    code, payload, stderr = invoke(
+        [
+            "--profile",
+            "test",
+            "cron",
+            "add",
+            "--minute",
+            "0",
+            "--hour",
+            "2",
+            "--day",
+            "*",
+            "--month",
+            "*",
+            "--weekday",
+            "*",
+            "--dry-run",
+        ],
+        env=env,
+    )
+
+    assert code == 2
+    assert payload is None
+    assert "command-stdin" in stderr
+
+
+def test_legacy_cron_command_file_is_protected_and_redacted(cli_env, tmp_path: Path) -> None:
+    env, key = cli_env
+    add_profile(env, key)
+    command_file = tmp_path / "cron-command.txt"
+    command_file.write_text("php /home/account/private-cron.php\n", encoding="utf-8")
+    command_file.chmod(0o600)
+
+    code, payload, stderr = invoke(
+        [
+            "--profile",
+            "test",
+            "cron",
+            "add",
+            "--minute",
+            "0",
+            "--hour",
+            "2",
+            "--day",
+            "*",
+            "--month",
+            "*",
+            "--weekday",
+            "*",
+            "--command-file",
+            str(command_file),
+            "--dry-run",
+        ],
+        env=env,
+    )
+
+    serialized = json.dumps(payload)
+    assert code == 0
+    assert stderr == ""
+    assert payload["operation"] == "cron.add"
+    assert payload["parameters"]["command"]["bytes"] == len("php /home/account/private-cron.php")
+    assert "private-cron.php" not in serialized
+
+
+@pytest.mark.parametrize(
     ("args", "operation", "identity", "requires_confirmation"),
     [
         (

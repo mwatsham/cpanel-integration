@@ -18,8 +18,15 @@ from .catalog import Catalog
 from .confirmation import ConfirmationService
 from .errors import ConfigError, ConfirmationError, CPanelAdminError, UsageError
 from .executor import ExecutionContext, ExecutionResult, OperationExecutor
-from .inputs import InputResolver
+from .inputs import InputResolver, read_protected_file
 from .legacy_api2 import LEGACY_FILE_OPERATIONS, LegacyFileExecutor, resolve_legacy_file_inputs
+from .legacy_cron import (
+    LEGACY_CRON_OPERATIONS,
+    LegacyCronExecutor,
+    resolve_legacy_cron_inputs,
+    safe_legacy_cron_parameters,
+)
+from .operations import MAX_TEXT_BYTES
 from .planner import ExecutionPlan, OperationPlanner
 from .policy import (
     InputSource,
@@ -196,6 +203,60 @@ def _add_legacy_file_operation(subparsers: Any, operation_name: str, action: str
     _confirmation_options(parser)
 
 
+def _add_legacy_cron_operations(
+    root_subparsers: Any, groups_by_name: dict[str, argparse.ArgumentParser]
+) -> None:
+    group = groups_by_name.get("cron")
+    if group is None:
+        group = root_subparsers.add_parser("cron")
+        group.set_defaults(group="cron")
+        group.add_subparsers(dest="action", required=True)
+        groups_by_name["cron"] = group
+    subparsers = _action_subparsers(group)
+    for operation in sorted(LEGACY_CRON_OPERATIONS.values(), key=lambda item: item.command):
+        _add_legacy_cron_operation(subparsers, operation.name, operation.command[1])
+
+
+def _add_cron_schedule_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--minute", required=True)
+    parser.add_argument("--hour", required=True)
+    parser.add_argument("--day", required=True)
+    parser.add_argument("--month", required=True)
+    parser.add_argument("--weekday", required=True)
+
+
+def _add_cron_command_argument(parser: argparse.ArgumentParser) -> None:
+    command = parser.add_mutually_exclusive_group(required=True)
+    command.add_argument("--command-stdin", action="store_true")
+    command.add_argument("--command-file")
+
+
+def _add_legacy_cron_operation(subparsers: Any, operation_name: str, action: str) -> None:
+    parser = subparsers.add_parser(action, allow_abbrev=False)
+    parser.set_defaults(
+        legacy_cron_operation=operation_name,
+        dry_run=False,
+        confirm=None,
+        expires_at=None,
+    )
+    if action in {"list", "get-email"}:
+        return
+    if action == "set-email":
+        parser.add_argument("--email", required=True)
+    elif action == "add":
+        _add_cron_schedule_arguments(parser)
+        _add_cron_command_argument(parser)
+    elif action == "edit":
+        parser.add_argument("--linekey", required=True)
+        _add_cron_schedule_arguments(parser)
+        _add_cron_command_argument(parser)
+    elif action == "remove":
+        parser.add_argument("--linekey", required=True)
+    else:  # pragma: no cover - registry and parser additions are intentionally locked together
+        raise UsageError(f"Unsupported legacy cron command: {action}")
+    _confirmation_options(parser)
+
+
 def build_parser(registry: PolicyRegistry | None = None) -> argparse.ArgumentParser:
     policy = registry or _default_policy_registry()
     parser = argparse.ArgumentParser(
@@ -235,6 +296,7 @@ def build_parser(registry: PolicyRegistry | None = None) -> argparse.ArgumentPar
     _add_policy_operation_alias(operation_groups, write_operation, "create-file")
     _add_policy_operation_alias(operation_groups, write_operation, "update-file")
     _add_legacy_file_operations(operation_groups)
+    _add_legacy_cron_operations(groups, operation_groups)
 
     operations = groups.add_parser("operations", help="discover reviewed operation policy")
     operation_commands = operations.add_subparsers(dest="operations_command", required=True)
@@ -348,12 +410,46 @@ def _legacy_values(args: argparse.Namespace) -> dict[str, object]:
     }
 
 
+def _read_cron_command(args: argparse.Namespace, stdin: TextIO) -> str | None:
+    if getattr(args, "command_stdin", False):
+        command = stdin.read().rstrip("\r\n")
+        if not command:
+            raise UsageError("Cron command supplied on standard input must not be empty")
+        return command
+    command_file = getattr(args, "command_file", None)
+    if command_file is not None:
+        content = read_protected_file(Path(command_file), MAX_TEXT_BYTES)
+        try:
+            command = content.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise UsageError("Cron command file must contain UTF-8 text") from exc
+        command = command.rstrip("\r\n")
+        if not command:
+            raise UsageError("Cron command file must not be empty")
+        return command
+    return None
+
+
+def _legacy_cron_values(args: argparse.Namespace, stdin: TextIO) -> dict[str, object]:
+    values = {
+        name: value
+        for name in ("email", "linekey", "minute", "hour", "day", "month", "weekday")
+        if (value := getattr(args, name, None)) is not None
+    }
+    command = _read_cron_command(args, stdin)
+    if command is not None:
+        values["command"] = command
+    return values
+
+
 def _legacy_plan(
     profile: str,
     account: str,
     operation,
     parameters: Mapping[str, object],
     confirmation: ConfirmationService,
+    *,
+    policy_digest: str = "legacy-cpanel-api-2-fileman",
 ) -> dict[str, object]:
     expires_at = None
     digest = None
@@ -365,7 +461,7 @@ def _legacy_plan(
             operation=operation.name,
             parameters=parameters,
             preflight=None,
-            policy_digest="legacy-cpanel-api-2-fileman",
+            policy_digest=policy_digest,
             risk=operation.risk,
             elevated_impact=operation.elevated_impact,
         )
@@ -451,6 +547,98 @@ def _run_legacy_api2_operation(
             confirmed=operation.requires_confirmation,
             safe_values=command_values,
             audit_fields=tuple(command_values),
+            outcome="success",
+            error_category=None,
+            verification=None,
+        ),
+        fail_closed=True,
+    )
+    return {
+        "ok": True,
+        "profile": profile.name,
+        "operation": operation.name,
+        "identity": operation.identity,
+        "legacy_api": "cpanel-api-2",
+        "data": _json_safe(response.data),
+        "warnings": response.warnings,
+        "messages": response.messages,
+        "summary": f"Completed {operation.name} for {profile.name}",
+    }
+
+
+def _run_legacy_cron_operation(
+    args: argparse.Namespace,
+    env: Mapping[str, str],
+    stdin: TextIO,
+    store: ProfileStore,
+    transport: UAPITransport,
+) -> dict[str, object]:
+    if not args.profile:
+        raise UsageError("--profile is required for cPanel operations")
+    try:
+        operation = LEGACY_CRON_OPERATIONS[args.legacy_cron_operation]
+    except KeyError as exc:
+        raise UsageError("Unknown legacy cPanel API 2 cron operation") from exc
+    profile = store.get(args.profile)
+    codec = SecretCodec.from_environment(env)
+    token = codec.decrypt(profile.encrypted_token)
+    command_values = _legacy_cron_values(args, stdin)
+    parameters = resolve_legacy_cron_inputs(operation, command_values)
+    safe_parameters = safe_legacy_cron_parameters(operation, parameters)
+    confirmation = ConfirmationService(codec.key)
+    policy_digest = "legacy-cpanel-api-2-cron"
+    if args.dry_run:
+        return _legacy_plan(
+            profile.name,
+            profile.username,
+            operation,
+            safe_parameters,
+            confirmation,
+            policy_digest=policy_digest,
+        )
+    if operation.requires_confirmation:
+        confirmation.verify_v2(
+            args.confirm,
+            profile=profile.name,
+            account=profile.username,
+            identity=operation.identity,
+            operation=operation.name,
+            parameters=safe_parameters,
+            preflight=None,
+            policy_digest=policy_digest,
+            expires_at=args.expires_at,
+            risk=operation.risk,
+            elevated_impact=operation.elevated_impact,
+        )
+    audit = AuditWriter(_audit_path(args, env))
+    audit_fields = tuple(safe_parameters)
+    event = AuditEvent.from_policy(
+        timestamp=datetime.now(UTC).isoformat(),
+        profile=profile.name,
+        operation=operation.name,
+        identity=operation.identity,
+        risk=operation.risk,
+        confirmed=operation.requires_confirmation,
+        safe_values=safe_parameters,
+        audit_fields=audit_fields,
+        outcome="intent",
+        error_category=None,
+        verification=None,
+    )
+    audit.write(event, fail_closed=True)
+    response = LegacyCronExecutor(transport).execute(
+        profile, token, operation, command_values, timeout=args.timeout
+    )
+    audit.write(
+        AuditEvent.from_policy(
+            timestamp=datetime.now(UTC).isoformat(),
+            profile=profile.name,
+            operation=operation.name,
+            identity=operation.identity,
+            risk=operation.risk,
+            confirmed=operation.requires_confirmation,
+            safe_values=safe_parameters,
+            audit_fields=audit_fields,
             outcome="success",
             error_category=None,
             verification=None,
@@ -659,6 +847,8 @@ def main(
             result = _run_operations_discovery(args, registry)
         elif args.group == "capabilities":
             result = _run_capabilities(args, values, store, client, registry)
+        elif hasattr(args, "legacy_cron_operation"):
+            result = _run_legacy_cron_operation(args, values, input_stream, store, client)
         elif hasattr(args, "legacy_api2_operation"):
             result = _run_legacy_api2_operation(args, values, store, client)
         else:

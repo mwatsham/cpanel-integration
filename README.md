@@ -1,8 +1,8 @@
 # cPanel Account Administration Skill
 
 A production-oriented Agent Skill and Python CLI for administering individual cPanel accounts with
-AI assistance. It uses a fixed cPanel UAPI allowlist, a narrow reviewed cPanel API 2 Fileman
-fallback for file operations missing from UAPI, verified HTTPS on port 2083, Fernet-encrypted named
+AI assistance. It uses a fixed cPanel UAPI allowlist, narrow reviewed cPanel API 2 Fileman and Cron
+fallbacks for operations missing from UAPI, verified HTTPS on port 2083, Fernet-encrypted named
 profiles, structured JSON, and operation-bound confirmation for destructive actions.
 
 ## Scope
@@ -10,7 +10,7 @@ profiles, structured JSON, and operation-bound confirmation for destructive acti
 The skill supports domains, account files and directories, SSL certificates, MySQL/MariaDB
 databases, reviewed email administration, reviewed FTP account administration, read-only account
 diagnostics, reviewed cPanel account security controls, reviewed runtime/site operations, and
-guarded backup operations.
+guarded backup and cron operations.
 Email support covers mailbox accounts, quotas, passwords, forwarders, autoresponders, filter state,
 spam controls, MX routing, SPF, and DKIM. FTP support covers account listing, creation, deletion,
 passwords, quotas, home directories, sessions, server information, and welcome messages.
@@ -20,12 +20,14 @@ blocking, ModSecurity status/toggles, ClamAV status reads, notification preferen
 known-host verification, SSH port reads, and task queue reads. Runtime support covers PHP
 version/config reads and guarded PHP administration, NGINX cache controls, Passenger app listing,
 guarded cPanel Git repository management, and Git deployment task reads/mutations. Backup support covers backup listing, home-directory full-backup
-initiation, and backup file metadata reads. The only deprecated API 2 support is the fixed Fileman
-fallback for create-directory, delete-path, rename/copy/move, chmod, compress, and extract. It does
-not support WHM, root or reseller administration, account provisioning, server settings, browser
-automation, other deprecated API 2 calls, anonymous FTP configuration changes, diagnostics setting
-changes, malware disinfection, secret token export, Passenger app lifecycle changes, arbitrary shell
-Git commands, remote backup destinations, restore execution, or arbitrary UAPI/API calls.
+initiation, and backup file metadata reads. Cron support covers job listing, notification email,
+and guarded job add/edit/remove. The only deprecated API 2 support is the fixed Fileman fallback for
+create-directory, delete-path, rename/copy/move, chmod, compress, and extract, plus the fixed Cron
+fallback for documented Cron functions with no UAPI equivalents. It does not support WHM, root or
+reseller administration, account provisioning, server settings, browser automation, other
+deprecated API 2 calls, anonymous FTP configuration changes, diagnostics setting changes, malware
+disinfection, secret token export, Passenger app lifecycle changes, arbitrary shell Git commands,
+remote backup destinations, restore execution, or arbitrary UAPI/API calls.
 
 ## Install
 
@@ -153,6 +155,28 @@ Global options precede the capability group:
 .venv/bin/cpanel-admin --profile production backups list
 .venv/bin/cpanel-admin --profile production backups full-to-home --dry-run
 .venv/bin/cpanel-admin --profile production backups file-info --path public_html/index.html
+.venv/bin/cpanel-admin --profile production cron list
+.venv/bin/cpanel-admin --profile production cron get-email
+.venv/bin/cpanel-admin --profile production cron set-email --email admin@example.com --dry-run
+```
+
+Cron job command text can contain secrets or sensitive paths, so provide it through standard input
+or a protected `0600` file. Plans and audits include only a fingerprint:
+
+```bash
+printf '%s' '/usr/local/bin/php /home/account/public_html/artisan schedule:run' | \
+  .venv/bin/cpanel-admin --profile production cron add \
+    --minute '*/15' --hour '*' --day '*' --month '*' --weekday '*' \
+    --command-stdin --dry-run
+
+printf '%s' '/usr/local/bin/php /home/account/public_html/artisan schedule:run' | \
+  .venv/bin/cpanel-admin --profile production cron edit \
+    --linekey f32e3d460c179443e5f772359c7954ec \
+    --minute '0' --hour '2' --day '*' --month '*' --weekday '1-5' \
+    --command-stdin --dry-run
+
+.venv/bin/cpanel-admin --profile production cron remove \
+  --linekey f32e3d460c179443e5f772359c7954ec --dry-run
 ```
 
 For cPanel Git repository creation, put the clone source in

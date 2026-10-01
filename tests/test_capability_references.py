@@ -4,6 +4,7 @@ from pathlib import Path
 
 CAPABILITIES = (
     "backups",
+    "cron",
     "databases",
     "diagnostics",
     "domains",

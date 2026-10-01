@@ -72,6 +72,26 @@ Directory creation, path delete/rename/copy/move, chmod, compress, and extract u
 cPanel API 2 Fileman fallback because Fileman UAPI does not expose those actions. Paths must be
 relative and cannot contain `..`. Local upload, certificate, and key files are limited to 10 MiB.
 
+## Cron
+
+```text
+cpanel-admin --profile NAME cron list
+cpanel-admin --profile NAME cron get-email
+cpanel-admin --profile NAME cron set-email --email ADDRESS --dry-run
+cpanel-admin --profile NAME cron add --minute CRON_FIELD --hour CRON_FIELD \
+  --day CRON_FIELD --month CRON_FIELD --weekday CRON_FIELD \
+  --command-stdin --dry-run
+cpanel-admin --profile NAME cron edit --linekey LINEKEY --minute CRON_FIELD \
+  --hour CRON_FIELD --day CRON_FIELD --month CRON_FIELD --weekday CRON_FIELD \
+  --command-stdin --dry-run
+cpanel-admin --profile NAME cron remove --linekey LINEKEY --dry-run
+```
+
+Cron operations use a narrow cPanel API 2 Cron fallback because cPanel documents no UAPI
+equivalents. `cron add` and `cron edit` read command text from standard input with
+`--command-stdin` or from a protected `0600` file with `--command-file`. Plans and audit events
+show only the command fingerprint. Use `cron list` to obtain the `linekey` for edit and remove.
+
 ## SSL
 
 ```text

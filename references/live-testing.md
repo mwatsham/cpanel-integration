@@ -107,8 +107,8 @@ export CPANEL_ADMIN_LIVE_DOMAIN=xhj.833.mytemp.website
 .venv/bin/python -m pytest tests/test_live_cpanel.py::test_live_reversible_lifecycle_execution -m live -v
 ```
 
-Do not add actual live execution for files, SSL, backups, domains, or runtime operations until the
-test has an independent verification and cleanup or rollback path.
+Do not add actual live execution for files, SSL, backups, cron, domains, or runtime operations until
+the test has an independent verification and cleanup or rollback path.
 
 Lifecycle tests append redacted events to `CPANEL_ADMIN_LIVE_REPORT` when it is set. Reports include
 capability, phase, status, resource name, and non-secret details only.

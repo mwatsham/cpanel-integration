@@ -8,7 +8,7 @@ Read this file before any cPanel mutation.
 |---|---|---|
 | Read | Execute when requested | list domains, read a file, list certificates |
 | Mutate | Dry-run first; execute within approved scope | add subdomain, create database, grant privileges |
-| Destructive | Dry-run, explicit user approval, exact confirmation | overwrite file, trash a path, chmod, compress/extract, install/remove SSL, purge trash, delete database or profile |
+| Destructive | Dry-run, explicit user approval, exact confirmation | overwrite file, trash a path, chmod, compress/extract, edit/remove cron jobs, install/remove SSL, purge trash, delete database or profile |
 
 ## Destructive workflow
 
@@ -33,7 +33,8 @@ path, domain, database name, secret content, file content, preflight state, or e
   `CPANEL_ADMIN_FERNET_KEY_FILE`. It must be owned by the current user, be a regular non-symlink
   file, and have mode `0600`.
 - Never store the Fernet master key in `profiles.json`; separation is what protects encrypted tokens.
-- Supply cPanel API tokens and database passwords through standard input.
+- Supply cPanel API tokens, database passwords, and cron command text through standard input or
+  approved protected-file inputs.
 - Supply SSL certificates and private keys through protected local files.
 - Never place secrets in arguments, chat, source, committed `.env` files, fixtures, logs,
   screenshots, shell tracing, or issue reports.
@@ -48,7 +49,11 @@ path, domain, database name, secret content, file content, preflight state, or e
 - The legacy Fileman API 2 fallback can create directories, trash paths, rename/copy/move paths,
   change permissions, compress archives, and extract archives. Use it only when UAPI lacks the
   operation and always review `--dry-run` output first.
+- The legacy Cron API 2 fallback can list cron jobs, read or set cron notification email, and add,
+  edit, or remove crontab entries. Use it only through the fixed `cron` commands. Command text is
+  fingerprinted in plans and audits because it may contain credentials or sensitive paths.
 - Emptying trash and deleting a database have no automatic rollback. Verify an independent backup.
+- Removing a cron job has no automatic rollback. Save the schedule and command before confirming.
 - SSL removal can interrupt HTTPS. Keep the previous certificate, private key, and CA bundle in a
   secure location before replacement or removal.
 - Subdomain removal is not implemented because no reviewed current UAPI replacement is available.

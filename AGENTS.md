@@ -3,7 +3,7 @@
 ## Project Overview
 
 - **Project:** cPanel Integration
-- **Purpose:** Build an Agent Skills-compatible skill that lets AI agents administer individual cPanel accounts through cPanel UAPI, plus a narrow reviewed cPanel API 2 Fileman fallback for file operations missing from UAPI.
+- **Purpose:** Build an Agent Skills-compatible skill that lets AI agents administer individual cPanel accounts through cPanel UAPI, plus narrow reviewed cPanel API 2 Fileman and Cron fallbacks for operations missing from UAPI.
 - **Target users:** Expert web administrators.
 - **Stack:** Python 3.11+.
 - **Status:** MVP implementation complete; verification and live disposable-account testing remain.
@@ -12,10 +12,10 @@
 
 - Support individual cPanel accounts only.
 - Use cPanel UAPI over verified HTTPS on port `2083` by default.
-- Use cPanel API 2 only for the reviewed Fileman fallback commands that have no UAPI equivalent.
+- Use cPanel API 2 only for the reviewed Fileman and Cron fallback commands that have no UAPI equivalent.
 - Use documented API endpoints. Do not automate the cPanel web interface.
 - Support an explicit allowlist for domains, files/directories, SSL, MySQL/MariaDB databases,
-  email, FTP, and PHP/runtime account administration.
+  email, FTP, PHP/runtime account administration, backups, and cron jobs.
 - Reject WHM API calls, root or reseller operations, account provisioning, and server-service administration.
 
 ## Structure
@@ -71,7 +71,7 @@ Do not claim a command works until its configuration exists and the command has 
 ## API Design
 
 - Send UAPI requests to `https://<host>:2083/execute/<Module>/<function>`.
-- Send reviewed Fileman API 2 fallback requests to `https://<host>:2083/json-api/cpanel`.
+- Send reviewed Fileman and Cron API 2 fallback requests to `https://<host>:2083/json-api/cpanel`.
 - Authenticate using the documented `Authorization: cpanel <username>:<token>` request header.
 - Read named profile metadata and encrypted API tokens from the profile configuration.
 - Read the Fernet master key from `CPANEL_ADMIN_FERNET_KEY`, or from the permission-checked key
@@ -92,6 +92,7 @@ Do not claim a command works until its configuration exists and the command has 
   key file with user ownership and mode `0600`; never place it in the profile store.
 - Accept new API tokens through standard input, not command arguments.
 - Redact secrets and sensitive response fields before displaying or logging data.
+- Redact cron command text in dry-run plans and audit records; show only fingerprints.
 - Allow read-only operations without confirmation.
 - Show the exact target and intended effect before any mutation.
 - Require explicit user confirmation immediately before destructive or difficult-to-reverse operations.

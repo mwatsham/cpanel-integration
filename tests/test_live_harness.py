@@ -21,6 +21,7 @@ def test_live_harness_covers_representative_capability_groups() -> None:
         "security.modsec-installed",
         "runtime.php-installed",
         "backups.list",
+        "cron.list",
         "capabilities.inspect",
     }
     assert expected <= commands.keys()
@@ -31,6 +32,7 @@ def test_live_lifecycle_specs_cover_mutable_capability_packs() -> None:
     specs = {spec.capability: spec for spec in test_live_cpanel.LIVE_LIFECYCLE_SPECS}
     expected = {
         "backups",
+        "cron",
         "databases",
         "domains",
         "email",

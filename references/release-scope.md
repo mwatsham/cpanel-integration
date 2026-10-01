@@ -24,6 +24,7 @@ read, run cleanup, and verify cleanup where possible.
 The following packs remain dry-run-only for live mutation coverage in this release:
 
 - backups
+- cron
 - domains
 - files
 - runtime
@@ -35,6 +36,9 @@ cleanup or rollback path is not available in the reviewed allowlist for this rel
 Files now include a narrow cPanel API 2 Fileman fallback for directory creation, path operations,
 permissions, compression, and extraction. Those fallback mutations remain dry-run-only in the
 disposable live suite until archive extraction and path cleanup can be proven safely.
+Cron now includes a narrow cPanel API 2 Cron fallback for job listing, notification email, and
+job add/edit/remove. Cron mutations remain dry-run-only in the disposable live suite until safe
+cleanup and independent verification can be proven without leaving scheduled jobs behind.
 Runtime now includes guarded PHP administration plus cPanel Git repository and deployment-task
 mutations, but those runtime mutations remain dry-run-only in the disposable live suite until
 cleanup and rollback can be proven safely for the test account.
