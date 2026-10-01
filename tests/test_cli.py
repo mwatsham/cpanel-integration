@@ -88,6 +88,33 @@ def add_profile(env: dict[str, str], key: str, token: str = "api-secret") -> Non
     )
 
 
+@pytest.mark.parametrize("action", ["list", "inspect"])
+def test_private_folder_checks_record_path_fingerprint(cli_env, action):
+    import hashlib
+
+    env, key = cli_env
+    add_profile(env, key)
+    target = "public_html/private"
+    transport = FakeTransport([UAPIResponse(data={"exists": True}, warnings=[], messages=[])])
+    code, payload, error = invoke(
+        ["--profile", "test", "files", action, "--path", target],
+        env=env,
+        transport=transport,
+    )
+    assert code == 0, error
+    assert payload["ok"] is True
+    assert transport.calls[0]["parameters"] == {"dir" if action == "list" else "path": target}
+    audit_text = Path(env["CPANEL_ADMIN_CONFIG"]).with_name("audit.jsonl").read_text()
+    assert target not in audit_text
+    event = json.loads(audit_text)
+    assert event["target"] == {
+        "resource": {
+            "bytes": len(target.encode()),
+            "sha256": hashlib.sha256(target.encode()).hexdigest(),
+        }
+    }
+
+
 def test_profile_add_reads_token_from_stdin_and_never_outputs_it(cli_env) -> None:
     env, _ = cli_env
     code, payload, stderr = invoke(

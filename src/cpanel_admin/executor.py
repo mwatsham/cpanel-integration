@@ -18,7 +18,7 @@ from .errors import (
     UAPIError,
     VerificationError,
 )
-from .inputs import ResolvedInputs
+from .inputs import ResolvedInputs, fingerprint
 from .operations import OPERATIONS
 from .planner import DefaultOperationAdapter, ExecutionPlan, OperationPlanner, VerificationResult
 from .policy import PolicyError, PolicyOperation, PolicyRegistry, Risk
@@ -215,6 +215,16 @@ class OperationExecutor:
         error_category: str | None = None,
         verification: VerificationResult | None = None,
     ) -> bool:
+        audit_values = dict(plan.parameters)
+        audit_fields = operation.audit_fields
+        if operation.identity in {"Fileman/list_files", "Fileman/get_file_information"}:
+            # The reviewed API target is named "path", which raw audit records forbid.
+            # Preserve target correlation without recording the filesystem location.
+            path = audit_values.pop("path", None)
+            if not isinstance(path, str):
+                raise PolicyError("File inspection audit target must be a normalized path")
+            audit_values["resource"] = fingerprint(path.encode("utf-8"))
+            audit_fields = tuple("resource" if name == "path" else name for name in audit_fields)
         event = AuditEvent.from_policy(
             timestamp=datetime.now(UTC).isoformat(),
             profile=context.profile.name,
@@ -222,8 +232,8 @@ class OperationExecutor:
             identity=operation.identity,
             risk=operation.risk.value if operation.risk is not None else "unknown",
             confirmed=plan.requires_confirmation,
-            safe_values=plan.parameters,
-            audit_fields=operation.audit_fields,
+            safe_values=audit_values,
+            audit_fields=audit_fields,
             outcome=outcome,
             error_category=error_category,
             verification=verification.category if verification is not None else None,

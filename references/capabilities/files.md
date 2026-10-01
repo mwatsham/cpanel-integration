@@ -47,6 +47,8 @@ cpanel-admin --profile production files empty-trash --older-than 30 --dry-run
 
 ## Safety notes
 
+- File listing and inspection audit records identify the target with a `resource` fingerprint
+  (SHA-256 and byte count), so raw filesystem paths are not written to those records.
 - File writes and uploads can overwrite content. The CLI records preflight metadata but does not
   create an automatic backup.
 - `create-file` and `update-file` are safer aliases for the UAPI `files write` operation.
