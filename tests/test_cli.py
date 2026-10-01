@@ -88,6 +88,35 @@ def add_profile(env: dict[str, str], key: str, token: str = "api-secret") -> Non
     )
 
 
+def test_inspect_hidden_folder_requests_permission_metadata(cli_env):
+    env, key = cli_env
+    add_profile(env, key)
+    transport = FakeTransport([UAPIResponse(data={"mode": "0700"}, warnings=[], messages=[])])
+    code, payload, error = invoke(
+        [
+            "--profile",
+            "test",
+            "files",
+            "inspect",
+            "--path",
+            ".ssh",
+            "--show-hidden",
+            "1",
+            "--include-permissions",
+            "1",
+        ],
+        env=env,
+        transport=transport,
+    )
+    assert code == 0, error
+    assert payload["data"]["mode"] == "0700"
+    assert transport.calls[0]["parameters"] == {
+        "path": ".ssh",
+        "show_hidden": 1,
+        "include_permissions": 1,
+    }
+
+
 @pytest.mark.parametrize("action", ["list", "inspect"])
 def test_private_folder_checks_record_path_fingerprint(cli_env, action):
     import hashlib

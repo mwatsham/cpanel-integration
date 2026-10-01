@@ -5360,6 +5360,28 @@
       "impact": "",
       "name": "files.inspect",
       "parameters": {
+        "include_permissions": {
+          "name": "include_permissions",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "include_permissions",
+          "validator": "integer"
+        },
+        "show_hidden": {
+          "name": "show_hidden",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ],
+          "uapi_name": "show_hidden",
+          "validator": "integer"
+        },
         "path": {
           "name": "path",
           "required": true,

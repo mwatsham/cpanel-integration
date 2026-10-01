@@ -487,7 +487,7 @@ def test_generated_catalog_rejects_fabricated_destructive_policy(tmp_path: Path)
         _load_tampered_catalog(tmp_path, fabricate_destructive)
 
 
-EXPECTED_COMPLETE_POLICY_SHA256 = "8372142ca5a43833bb3e92571c3d03a54d9e162b497d9b1d4fb5a1c4543cdf85"
+EXPECTED_COMPLETE_POLICY_SHA256 = "504d4ac472148e01ac698da32688467dbceb9bb709bcaf2a9a6fffd0f5c52bd7"
 
 
 def _attacker_policy_sha256(value: dict[str, object]) -> str:

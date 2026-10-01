@@ -49,7 +49,7 @@ not provide replacements for the deprecated API 2 operations.
 
 ```text
 cpanel-admin --profile NAME files list --path RELATIVE_PATH
-cpanel-admin --profile NAME files inspect --path RELATIVE_PATH [--include-permissions 1]
+cpanel-admin --profile NAME files inspect --path RELATIVE_PATH [--show-hidden 1] [--include-permissions 1]
 cpanel-admin --profile NAME files read --directory RELATIVE_PATH --filename NAME
 cpanel-admin --profile NAME files write --directory RELATIVE_PATH --filename NAME \
   --content-stdin --dry-run

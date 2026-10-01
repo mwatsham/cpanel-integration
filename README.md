@@ -139,6 +139,7 @@ Global options precede the capability group:
 .venv/bin/cpanel-admin --profile production domains list
 .venv/bin/cpanel-admin --profile production files list --path public_html
 .venv/bin/cpanel-admin --profile production files inspect --path public_html/index.html --include-permissions 1
+.venv/bin/cpanel-admin --profile production files inspect --path .private --show-hidden 1 --include-permissions 1
 .venv/bin/cpanel-admin --profile production files autocomplete --path public_html --dirsonly 1
 .venv/bin/cpanel-admin --profile production files create-file \
   --directory public_html --filename index.html --content-stdin --dry-run

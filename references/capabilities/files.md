@@ -17,6 +17,7 @@ operations, arbitrary API 2 calls, or server-level filesystem changes. See
 ```bash
 cpanel-admin --profile production files list --path public_html
 cpanel-admin --profile production files inspect --path public_html/index.html --include-permissions 1
+cpanel-admin --profile production files inspect --path .private --show-hidden 1 --include-permissions 1
 cpanel-admin --profile production files read --directory public_html --filename index.html
 cpanel-admin --profile production files write --directory public_html --filename index.html --content-stdin --dry-run
 cpanel-admin --profile production files create-file --directory public_html --filename index.html --content-stdin --dry-run
@@ -47,6 +48,11 @@ cpanel-admin --profile production files empty-trash --older-than 30 --dry-run
 
 ## Safety notes
 
+- Hidden targets require `files inspect --show-hidden 1`; `--include-permissions 1` adds
+  owner read/write checks. Both options accept `0` or `1`. Use paths relative to the account
+  home, such as `.private`, not `~/.private`. The hidden-file error means this visibility
+  option is missing, not that filesystem permissions need changing. Inspecting a directory
+  reads its metadata, not its contents, and never changes its permissions.
 - File listing and inspection audit records identify the target with a `resource` fingerprint
   (SHA-256 and byte count), so raw filesystem paths are not written to those records.
 - File writes and uploads can overwrite content. The CLI records preflight metadata but does not
