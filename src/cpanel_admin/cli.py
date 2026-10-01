@@ -297,6 +297,11 @@ def build_parser(registry: PolicyRegistry | None = None) -> argparse.ArgumentPar
     _add_policy_operation_alias(operation_groups, write_operation, "update-file")
     _add_legacy_file_operations(operation_groups)
     _add_legacy_cron_operations(groups, operation_groups)
+    if "software" in operation_groups:
+        software_list = _action_subparsers(operation_groups["software"]).add_parser("list")
+        software_list.set_defaults(
+            operation="runtime.passenger-apps", dry_run=False, confirm=None, expires_at=None
+        )
 
     operations = groups.add_parser("operations", help="discover reviewed operation policy")
     operation_commands = operations.add_subparsers(dest="operations_command", required=True)
@@ -398,7 +403,11 @@ def _execution_result(result: ExecutionResult) -> dict[str, object]:
             "category": result.verification.category,
             "evidence": _json_safe(result.verification.evidence),
         },
-        "summary": f"Completed {result.operation} for {result.profile}",
+        "summary": (
+            f"Started dependency installation for {result.profile}; completion is not yet verified"
+            if result.operation == "software.dependencies"
+            else f"Completed {result.operation} for {result.profile}"
+        ),
     }
 
 

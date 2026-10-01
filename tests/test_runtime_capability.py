@@ -33,13 +33,16 @@ RUNTIME_INCLUDED = {
     "VersionControlDeployment/delete",
     "VersionControlDeployment/retrieve",
 }
-RUNTIME_EXCLUDED = {
-    "PassengerApps/disable_application": "Passenger lifecycle changes need app-state preflight",
-    "PassengerApps/edit_application": "Passenger edits need structured app and env var adapters",
-    "PassengerApps/enable_application": "Passenger lifecycle changes need app-state preflight",
-    "PassengerApps/ensure_deps": "dependency installation can execute package manager code",
-    "PassengerApps/register_application": "Passenger registration needs path and env var adapters",
-    "PassengerApps/unregister_application": "Passenger removal needs app-state preflight",
+SOFTWARE_INCLUDED = {
+    f"PassengerApps/{function}"
+    for function in (
+        "disable_application",
+        "edit_application",
+        "enable_application",
+        "ensure_deps",
+        "register_application",
+        "unregister_application",
+    )
 }
 
 
@@ -85,5 +88,4 @@ def test_runtime_policy_matches_review() -> None:
     )
     assert subject.get("runtime.deployment-delete").risk is Risk.MUTATE
     assert subject.get("runtime.deployment-delete").elevated_impact is True
-    for identity, reason in RUNTIME_EXCLUDED.items():
-        assert subject.exclusion(identity).reason == reason
+    assert subject.included_identities("software") == SOFTWARE_INCLUDED

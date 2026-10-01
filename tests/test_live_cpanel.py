@@ -220,6 +220,7 @@ LIVE_COMMANDS: tuple[LiveCommand, ...] = (
     LiveCommand("diagnostics.quota", ("diagnostics", "quota")),
     LiveCommand("security.modsec-installed", ("security", "modsec-installed")),
     LiveCommand("runtime.php-installed", ("runtime", "php-installed")),
+    LiveCommand("software.list", ("software", "list")),
     LiveCommand("backups.list", ("backups", "list")),
     LiveCommand("cron.list", ("cron", "list")),
     LiveCommand("capabilities.inspect", ("capabilities", "inspect")),

@@ -568,7 +568,10 @@ def test_authoritative_contract_covers_every_current_secret_bearing_mvp_input() 
         for name, parameter in operation.parameters.items()
         if parameter.secret
     }
-    assert actual == set(PROTECTED_MVP_INPUTS)
+    assert actual == set(PROTECTED_MVP_INPUTS) | {
+        ("PassengerApps/register_application", "environment"),
+        ("PassengerApps/edit_application", "environment"),
+    }
 
 
 def policy_with_unreviewed_fourth_secret() -> dict[str, object]:

@@ -3,6 +3,13 @@
 All website operations require global `--profile NAME`. Global options must precede the capability
 group. Use `--timeout SECONDS` from 1 to 120 when needed. Every mutation accepts `--dry-run`.
 
+## Software
+
+Use `software list`, `register`, `edit`, `enable`, `disable`, `unregister`, and `dependencies`.
+All mutations use `--dry-run` and require confirmation. See
+[the software reference](capabilities/software.md) for exact options, protected environment input,
+application-state checks, and asynchronous dependency job handling.
+
 ## Profiles
 
 ```text

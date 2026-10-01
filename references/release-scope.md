@@ -6,6 +6,10 @@ is intentionally stricter than the product capability policy.
 
 ## Actual live execution
 
+Software application mutations are covered by mocked CLI and verification tests. They have not
+been executed against a disposable live account. The opt-in read suite includes application
+inventory. Dependency installs can run package scripts and need a separately reviewed live fixture.
+
 The disposable-account live suite executes reversible lifecycles for capability packs that have a
 clear cleanup or rollback path:
 

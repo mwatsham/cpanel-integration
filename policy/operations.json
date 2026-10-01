@@ -7935,68 +7935,224 @@
       "verification": null
     },
     "PassengerApps/disable_application": {
-      "audit_fields": [],
-      "capability": "runtime",
-      "command": [],
-      "elevated_impact": false,
+      "audit_fields": [
+        "name"
+      ],
+      "capability": "software",
+      "command": [
+        "software",
+        "disable"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "PassengerApps/disable_application",
-      "parameters": {},
+      "impact": "Disable the application; its website becomes unavailable.",
+      "name": "software.disable",
+      "parameters": {
+        "name": {
+          "name": "name",
+          "uapi_name": "name",
+          "validator": "application_name",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ]
+        }
+      },
       "preflight": null,
-      "reason": "Passenger lifecycle changes need app-state preflight",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
-      "verification": null
+      "reason": "Reviewed Passenger operation with application-state preflight and confirmation",
+      "recovery": "Restore the previous application registration and configuration from an operator-maintained record.",
+      "risk": "mutate",
+      "status": "included",
+      "verification": "PassengerApps/list_applications"
     },
     "PassengerApps/edit_application": {
-      "audit_fields": [],
-      "capability": "runtime",
-      "command": [],
-      "elevated_impact": false,
+      "audit_fields": [
+        "name"
+      ],
+      "capability": "software",
+      "command": [
+        "software",
+        "edit"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "PassengerApps/edit_application",
-      "parameters": {},
+      "impact": "Change application settings. Supplied environment variables replace all existing variables.",
+      "name": "software.edit",
+      "parameters": {
+        "name": {
+          "name": "name",
+          "uapi_name": "name",
+          "validator": "application_name",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ]
+        },
+        "new_name": {
+          "name": "new_name",
+          "uapi_name": "new_name",
+          "validator": "application_name",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ]
+        },
+        "path": {
+          "name": "path",
+          "uapi_name": "path",
+          "validator": "absolute_path",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ]
+        },
+        "domain": {
+          "name": "domain",
+          "uapi_name": "domain",
+          "validator": "domain",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ]
+        },
+        "deployment_mode": {
+          "name": "deployment_mode",
+          "uapi_name": "deployment_mode",
+          "validator": "enum",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ]
+        },
+        "enabled": {
+          "name": "enabled",
+          "uapi_name": "enabled",
+          "validator": "boolean",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ]
+        },
+        "clear_envvars": {
+          "name": "clear_envvars",
+          "uapi_name": "clear_envvars",
+          "validator": "boolean",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ]
+        },
+        "environment": {
+          "name": "environment",
+          "uapi_name": "envvar_value",
+          "validator": "application_environment",
+          "required": false,
+          "secret": true,
+          "sensitive_output": true,
+          "sources": [
+            "protected_file"
+          ]
+        }
+      },
       "preflight": null,
-      "reason": "Passenger edits need structured app and env var adapters",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
-      "verification": null
+      "reason": "Reviewed Passenger operation with application-state preflight and confirmation",
+      "recovery": "Restore the previous application registration and configuration from an operator-maintained record.",
+      "risk": "mutate",
+      "status": "included",
+      "verification": "PassengerApps/list_applications"
     },
     "PassengerApps/enable_application": {
-      "audit_fields": [],
-      "capability": "runtime",
-      "command": [],
-      "elevated_impact": false,
+      "audit_fields": [
+        "name"
+      ],
+      "capability": "software",
+      "command": [
+        "software",
+        "enable"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "PassengerApps/enable_application",
-      "parameters": {},
+      "impact": "Enable the application and its web server configuration.",
+      "name": "software.enable",
+      "parameters": {
+        "name": {
+          "name": "name",
+          "uapi_name": "name",
+          "validator": "application_name",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ]
+        }
+      },
       "preflight": null,
-      "reason": "Passenger lifecycle changes need app-state preflight",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
-      "verification": null
+      "reason": "Reviewed Passenger operation with application-state preflight and confirmation",
+      "recovery": "Restore the previous application registration and configuration from an operator-maintained record.",
+      "risk": "mutate",
+      "status": "included",
+      "verification": "PassengerApps/list_applications"
     },
     "PassengerApps/ensure_deps": {
-      "audit_fields": [],
-      "capability": "runtime",
-      "command": [],
-      "elevated_impact": false,
+      "audit_fields": [
+        "type"
+      ],
+      "capability": "software",
+      "command": [
+        "software",
+        "dependencies"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "PassengerApps/ensure_deps",
-      "parameters": {},
+      "impact": "Start installing application dependencies. Package installation scripts execute as this account.",
+      "name": "software.dependencies",
+      "parameters": {
+        "app_path": {
+          "name": "app_path",
+          "uapi_name": "app_path",
+          "validator": "absolute_path",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ]
+        },
+        "type": {
+          "name": "type",
+          "uapi_name": "type",
+          "validator": "enum",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ]
+        }
+      },
       "preflight": null,
-      "reason": "dependency installation can execute package manager code",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
-      "verification": null
+      "reason": "Reviewed Passenger operation with application-state preflight and confirmation",
+      "recovery": "Restore application files and dependencies from an operator-maintained backup; package scripts may have other side effects.",
+      "risk": "mutate",
+      "status": "included",
+      "verification": "PassengerApps/list_applications"
     },
     "PassengerApps/list_applications": {
       "audit_fields": [],
@@ -8018,36 +8174,136 @@
       "verification": null
     },
     "PassengerApps/register_application": {
-      "audit_fields": [],
-      "capability": "runtime",
-      "command": [],
-      "elevated_impact": false,
+      "audit_fields": [
+        "name"
+      ],
+      "capability": "software",
+      "command": [
+        "software",
+        "register"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "PassengerApps/register_application",
-      "parameters": {},
+      "impact": "Register an existing application directory and generate its web configuration.",
+      "name": "software.register",
+      "parameters": {
+        "name": {
+          "name": "name",
+          "uapi_name": "name",
+          "validator": "application_name",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ]
+        },
+        "path": {
+          "name": "path",
+          "uapi_name": "path",
+          "validator": "application_path",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ]
+        },
+        "domain": {
+          "name": "domain",
+          "uapi_name": "domain",
+          "validator": "domain",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ]
+        },
+        "base_uri": {
+          "name": "base_uri",
+          "uapi_name": "base_uri",
+          "validator": "application_uri",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ]
+        },
+        "deployment_mode": {
+          "name": "deployment_mode",
+          "uapi_name": "deployment_mode",
+          "validator": "enum",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ]
+        },
+        "enabled": {
+          "name": "enabled",
+          "uapi_name": "enabled",
+          "validator": "boolean",
+          "required": false,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ]
+        },
+        "environment": {
+          "name": "environment",
+          "uapi_name": "envvar_value",
+          "validator": "application_environment",
+          "required": false,
+          "secret": true,
+          "sensitive_output": true,
+          "sources": [
+            "protected_file"
+          ]
+        }
+      },
       "preflight": null,
-      "reason": "Passenger registration needs path and env var adapters",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
-      "verification": null
+      "reason": "Reviewed Passenger operation with application-state preflight and confirmation",
+      "recovery": "Restore the previous application registration and configuration from an operator-maintained record.",
+      "risk": "mutate",
+      "status": "included",
+      "verification": "PassengerApps/list_applications"
     },
     "PassengerApps/unregister_application": {
-      "audit_fields": [],
-      "capability": "runtime",
-      "command": [],
-      "elevated_impact": false,
+      "audit_fields": [
+        "name"
+      ],
+      "capability": "software",
+      "command": [
+        "software",
+        "unregister"
+      ],
+      "elevated_impact": true,
       "feature": null,
-      "impact": "",
-      "name": "PassengerApps/unregister_application",
-      "parameters": {},
+      "impact": "Remove the application registration and web configuration; application files remain.",
+      "name": "software.unregister",
+      "parameters": {
+        "name": {
+          "name": "name",
+          "uapi_name": "name",
+          "validator": "application_name",
+          "required": true,
+          "secret": false,
+          "sensitive_output": false,
+          "sources": [
+            "argument"
+          ]
+        }
+      },
       "preflight": null,
-      "reason": "Passenger removal needs app-state preflight",
-      "recovery": "",
-      "risk": null,
-      "status": "excluded",
-      "verification": null
+      "reason": "Reviewed Passenger operation with application-state preflight and confirmation",
+      "recovery": "Restore the previous application registration and configuration from an operator-maintained record.",
+      "risk": "destructive",
+      "status": "included",
+      "verification": "PassengerApps/list_applications"
     },
     "Quota/get_local_quota_info": {
       "audit_fields": [],

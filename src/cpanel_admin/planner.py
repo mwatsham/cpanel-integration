@@ -270,7 +270,6 @@ class DefaultOperationAdapter:
     def to_uapi(
         self, operation: PolicyOperation, inputs: ResolvedInputs, preflight: JsonValue
     ) -> dict[str, object]:
-        del preflight
         _validate_resolved_inputs(operation, inputs)
         result: dict[str, object] = {}
         for name, parameter in operation.parameters.items():
@@ -282,6 +281,10 @@ class DefaultOperationAdapter:
             if parameter.sources[0] is InputSource.JSON_FILE:
                 value = json.dumps(value, sort_keys=True, separators=(",", ":"))
             result[parameter.uapi_name] = value
+        if operation.capability == "software":
+            from .software import parameters
+
+            result = parameters(operation, inputs, preflight, result)
         return result
 
     def verify(
@@ -291,6 +294,10 @@ class DefaultOperationAdapter:
         inputs: ResolvedInputs,
         response: object,
     ) -> VerificationResult:
+        if operation.capability == "software":
+            from .software import verify
+
+            return verify(context, operation, inputs, response)
         del context, inputs, response
         if operation.verification is None:
             return VerificationResult(True, "not_available", {})
@@ -385,7 +392,11 @@ class OperationPlanner:
         profile, account = self._context_identity(context)
         values, secrets = _canonical_public_inputs(operation, inputs)
         preflight: JsonValue = None
-        if operation.name in {"files.write", "files.upload"}:
+        if operation.capability == "software":
+            from .software import preflight as software_preflight
+
+            preflight = software_preflight(context, operation, inputs)
+        elif operation.name in {"files.write", "files.upload"}:
             preflight = _safe_value(_file_preflight(context, operation, inputs), secrets=secrets)
         elif operation.preflight is not None:
             adapter = self._preflight_adapter(operation)

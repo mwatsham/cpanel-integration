@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 SENSITIVE_KEYS = {
+    "envvars",
+    "envvar_value",
     "token",
     "api_token",
     "password",

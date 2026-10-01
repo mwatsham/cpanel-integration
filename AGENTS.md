@@ -15,7 +15,7 @@
 - Use cPanel API 2 only for the reviewed Fileman and Cron fallback commands that have no UAPI equivalent.
 - Use documented API endpoints. Do not automate the cPanel web interface.
 - Support an explicit allowlist for domains, files/directories, SSL, MySQL/MariaDB databases,
-  email, FTP, PHP/runtime account administration, backups, and cron jobs.
+  email, FTP, PHP/runtime account administration, Passenger software management, backups, and cron jobs.
 - Reject WHM API calls, root or reseller operations, account provisioning, and server-service administration.
 
 ## Structure
@@ -93,6 +93,8 @@ Do not claim a command works until its configuration exists and the command has 
 - Accept new API tokens through standard input, not command arguments.
 - Redact secrets and sensitive response fields before displaying or logging data.
 - Redact cron command text in dry-run plans and audit records; show only fingerprints.
+- Bind software mutations to application-state preflight. Protect and redact application environment
+  values. Dependency installation requires confirmation and reports job start, not completion.
 - Allow read-only operations without confirmation.
 - Show the exact target and intended effect before any mutation.
 - Require explicit user confirmation immediately before destructive or difficult-to-reverse operations.

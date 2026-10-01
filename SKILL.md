@@ -1,6 +1,6 @@
 ---
 name: cpanel-integration
-description: Safely administer individual cPanel accounts through documented UAPI operations and narrow reviewed cPanel API 2 Fileman and Cron fallbacks for domains, files and directories, cron jobs, SSL certificates, MySQL or MariaDB databases, email, FTP accounts, diagnostics, security controls, PHP/runtime operations, guarded Git repository deployments, and backups. Use when Codex needs to inspect or change website resources, create/update/delete files or directories, manage permissions, compress/extract archives, manage cron jobs, directory privacy/indexing, mailboxes, FTP users, quotas, resource usage, IP blocks, ModSecurity, PHP versions/configuration, cPanel Git repositories, backups, passwords, routing, SPF, or DKIM in cPanel. Do not use for WHM, root, reseller, account provisioning, server-wide administration, browser automation, anonymous FTP changes, restore execution, shell Git commands, arbitrary UAPI calls, or arbitrary API 2 calls.
+description: Administer individual cPanel accounts through reviewed UAPI operations and narrow API 2 Fileman/Cron fallbacks. Use for domains, files and permissions, archives, cron jobs, SSL, databases, email, FTP, diagnostics, account security, PHP settings, Passenger application lifecycle and npm/pip/gem dependencies, cPanel Git deployments, and backups. Uses encrypted named profiles, dry-run plans, protected secret input, and confirmation for high-impact changes. Excludes WHM, root/reseller administration, account provisioning, browser automation, restore execution, shell Git, standalone package installers, arbitrary UAPI calls, and arbitrary API 2 calls.
 ---
 
 # Administer an individual cPanel account
@@ -34,6 +34,11 @@ through the fixed Fileman and Cron fallback commands documented here.
   management.
 - Use backup commands only for reviewed backup listing, home-directory full-backup initiation, and
   backup metadata reads. Do not execute restores or remote-destination backups.
+- Use [software commands](references/capabilities/software.md) for Passenger application
+  registration, edits, enable/disable, unregistration, and npm/pip/gem dependencies. Every mutation
+  requires confirmation. Environment updates use `--environment-file` with a protected `0600`
+  JSON file and replace all existing environment variables. Report dependency jobs as started,
+  not completed, until their outcome has been checked.
 - Use cron commands only for reviewed job listing, notification email, and job add/edit/remove
   operations. Do not use them for arbitrary local shell execution or WHM/root crontabs.
 - Run `--dry-run` before every mutation so the target, normalized parameters, impact, and recovery

@@ -4,8 +4,8 @@
 
 - Source UAPI version: `11.136.0.25`
 - Source SHA-256: `3d9ec80cd8d774312c4bb6b0dfdbc17e6e6ffc92a8f0c2cd88f01e32864fa2c6`
-- Included operations: 214
-- Excluded operations: 179
+- Included operations: 220
+- Excluded operations: 173
 
 The local allowlist is an application safeguard, not a substitute for cPanel account permissions. This catalog does not provide arbitrary UAPI passthrough.
 
@@ -304,13 +304,13 @@ The local allowlist is an application safeguard, not a substitute for cPanel acc
 | `NginxCaching/disable_cache` | included | runtime | mutate | reviewed runtime operation |
 | `NginxCaching/enable_cache` | included | runtime | mutate | reviewed runtime operation |
 | `NginxCaching/reset_cache_config` | included | runtime | mutate | reviewed runtime operation |
-| `PassengerApps/disable_application` | excluded | runtime | - | Passenger lifecycle changes need app-state preflight |
-| `PassengerApps/edit_application` | excluded | runtime | - | Passenger edits need structured app and env var adapters |
-| `PassengerApps/enable_application` | excluded | runtime | - | Passenger lifecycle changes need app-state preflight |
-| `PassengerApps/ensure_deps` | excluded | runtime | - | dependency installation can execute package manager code |
+| `PassengerApps/disable_application` | included | software | mutate | Reviewed Passenger operation with application-state preflight and confirmation |
+| `PassengerApps/edit_application` | included | software | mutate | Reviewed Passenger operation with application-state preflight and confirmation |
+| `PassengerApps/enable_application` | included | software | mutate | Reviewed Passenger operation with application-state preflight and confirmation |
+| `PassengerApps/ensure_deps` | included | software | mutate | Reviewed Passenger operation with application-state preflight and confirmation |
 | `PassengerApps/list_applications` | included | runtime | read | reviewed runtime read operation |
-| `PassengerApps/register_application` | excluded | runtime | - | Passenger registration needs path and env var adapters |
-| `PassengerApps/unregister_application` | excluded | runtime | - | Passenger removal needs app-state preflight |
+| `PassengerApps/register_application` | included | software | mutate | Reviewed Passenger operation with application-state preflight and confirmation |
+| `PassengerApps/unregister_application` | included | software | destructive | Reviewed Passenger operation with application-state preflight and confirmation |
 | `Quota/get_local_quota_info` | included | diagnostics | read | reviewed account diagnostics read operation |
 | `Quota/get_quota_info` | included | diagnostics | read | reviewed account diagnostics read operation |
 | `ResourceUsage/get_usages` | included | diagnostics | read | reviewed account diagnostics read operation |

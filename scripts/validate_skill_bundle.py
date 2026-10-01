@@ -18,6 +18,7 @@ CAPABILITIES = (
     "ftp",
     "runtime",
     "security",
+    "software",
     "ssl",
 )
 

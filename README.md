@@ -10,7 +10,7 @@ profiles, structured JSON, and operation-bound confirmation for destructive acti
 The skill supports domains, account files and directories, SSL certificates, MySQL/MariaDB
 databases, reviewed email administration, reviewed FTP account administration, read-only account
 diagnostics, reviewed cPanel account security controls, reviewed runtime/site operations, and
-guarded backup and cron operations.
+guarded backup, cron, and Passenger software operations.
 Email support covers mailbox accounts, quotas, passwords, forwarders, autoresponders, filter state,
 spam controls, MX routing, SPF, and DKIM. FTP support covers account listing, creation, deletion,
 passwords, quotas, home directories, sessions, server information, and welcome messages.
@@ -26,8 +26,28 @@ create-directory, delete-path, rename/copy/move, chmod, compress, and extract, p
 fallback for documented Cron functions with no UAPI equivalents. It does not support WHM, root or
 reseller administration, account provisioning, server settings, browser automation, other
 deprecated API 2 calls, anonymous FTP configuration changes, diagnostics setting changes, malware
-disinfection, secret token export, Passenger app lifecycle changes, arbitrary shell Git commands,
+disinfection, secret token export, arbitrary shell Git commands,
 remote backup destinations, restore execution, or arbitrary UAPI/API calls.
+
+## Software management
+
+Use `software list`, `register`, `edit`, `enable`, `disable`, and `unregister` to manage Passenger
+applications. Use `software dependencies` to start npm, pip, or Ruby Gem dependency installation
+from an application's existing manifest. Existing `runtime php-*` commands manage PHP.
+
+```bash
+cpanel-admin --profile staging software list
+cpanel-admin --profile staging software register --name my-app \
+  --domain app.example.com --path apps/my-app --dry-run
+cpanel-admin --profile staging software dependencies \
+  --app-path /home/account/apps/my-app --type npm --dry-run
+```
+
+All software changes require the plan's confirmation digest and expiry. Environment settings come
+from a protected JSON file. Dependency installation is asynchronous and may execute package scripts;
+a successful request means the job started, not that installation finished. Hosting-provider
+support is required. Standalone PEAR/CPAN packages and runtime binary installation are not supported.
+See [the software guide](references/capabilities/software.md) for commands, paths, and recovery notes.
 
 ## Install
 

@@ -502,5 +502,7 @@ class InputResolver:
                 safe_values[parameter.name] = cast(JsonValue, normalized)
             if parameter.secret:
                 secrets.append(str(normalized))
+                if parameter.validator == "application_environment":
+                    secrets.extend(json.loads(str(normalized)).values())
 
         return ResolvedInputs(values, safe_values, uploads, tuple(secrets))

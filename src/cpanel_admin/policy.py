@@ -69,7 +69,7 @@ EXPECTED_CANDIDATE_OPERATIONS = 393
 EXPECTED_CANDIDATE_IDENTITY_SHA256 = (
     "834c8bd9c048d93e9089fd22a7c569d4923cc8a5c9ecbc4172123ec2276a6ecb"
 )
-EXPECTED_POLICY_SHA256 = "9055004edc7df06957e958853cd2b4ec6793dcb9ea707c58b4fcb7c5066f62ef"
+EXPECTED_POLICY_SHA256 = "8372142ca5a43833bb3e92571c3d03a54d9e162b497d9b1d4fb5a1c4543cdf85"
 
 _PROTECTED_SECRET_SOURCES = frozenset(
     {
@@ -200,6 +200,18 @@ class _FrozenDict(dict[_KeyT, _ValueT]):
 _PROTECTED_INPUT_CONTRACTS = MappingProxyType(
     dict(
         {
+            **{
+                (f"PassengerApps/{function}", "environment"): PolicyParameter(
+                    name="environment",
+                    uapi_name="envvar_value",
+                    sources=(InputSource.PROTECTED_FILE,),
+                    validator="application_environment",
+                    required=False,
+                    secret=True,
+                    sensitive_output=True,
+                )
+                for function in ("register_application", "edit_application")
+            },
             ("Fileman/save_file_content", "content"): PolicyParameter(
                 name="content",
                 uapi_name="content",

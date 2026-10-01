@@ -17,6 +17,7 @@ from urllib.parse import urlsplit
 
 from .errors import CapabilityError, UsageError
 from .policy import PolicyError
+from .software import application_name, base_uri, environment_json, relative_application_path
 
 MAX_TEXT_BYTES = 10 * 1024 * 1024
 MAX_PEM_BYTES = 1024 * 1024
@@ -537,6 +538,10 @@ def _unsupported_cron(_value: object) -> object:
 
 Validator = Callable[[object], object]
 _VALIDATOR_FUNCTIONS: dict[str, Validator] = {
+    "application_name": application_name,
+    "application_path": relative_application_path,
+    "application_uri": base_uri,
+    "application_environment": environment_json,
     "absolute_path": _absolute_path,
     "boolean": _boolean,
     "bounded_text": lambda item: _bounded_text(item, label="Text", maximum=MAX_TEXT_BYTES),

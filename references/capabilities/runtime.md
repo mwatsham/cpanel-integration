@@ -7,7 +7,8 @@ versions and user PHP configuration, manage reviewed NGINX cache controls, list 
 manage reviewed cPanel Git repository mappings, and inspect or manage Git deployment tasks for one
 cPanel account.
 
-Do not use it for Passenger app lifecycle changes, arbitrary shell Git commands, cron
+Use [software.md](software.md) for Passenger app lifecycle and dependency changes.
+Do not use it for arbitrary shell Git commands, cron
 administration, WordPress Toolkit, Sitejet, or server runtime administration. See
 `references/operation-support.md` for the exact included and excluded runtime operations.
 
@@ -53,6 +54,6 @@ cpanel-admin --profile production runtime nginx-clear-cache --dry-run
   `{"remote_name": "origin"}` for update. Pass the checked-out branch with `--branch` on update.
 - Do not paste repository credentials into chat. If a private repository needs credentials, use a
   provider-side deploy key or cPanel-supported credential mechanism outside this skill.
-- Passenger support is intentionally read-oriented in this skill.
+- Passenger mutations are available through the separate `software` commands.
 - Confirm cache impact before clearing or toggling cache on busy sites.
 - The authoritative support matrix is `references/operation-support.md`.
