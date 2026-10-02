@@ -11,6 +11,32 @@ and `/usr/bin/selectorctl` available to the account. CloudLinux documents end-us
 CageFS from version **7.6.17** onward. Older or restricted hosts may require provider assistance.
 No sudo or root fallback is provided.
 
+## Provider limitation: 123 Reg domain isolation
+
+When the account's PHP Selector reports that site isolation has been denied by the server
+administrator, report: **Per-domain PHP isolation is unavailable on this account. PHP Selector
+versions, extensions, and supported options are managed globally for the cPanel account.**
+This is the confirmed configuration of the user's current 123 Reg account, not a claim about
+every 123 Reg plan. Reassess only when fresh account evidence or the provider confirms a change.
+
+- For a site-only request, explain the shared scope before proposing any change. Do not silently
+  substitute account-wide extension or option changes. Obtain explicit approval for that broader
+  impact and the normal mutation confirmation.
+- A provider-documented `.htaccess` handler can select an interpreter for a directory; it does not
+  establish independent PHP extensions or configuration. Do not offer it as a workaround for
+  dependency isolation, or change `.htaccess` merely to satisfy an isolation request.
+- Composer libraries can remain project-local, but their PHP runtime and extension requirements
+  still depend on the hosting configuration. Do not describe project-local libraries as isolated
+  PHP runtimes.
+- A `multiphp_ini_editor` feature denial is separate from PHP Selector isolation. Report it as a
+  provider-controlled capability restriction, not an authentication or file-permission failure.
+- Independent per-domain PHP environments require provider-enabled isolation or a separate
+  hosting account/environment. The CLI currently supports only account-level Selector commands;
+  provider enablement alone does not add domain-scoped commands to this skill.
+
+Sources: [CloudLinux per-domain isolation](https://docs.cloudlinux.com/cloudlinuxos/isolates/),
+[123 Reg per-directory PHP handlers](https://www.123-reg.co.uk/help/set-up-multiple-php-versions-for-linux-hosting-42229).
+
 ## Configure SSH
 
 ```bash

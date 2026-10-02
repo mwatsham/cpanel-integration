@@ -40,6 +40,10 @@ substitute direct SSH commands, sudo, root access, or alternative selector execu
 - Use `php-selector` for CloudLinux PHP versions, extension toggles, and the guide's reviewed
   non-secret options. Run a dry run and obtain confirmation for every mutation. Changes affect
   the account; verify the website separately when its PHP handler might differ.
+- For 123 Reg accounts with provider-disabled domain isolation, report per-site PHP isolation as
+  unavailable and PHP Selector settings as account-global. Follow the provider limitation in
+  [the PHP Selector guide](references/capabilities/php-selector.md); a site-only request does not
+  authorize account-wide changes, and an `.htaccess` version handler is not dependency isolation.
 - Use backup commands only for reviewed backup listing, home-directory full-backup initiation, and
   backup metadata reads. Do not execute restores or remote-destination backups.
 - Use [software commands](references/capabilities/software.md) for Passenger application

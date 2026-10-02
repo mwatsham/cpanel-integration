@@ -48,6 +48,11 @@ Trust the server's host key using a fingerprint verified with your provider befo
 All mutations require confirmation and are followed by a state check.
 See [PHP Selector setup and commands](references/capabilities/php-selector.md).
 
+For 123 Reg accounts where the provider disables site isolation, per-domain PHP isolation is
+unavailable. PHP Selector versions, extensions, and options are account-global; a site-only request
+must not silently change other sites. An `.htaccess` version handler does not isolate dependencies.
+This limitation is confirmed for the current account, not assumed for every provider plan.
+
 ### Passenger applications
 
 Use `software list`, `register`, `edit`, `enable`, `disable`, and `unregister` to manage Passenger

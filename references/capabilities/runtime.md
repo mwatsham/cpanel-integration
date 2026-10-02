@@ -8,6 +8,9 @@ manage reviewed cPanel Git repository mappings, and inspect or manage Git deploy
 cPanel account.
 
 Use [software.md](software.md) for Passenger app lifecycle and dependency changes.
+For provider-disabled MultiPHP INI Editor or 123 Reg domain isolation, consult the
+[PHP Selector provider limitation](php-selector.md#provider-limitation-123-reg-domain-isolation).
+Do not treat account-global Selector changes as a substitute for a requested site-only change.
 Do not use it for arbitrary shell Git commands, cron
 administration, WordPress Toolkit, Sitejet, or server runtime administration. See
 `references/operation-support.md` for the exact included and excluded runtime operations.
